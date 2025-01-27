@@ -43,8 +43,13 @@ def create_tramite(request):
             accion='crear',
             antiguoValor='',
             nuevoValor=str(serializer.data),
+            idTramite= tramite.id
         )
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        # Incluir el idTramite en la respuesta
+        response_data = serializer.data
+        response_data['idTramite'] = tramite.id
+
+        return Response(response_data, status=status.HTTP_201_CREATED)
     
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

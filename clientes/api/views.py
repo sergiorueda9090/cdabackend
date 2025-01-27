@@ -2,9 +2,12 @@ from django.http                import JsonResponse
 from rest_framework.decorators  import api_view, permission_classes
 from rest_framework             import status
 from clientes.models            import Cliente, PrecioLey
+from generadortoken.models      import GeneradorToken  # Importar el modelo del token
 from .serializers               import ClienteSerializer, PrecioLeySerializer
 from rest_framework.permissions import IsAuthenticated
 import json
+import random  # Para generar el token
+
 # Obtener todos los clientes
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -225,3 +228,40 @@ def delete_cliente(request, pk):
 
         cliente.delete()
         return JsonResponse({'message': 'Cliente eliminado correctamente'}, status=status.HTTP_204_NO_CONTENT)
+
+
+
+@api_view(['POST'])
+def verificar_cliente_y_generar_token(request):
+    identificacion = request.data.get("identificacion", None)
+    if not identificacion:
+        return JsonResponse(
+            {"error": "El número de identificación es requerido."},status=status.HTTP_201_CREATED
+        )
+    
+    try:
+        cliente = Cliente.objects.get(telefono=identificacion)
+        token = f"{random.randint(100000, 999999)}"  # Generar un token de 6 dígitos
+        
+        # Guardar el token en la base de datos
+        GeneradorToken.objects.create(
+            identificacion=identificacion,
+            token=token
+        )
+        dataCliente = ClienteSerializer(cliente).data
+ 
+        return JsonResponse(
+            {
+                "message"   : "Cliente encontrado.",
+                "id"        : dataCliente['id'],
+                "nombre"    : dataCliente['nombre'],
+                "apellidos" : dataCliente['apellidos'],
+                "token"     : token
+            },
+            status=status.HTTP_200_OK
+        )
+    except Cliente.DoesNotExist:
+        return JsonResponse(
+            {"error": "Cliente no encontrado."},
+            status=status.HTTP_201_CREATED
+        )
