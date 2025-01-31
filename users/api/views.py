@@ -1,10 +1,11 @@
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from rest_framework import status
-from django.shortcuts import get_object_or_404
-from users.models import User
-from .serializers import UserSerializer
+from rest_framework.decorators      import api_view, permission_classes, parser_classes
+from rest_framework.parsers         import MultiPartParser, FormParser
+from rest_framework.permissions     import IsAuthenticated
+from rest_framework.response        import Response
+from rest_framework                 import status
+from django.shortcuts               import get_object_or_404
+from users.models                   import User
+from .serializers                   import UserSerializer
 
 # GET: Listar usuarios o detalle por ID
 @api_view(['GET'])
@@ -25,6 +26,7 @@ def get_users(request, user_id=None):
 # POST: Crear usuario
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser])  # Permitir archivos
 def create_user(request):
     print(request.data)
     serializer = UserSerializer(data=request.data)

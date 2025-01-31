@@ -55,6 +55,7 @@ urlpatterns = [
    path('auth/refresh/',        TokenRefreshView.as_view()                      , name='token_refresh'),
    path('users/',               include('users.api.urls')                       , name="users"),
    path('clientes/',            include('clientes.api.urls')                    , name="clientes"),
+   path('cotizador/',           include('cotizador.api.urls')                   , name="cotizador"),
    path('tramites/',            include('tramites.api.urls')                    , name="tramites")
 ]
 

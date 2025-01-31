@@ -47,7 +47,8 @@ INSTALLED_APPS = [
     'clientes',
     'tramites',
     'whatsapp',
-    'generadortoken'
+    'generadortoken',
+    'cotizador',
 ]
 
 MIDDLEWARE = [

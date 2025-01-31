@@ -66,6 +66,9 @@ def get_tramites(request):
         # Obtener el usuario relacionado
         usuario = get_object_or_404(User, id=tramite.idUsuario)
         
+        # Obtener la URL de la imagen del usuario si existe
+        imagen_url = usuario.image.url if usuario.image else None
+
         # Obtener el cliente relacionado
         cliente = get_object_or_404(Cliente, id=tramite.idCliente)
 
@@ -75,6 +78,7 @@ def get_tramites(request):
         # Agregar información del cliente y usuario al trámite
         tramite_data = tramite_serializer.data
         tramite_data['nombre_usuario'] = usuario.username
+        tramite_data['image_usuario']  = imagen_url  # Ahora es una URL o None
         tramite_data['nombre_cliente'] = cliente.nombre
 
         # Añadir al listado de datos
