@@ -23,10 +23,10 @@ class Cotizador(models.Model):
     pdf              = models.FileField(upload_to='media/pdfs/', null=True, blank=True)
     archivo          = models.ImageField(upload_to='cotizador_confirm_price/', null=True, blank=True)  # Imagen opcional
     fechaCreacion    = models.DateTimeField(default=now)  # Almacena la fecha de creación automáticamente
-    cotizadorModulo             = models.CharField(max_length=1, default=1)  # Por defecto 1
-    tramiteModulo               = models.CharField(max_length=1, default=0)  # Por defecto 0
-    confirmacionPreciosModulo   = models.CharField(max_length=1, default=0)  # Por defecto 0
-    pdfsModulo                  = models.CharField(max_length=1, default=0)  # Por defecto 0
+    cotizadorModulo             = models.CharField(max_length=1, default="1")  # Por defecto 1
+    tramiteModulo               = models.CharField(max_length=1, default="0")  # Por defecto 0
+    confirmacionPreciosModulo   = models.CharField(max_length=1, default="0")  # Por defecto 0
+    pdfsModulo                  = models.CharField(max_length=1, default="0")  # Por defecto 0
     
     def __str__(self):
         return f"Cotizador {self.id} - {self.nombreCompleto}"

@@ -1,4 +1,6 @@
 from django.shortcuts import get_object_or_404
+from django.db.models import Q
+from django.utils.dateparse import parse_date
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework import status
@@ -17,6 +19,7 @@ from .serializers import CotizadorSerializer, LogCotizadorSerializer
 def create_cotizador(request):
     data = request.data.copy()
     data['idUsuario'] = request.user.id
+    data['cotizadorModulo'] = 1
 
     current_year = datetime.now().year
     start_of_year = datetime(current_year, 1, 1)
@@ -51,18 +54,23 @@ def create_cotizador(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_cotizadores(request):
-    cotizadores = Cotizador.objects.all()
+    cotizadores = Cotizador.objects.filter(Q(cotizadorModulo=1) & Q(confirmacionPreciosModulo=0)).all()
     
     cotizadores_data = []
 
     for cotizador in cotizadores:
         usuario = get_object_or_404(User,    id = cotizador.idUsuario)
+        
+        # Obtener la URL de la imagen del usuario si existe
+        imagen_url = usuario.image.url if usuario.image else None
+
         cliente = get_object_or_404(Cliente, id = cotizador.idCliente)
 
         cotizador_serializer = CotizadorSerializer(cotizador)
 
         cotizador_data = cotizador_serializer.data
         cotizador_data['nombre_usuario'] = usuario.username
+        cotizador_data['image_usuario']  = imagen_url
         cotizador_data['nombre_cliente'] = cliente.nombre
 
         cotizadores_data.append(cotizador_data)
@@ -81,6 +89,76 @@ def get_cotizador(request, pk):
     serializer = CotizadorSerializer(cotizador)
     return Response(serializer.data)
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_cotizadores_filter_date(request):
+    # Obtener los parámetros de fecha de la URL
+    fecha_inicio = request.GET.get('fechaInicio')
+    fecha_fin = request.GET.get('fechaFin')
+
+    # Convertir las fechas a objetos de Python
+    fecha_inicio = parse_date(fecha_inicio) if fecha_inicio else None
+    fecha_fin = parse_date(fecha_fin) if fecha_fin else None
+
+    # Filtrar los cotizadores
+    cotizadores = Cotizador.objects.all()
+
+    if fecha_inicio and fecha_fin:
+        cotizadores = cotizadores.filter(fechaCreacion__range=[fecha_inicio, fecha_fin])
+    elif fecha_inicio:
+        cotizadores = cotizadores.filter(fechaCreacion__gte=fecha_inicio)
+    elif fecha_fin:
+        cotizadores = cotizadores.filter(fechaCreacion__lte=fecha_fin)
+
+    cotizadores_data = []
+
+    for cotizador in cotizadores:
+        usuario = get_object_or_404(User, id=cotizador.idUsuario)
+        imagen_url = usuario.image.url if usuario.image else None
+
+        cliente = get_object_or_404(Cliente, id=cotizador.idCliente)
+        cotizador_serializer = CotizadorSerializer(cotizador)
+
+        cotizador_data = cotizador_serializer.data
+        cotizador_data['nombre_usuario'] = usuario.username
+        cotizador_data['image_usuario'] = imagen_url
+        cotizador_data['nombre_cliente'] = cliente.nombre
+
+        cotizadores_data.append(cotizador_data)
+
+    return Response(cotizadores_data)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def search_cotizadores(request):
+    query = request.GET.get('q', '').strip()  # Limpiar espacios en la búsqueda
+    # Consulta normal sin select_related
+    if query:
+        cotizadores = Cotizador.objects.filter(
+            Q(placa__icontains=query) | 
+            Q(nombreCompleto__icontains=query) | 
+            Q(numeroDocumento__icontains=query) |
+            Q(tipoDocumento__icontains=query) |
+            Q(telefono__icontains=query)
+        )
+    else:
+        cotizadores = Cotizador.objects.all()
+
+    cotizadores_data = []
+
+    for cotizador in cotizadores:
+        # Obtener usuario y cliente sin usar select_related
+        usuario = User.objects.filter(id=cotizador.idUsuario).first()
+        cliente = Cliente.objects.filter(id=cotizador.idCliente).first()
+
+        cotizador_data = CotizadorSerializer(cotizador).data
+        cotizador_data['nombre_usuario'] = usuario.username if usuario else "Desconocido"
+        cotizador_data['image_usuario'] = usuario.image.url if usuario and usuario.image else None
+        cotizador_data['nombre_cliente'] = cliente.nombre if cliente else "Desconocido"
+
+        cotizadores_data.append(cotizador_data)
+
+    return Response(cotizadores_data)
 
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
@@ -189,7 +267,7 @@ def get_cotizadores_confirmacion_precios(request):
         
         # Obtener la URL de la imagen del usuario si existe
         imagen_url = usuario.image.url if usuario.image else None
-
+        
         cliente = get_object_or_404(Cliente, id = cotizador.idCliente)
 
         cotizador_serializer = CotizadorSerializer(cotizador)
@@ -204,3 +282,29 @@ def get_cotizadores_confirmacion_precios(request):
 
     return Response(cotizadores_data)
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_cotizadores_pdfs(request):
+    cotizadores = Cotizador.objects.filter(pdfsModulo=1).all()
+    
+    cotizadores_data = []
+
+    for cotizador in cotizadores:
+        usuario = get_object_or_404(User, id = cotizador.idUsuario)
+        
+        # Obtener la URL de la imagen del usuario si existe
+        imagen_url = usuario.image.url if usuario.image else None
+        
+        cliente = get_object_or_404(Cliente, id = cotizador.idCliente)
+
+        cotizador_serializer = CotizadorSerializer(cotizador)
+
+        cotizador_data = cotizador_serializer.data
+
+        cotizador_data['nombre_usuario'] = usuario.username
+        cotizador_data['image_usuario']  = imagen_url
+        cotizador_data['nombre_cliente'] = cliente.nombre
+
+        cotizadores_data.append(cotizador_data)
+
+    return Response(cotizadores_data)
