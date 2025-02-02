@@ -54,7 +54,7 @@ def create_cotizador(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_cotizadores(request):
-    cotizadores = Cotizador.objects.filter(Q(cotizadorModulo=1) & Q(confirmacionPreciosModulo=0)).all()
+    cotizadores = Cotizador.objects.filter(Q(cotizadorModulo=1) & Q(tramiteModulo=0)).all()
     
     cotizadores_data = []
 
@@ -139,7 +139,14 @@ def search_cotizadores(request):
             Q(nombreCompleto__icontains=query) | 
             Q(numeroDocumento__icontains=query) |
             Q(tipoDocumento__icontains=query) |
-            Q(telefono__icontains=query)
+            Q(telefono__icontains=query) |
+            Q(correo__icontains=query) |
+            Q(etiquetaDos__icontains=query) |
+            Q(pagoInmediato__icontains=query) |
+            Q(linkPago__icontains=query) |
+            Q(precioDeLey__icontains=query) |
+            Q(comisionPrecioLey__icontains=query) |
+            Q(total__icontains=query)
         )
     else:
         cotizadores = Cotizador.objects.all()
