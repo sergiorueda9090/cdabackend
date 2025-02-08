@@ -8,9 +8,10 @@ from rest_framework.permissions import IsAuthenticated
 from django.utils.timezone import now
 from datetime import datetime
 
-from users.models import User
-from clientes.models import Cliente
-from cotizador.models import Cotizador, LogCotizador
+from users.models       import User
+from clientes.models    import Cliente
+from etiquetas.models   import Etiqueta
+from cotizador.models   import Cotizador, LogCotizador
 
 from .serializers import CotizadorSerializer, LogCotizadorSerializer
 
@@ -54,8 +55,8 @@ def create_cotizador(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_cotizadores(request):
-    cotizadores = Cotizador.objects.filter(Q(cotizadorModulo=1) & Q(tramiteModulo=0)).all()
-    
+    cotizadores = Cotizador.objects.filter(Q(cotizadorModulo=1)).all()
+    #contizadores = Cotizador.objects.filter(cotizadorModulo='1').all()
     cotizadores_data = []
 
     for cotizador in cotizadores:
@@ -64,14 +65,17 @@ def get_cotizadores(request):
         # Obtener la URL de la imagen del usuario si existe
         imagen_url = usuario.image.url if usuario.image else None
 
-        cliente = get_object_or_404(Cliente, id = cotizador.idCliente)
-
+        cliente  = get_object_or_404(Cliente,  id = cotizador.idCliente)
+        etiqueta = get_object_or_404(Etiqueta, id = cotizador.idEtiqueta)
+        
         cotizador_serializer = CotizadorSerializer(cotizador)
 
         cotizador_data = cotizador_serializer.data
         cotizador_data['nombre_usuario'] = usuario.username
         cotizador_data['image_usuario']  = imagen_url
         cotizador_data['nombre_cliente'] = cliente.nombre
+        cotizador_data['color_cliente']  = cliente.color
+        cotizador_data['color_etiqueta'] = etiqueta.color
 
         cotizadores_data.append(cotizador_data)
 
@@ -248,7 +252,9 @@ def get_cotizadores_tramites(request):
         # Obtener la URL de la imagen del usuario si existe
         imagen_url = usuario.image.url if usuario.image else None
 
-        cliente = get_object_or_404(Cliente, id = cotizador.idCliente)
+        cliente  = get_object_or_404(Cliente, id = cotizador.idCliente)
+        etiqueta = get_object_or_404(Etiqueta, id = cotizador.idEtiqueta)
+        
 
         cotizador_serializer = CotizadorSerializer(cotizador)
 
@@ -257,6 +263,8 @@ def get_cotizadores_tramites(request):
         cotizador_data['nombre_usuario'] = usuario.username
         cotizador_data['image_usuario']  = imagen_url
         cotizador_data['nombre_cliente'] = cliente.nombre
+        cotizador_data['color_cliente']  = cliente.color
+        cotizador_data['color_etiqueta'] = etiqueta.color
 
         cotizadores_data.append(cotizador_data)
 
@@ -275,7 +283,8 @@ def get_cotizadores_confirmacion_precios(request):
         # Obtener la URL de la imagen del usuario si existe
         imagen_url = usuario.image.url if usuario.image else None
         
-        cliente = get_object_or_404(Cliente, id = cotizador.idCliente)
+        cliente  = get_object_or_404(Cliente, id = cotizador.idCliente)
+        etiqueta = get_object_or_404(Etiqueta, id = cotizador.idEtiqueta)
 
         cotizador_serializer = CotizadorSerializer(cotizador)
 
@@ -284,6 +293,8 @@ def get_cotizadores_confirmacion_precios(request):
         cotizador_data['nombre_usuario'] = usuario.username
         cotizador_data['image_usuario']  = imagen_url
         cotizador_data['nombre_cliente'] = cliente.nombre
+        cotizador_data['color_cliente']  = cliente.color
+        cotizador_data['color_etiqueta'] = etiqueta.color
 
         cotizadores_data.append(cotizador_data)
 
@@ -303,7 +314,8 @@ def get_cotizadores_pdfs(request):
         imagen_url = usuario.image.url if usuario.image else None
         
         cliente = get_object_or_404(Cliente, id = cotizador.idCliente)
-
+        etiqueta = get_object_or_404(Etiqueta, id = cotizador.idEtiqueta)
+        
         cotizador_serializer = CotizadorSerializer(cotizador)
 
         cotizador_data = cotizador_serializer.data
@@ -311,6 +323,8 @@ def get_cotizadores_pdfs(request):
         cotizador_data['nombre_usuario'] = usuario.username
         cotizador_data['image_usuario']  = imagen_url
         cotizador_data['nombre_cliente'] = cliente.nombre
+        cotizador_data['color_cliente']  = cliente.color
+        cotizador_data['color_etiqueta'] = etiqueta.color
 
         cotizadores_data.append(cotizador_data)
 

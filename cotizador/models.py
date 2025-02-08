@@ -5,6 +5,7 @@ class Cotizador(models.Model):
     idUsuario       = models.IntegerField()
     idCliente       = models.IntegerField()
     etiquetaDos     = models.CharField(max_length=255, null=True, blank=True)
+    idEtiqueta      = models.IntegerField()
     placa           = models.CharField(max_length=50)
     cilindraje      = models.CharField(max_length=50)
     modelo          = models.CharField(max_length=50)

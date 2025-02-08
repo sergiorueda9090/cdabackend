@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'whatsapp',
     'generadortoken',
     'cotizador',
+    'etiquetas',
 ]
 
 MIDDLEWARE = [

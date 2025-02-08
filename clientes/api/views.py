@@ -60,6 +60,7 @@ def create_cliente(request):
         apellidos = data.get('apellidos', '')
         telefono  = data.get('telefono',  '')
         direccion = data.get('direccion', '')
+        color     = data.get('color', '')
 
         # Crear el cliente
         cliente = Cliente.objects.create(
@@ -67,6 +68,7 @@ def create_cliente(request):
             apellidos=apellidos.strip(),
             telefono=telefono.strip(),
             direccion=direccion.strip(),
+            color=color,
         )
 
         # Crear los precios de ley asociados al cliente
@@ -95,6 +97,7 @@ def create_cliente(request):
             "apellidos": cliente.apellidos,
             "telefono": cliente.telefono,
             "direccion": cliente.direccion,
+            "color": cliente.color,
             "precios_ley": [
                 {
                     "descripcion": p.descripcion,
@@ -150,10 +153,11 @@ def update_cliente(request, pk):
             precios_ley = []
 
         # Actualizar los datos del cliente
-        cliente.nombre      = data.get('nombre', cliente.nombre).strip()
-        cliente.apellidos   = data.get('apellidos', cliente.apellidos).strip()
-        cliente.telefono    = data.get('telefono', cliente.telefono).strip()
-        cliente.direccion   = data.get('direccion', cliente.direccion).strip()
+        cliente.nombre      = data.get('nombre'     , cliente.nombre).strip()
+        cliente.apellidos   = data.get('apellidos'  , cliente.apellidos).strip()
+        cliente.telefono    = data.get('telefono'   , cliente.telefono).strip()
+        cliente.direccion   = data.get('direccion'  , cliente.direccion).strip()
+        cliente.color       = data.get('color'      , cliente.color).strip()
         cliente.save()
 
         # Obtener los IDs de los precios de ley actuales
@@ -189,7 +193,8 @@ def update_cliente(request, pk):
                     cliente=cliente,
                     descripcion=descripcion,
                     precio_ley=precio_ley,
-                    comision=comision
+                    comision=comision,
+                    color=color
                 )
                 nuevos_precios_ids.append(nuevo_precio.id)
 
@@ -204,6 +209,7 @@ def update_cliente(request, pk):
             "apellidos": cliente.apellidos,
             "telefono": cliente.telefono,
             "direccion": cliente.direccion,
+            "color": cliente.color,
             "precios_ley": [
                 {
                     "id": p.id,
