@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'generadortoken',
     'cotizador',
     'etiquetas',
+    'cuentasbancarias',
 ]
 
 MIDDLEWARE = [
