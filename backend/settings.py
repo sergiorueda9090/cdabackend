@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'cotizador',
     'etiquetas',
     'cuentasbancarias',
+    'registroTarjetas',
 ]
 
 MIDDLEWARE = [

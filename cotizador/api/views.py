@@ -8,10 +8,11 @@ from rest_framework.permissions import IsAuthenticated
 from django.utils.timezone import now
 from datetime import datetime
 
-from users.models       import User
-from clientes.models    import Cliente
-from etiquetas.models   import Etiqueta
-from cotizador.models   import Cotizador, LogCotizador
+from users.models               import User
+from clientes.models            import Cliente
+from etiquetas.models           import Etiqueta
+from cotizador.models           import Cotizador, LogCotizador
+from cuentasbancarias.models    import CuentaBancaria
 
 from .serializers import CotizadorSerializer, LogCotizadorSerializer
 
@@ -138,6 +139,9 @@ def search_cotizadores(request):
     query = request.GET.get('q', '').strip()  # Limpiar espacios en la búsqueda
     # Consulta normal sin select_related
     if query:
+        clientes_ids = Cliente.objects.filter(nombre__icontains=query).values_list('id', flat=True)
+        etiqueta_ids = Etiqueta.objects.filter(nombre__icontains=query).values_list('id', flat=True)
+
         cotizadores = Cotizador.objects.filter(
             Q(placa__icontains=query) | 
             Q(nombreCompleto__icontains=query) | 
@@ -150,7 +154,9 @@ def search_cotizadores(request):
             Q(linkPago__icontains=query) |
             Q(precioDeLey__icontains=query) |
             Q(comisionPrecioLey__icontains=query) |
-            Q(total__icontains=query)
+            Q(total__icontains=query) |
+            Q(idCliente__in=clientes_ids) |
+            Q(idEtiqueta__in=etiqueta_ids)
         )
     else:
         cotizadores = Cotizador.objects.all()
@@ -199,6 +205,18 @@ def update_cotizador(request, pk):
                     nuevoValor=str(new_value),
                     fecha=now()
                 )
+
+        id_banco = request.data.get('idBanco')
+        
+        if id_banco:
+            CuentaBancaria.objects.create(
+                idCotizador   = cotizador.id, 
+                idBanco       = request.data.get('idBanco'),
+                descripcion   = "descripcion",
+                valor         = -abs(int(cotizador.total)),
+                cilindraje    = cotizador.cilindraje,
+                nombreTitular = cotizador.nombreCompleto)
+
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

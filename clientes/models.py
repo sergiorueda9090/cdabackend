@@ -1,7 +1,7 @@
 from django.db import models
 
 class Cliente(models.Model):
-    nombre      = models.CharField(max_length=100)
+    nombre      = models.CharField(max_length=100, unique=True)
     apellidos   = models.CharField(max_length=100)
     telefono    = models.CharField(max_length=20, blank=True, null=True)
     direccion   = models.TextField(blank=True, null=True)

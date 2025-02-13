@@ -32,82 +32,86 @@ def get_clientes_tramites(request):
 @permission_classes([IsAuthenticated])
 def create_cliente(request):
     if request.method == 'POST':
-        # Copiar los datos para modificarlos
-        data = request.POST.copy()
+        try:
+            # Copiar los datos para modificarlos
+            data = request.POST.copy()
 
-        # Validar y deserializar precios_ley si está presente
-        precios_ley = data.get('precios_ley', None)
-        print(precios_ley)
-        if precios_ley:
-            try:
-                precios_ley = json.loads(precios_ley)
-                if not isinstance(precios_ley, list):
-                    raise ValueError("El campo precios_ley debe ser una lista de objetos.")
-            except (json.JSONDecodeError, ValueError):
-                return JsonResponse(
-                    {"error": "El campo precios_ley debe ser un JSON válido y contener una lista."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-        else:
-            precios_ley = []
+            # Validar y deserializar precios_ley si está presente
+            precios_ley = data.get('precios_ley', None)
+            if precios_ley:
+                try:
+                    precios_ley = json.loads(precios_ley)
+                    if not isinstance(precios_ley, list):
+                        raise ValueError("El campo precios_ley debe ser una lista de objetos.")
+                except (json.JSONDecodeError, ValueError):
+                    return JsonResponse(
+                        {"error": "El campo precios_ley debe ser un JSON válido y contener una lista."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            else:
+                precios_ley = []
 
-        # Validar los campos obligatorios del cliente
-        nombre = data.get('nombre')
-        if not nombre or not nombre.strip():
-            return JsonResponse({"error": "El campo 'nombre' es obligatorio."}, status=status.HTTP_400_BAD_REQUEST)
+            # Validar los campos obligatorios del cliente
+            nombre = data.get('nombre')
+            if not nombre or not nombre.strip():
+                return JsonResponse({"error": "El campo 'nombre' es obligatorio."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Campos opcionales
-        apellidos = data.get('apellidos', '')
-        telefono  = data.get('telefono',  '')
-        direccion = data.get('direccion', '')
-        color     = data.get('color', '')
+            # Campos opcionales
+            apellidos = data.get('apellidos', '')
+            telefono  = data.get('telefono',  '')
+            direccion = data.get('direccion', '')
+            color     = data.get('color', '')
 
-        # Crear el cliente
-        cliente = Cliente.objects.create(
-            nombre=nombre.strip(),
-            apellidos=apellidos.strip(),
-            telefono=telefono.strip(),
-            direccion=direccion.strip(),
-            color=color,
-        )
-
-        # Crear los precios de ley asociados al cliente
-        for precio_ley in precios_ley:
-            descripcion = precio_ley.get('descripcion')
-            precio      = precio_ley.get('precio_ley')
-            comision    = precio_ley.get('comision')
-
-            """if not descripcion or not isinstance(precio, (int, float)) or not isinstance(comision, (int, float)):
-                return JsonResponse(
-                    {"error": "Cada precio de ley debe tener 'descripcion', 'precio_ley' y 'comision' válidos."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )"""
-
-            PrecioLey.objects.create(
-                cliente     = cliente,
-                descripcion = descripcion.strip(),
-                precio_ley  = precio,
-                comision    = comision,
+            # Crear el cliente
+            cliente = Cliente.objects.create(
+                nombre=nombre.strip(),
+                apellidos=apellidos.strip(),
+                telefono=telefono.strip(),
+                direccion=direccion.strip(),
+                color=color,
             )
 
-        # Retornar los datos creados
-        return JsonResponse({
-            "id": cliente.id,
-            "nombre": cliente.nombre,
-            "apellidos": cliente.apellidos,
-            "telefono": cliente.telefono,
-            "direccion": cliente.direccion,
-            "color": cliente.color,
-            "precios_ley": [
-                {
-                    "descripcion": p.descripcion,
-                    "precio_ley": p.precio_ley,
-                    "comision": p.comision
-                }
-                for p in cliente.precios_ley.all()
-            ]
-        }, status=status.HTTP_201_CREATED)
+            # Crear los precios de ley asociados al cliente
+            for precio_ley in precios_ley:
+                descripcion = precio_ley.get('descripcion')
+                precio      = precio_ley.get('precio_ley')
+                comision    = precio_ley.get('comision')
 
+                """if not descripcion or not isinstance(precio, (int, float)) or not isinstance(comision, (int, float)):
+                    return JsonResponse(
+                        {"error": "Cada precio de ley debe tener 'descripcion', 'precio_ley' y 'comision' válidos."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )"""
+
+                PrecioLey.objects.create(
+                    cliente     = cliente,
+                    descripcion = descripcion.strip(),
+                    precio_ley  = precio,
+                    comision    = comision,
+                )
+
+            # Retornar los datos creados
+            return JsonResponse({
+                "id": cliente.id,
+                "nombre": cliente.nombre,
+                "apellidos": cliente.apellidos,
+                "telefono": cliente.telefono,
+                "direccion": cliente.direccion,
+                "color": cliente.color,
+                "precios_ley": [
+                    {
+                        "descripcion": p.descripcion,
+                        "precio_ley": p.precio_ley,
+                        "comision": p.comision
+                    }
+                    for p in cliente.precios_ley.all()
+                ]
+            }, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return JsonResponse(
+                {"error": f"Error inesperado: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 # Obtener detalles de un cliente específico
 @api_view(['GET'])
@@ -194,7 +198,6 @@ def update_cliente(request, pk):
                     descripcion=descripcion,
                     precio_ley=precio_ley,
                     comision=comision,
-                    color=color
                 )
                 nuevos_precios_ids.append(nuevo_precio.id)
 

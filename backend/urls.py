@@ -58,7 +58,8 @@ urlpatterns = [
    path('cotizador/',           include('cotizador.api.urls')                   , name="cotizador"),
    path('tramites/',            include('tramites.api.urls')                    , name="tramites"),
    path('etiquetas/',           include('etiquetas.api.urls')                   , name="etiquetas"),
-   path('cuentasbancarias/',    include('cuentasbancarias.api.urls')            , name="cuentasbancarias")
+   path('cuentasbancarias/',    include('cuentasbancarias.api.urls')            , name="cuentasbancarias"),
+   path('registrotarjetas/',    include('registroTarjetas.api.urls')            , name="registrotarjetas")
 ]
 
 # Servir archivos de media en modo debug

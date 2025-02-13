@@ -28,7 +28,8 @@ class Cotizador(models.Model):
     tramiteModulo               = models.CharField(max_length=1, default="0")  # Por defecto 0
     confirmacionPreciosModulo   = models.CharField(max_length=1, default="0")  # Por defecto 0
     pdfsModulo                  = models.CharField(max_length=1, default="0")  # Por defecto 0
-    
+    idBanco         = models.IntegerField(null=True, blank=True)
+
     def __str__(self):
         return f"Cotizador {self.id} - {self.nombreCompleto}"
 
