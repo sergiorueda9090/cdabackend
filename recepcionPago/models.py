@@ -15,5 +15,6 @@ class RecepcionPago(models.Model):
         return f"{self.cliente.nombre} - {self.valor}"
 
     class Meta:
+        db_table = "recepcionPago_recepcionpago"
         verbose_name = "Recepción de Pago"
         verbose_name_plural = "Recepciones de Pago"
