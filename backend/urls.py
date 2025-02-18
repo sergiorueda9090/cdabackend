@@ -59,7 +59,9 @@ urlpatterns = [
    path('tramites/',            include('tramites.api.urls')                    , name="tramites"),
    path('etiquetas/',           include('etiquetas.api.urls')                   , name="etiquetas"),
    path('cuentasbancarias/',    include('cuentasbancarias.api.urls')            , name="cuentasbancarias"),
-   path('registrotarjetas/',    include('registroTarjetas.api.urls')            , name="registrotarjetas")
+   path('registrotarjetas/',    include('registroTarjetas.api.urls')            , name="registrotarjetas"),
+   path('recepcionpago/',       include('recepcionPago.api.urls')               , name="recepcionpago"),
+   path('devolucion/',          include('devoluciones.api.urls')                , name="devoluciones"),
 ]
 
 # Servir archivos de media en modo debug
