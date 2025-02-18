@@ -1,21 +1,42 @@
-from rest_framework.decorators  import api_view
+from django.shortcuts import get_object_or_404
+from rest_framework.decorators  import api_view, permission_classes
 from rest_framework.response    import Response
 from rest_framework             import status
 from recepcionPago.models       import RecepcionPago
 from clientes.models            import Cliente
-from .serializers               import RecepcionPagoSerializer
 from registroTarjetas.models    import RegistroTarjetas
+from .serializers               import RecepcionPagoSerializer
 
+from rest_framework.permissions import IsAuthenticated
 
 # 🔹 Listar todas las recepciones de pago
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def listar_recepciones_pago(request):
     recepciones = RecepcionPago.objects.all()
-    serializer = RecepcionPagoSerializer(recepciones, many=True)
-    return Response(serializer.data, status=status.HTTP_200_OK)
+    recepciones_pago_data = []
+
+    for recepcion in recepciones:
+        tarjeta = get_object_or_404(RegistroTarjetas,    id = recepcion .id_tarjeta_bancaria_id)
+        cliente = get_object_or_404(Cliente,             id = recepcion.cliente_id)
+
+        # Serializa cada recepción individualmente
+        recepcion_serializer = RecepcionPagoSerializer(recepcion)
+        recepcion_data = recepcion_serializer.data
+
+        # Agregar datos personalizados
+        recepcion_data['nombre_tarjeta'] = tarjeta.nombre_cuenta
+        recepcion_data['nombre_cliente'] = cliente.nombre
+        recepcion_data['color_cliente']  = cliente.color
+
+        # Agregar la recepción modificada a la lista
+        recepciones_pago_data.append(recepcion_data)
+
+    return Response(recepciones_pago_data, status=status.HTTP_200_OK)
 
 # 🔹 Crear una nueva recepción de pago
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def crear_recepcion_pago(request):
     required_fields = ["cliente_id", "id_tarjeta_bancaria", "fecha_transaccion", "valor"]
 
@@ -56,6 +77,7 @@ def crear_recepcion_pago(request):
 
 # 🔹 Obtener una recepción de pago por ID
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def obtener_recepcion_pago(request, pk):
     try:
         recepcion = RecepcionPago.objects.get(pk=pk)
@@ -63,10 +85,12 @@ def obtener_recepcion_pago(request, pk):
         return Response({"error": "Recepción de pago no encontrada."}, status=status.HTTP_404_NOT_FOUND)
 
     serializer = RecepcionPagoSerializer(recepcion)
+    print(serializer.data)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 # 🔹 Actualizar una recepción de pago
 @api_view(['PUT'])
+@permission_classes([IsAuthenticated])
 def actualizar_recepcion_pago(request, pk):
     try:
         recepcion = RecepcionPago.objects.get(pk=pk)
@@ -104,6 +128,7 @@ def actualizar_recepcion_pago(request, pk):
 
 # 🔹 Eliminar una recepción de pago
 @api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
 def eliminar_recepcion_pago(request, pk):
     try:
         recepcion = RecepcionPago.objects.get(pk=pk)

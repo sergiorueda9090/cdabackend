@@ -57,7 +57,6 @@ def create_cotizador(request):
 @permission_classes([IsAuthenticated])
 def get_cotizadores(request):
     cotizadores = Cotizador.objects.filter(Q(cotizadorModulo=1)).all()
-    #contizadores = Cotizador.objects.filter(cotizadorModulo='1').all()
     cotizadores_data = []
 
     for cotizador in cotizadores:

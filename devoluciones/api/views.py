@@ -1,17 +1,37 @@
+from django.shortcuts import get_object_or_404
 from rest_framework.decorators  import api_view
 from rest_framework.response    import Response
 from rest_framework             import status
 from devoluciones.models        import Devoluciones
-from .serializers               import DevolucionesSerializer
+
 from clientes.models            import Cliente
 from registroTarjetas.models    import RegistroTarjetas
+
+from .serializers               import DevolucionesSerializer
 
 # 🔹 Listar todas las devoluciones
 @api_view(['GET'])
 def listar_devoluciones(request):
     devolucionAll= Devoluciones.objects.all()
-    serializer   = DevolucionesSerializer(devolucionAll, many=True)
-    return Response(serializer.data, status=status.HTTP_200_OK)
+    devoluciones_pago_data = []
+
+    for devolucion in devolucionAll:
+        tarjeta = get_object_or_404(RegistroTarjetas,    id = devolucion.id_tarjeta_bancaria_id)
+        cliente = get_object_or_404(Cliente,             id = devolucion.id_cliente_id)
+
+        # Serializa cada recepción individualmente
+        devolucion_serializer = DevolucionesSerializer(devolucion)
+        devolucion_data       = devolucion_serializer.data
+
+        # Agregar datos personalizados
+        devolucion_data['nombre_tarjeta'] = tarjeta.nombre_cuenta
+        devolucion_data['nombre_cliente'] = cliente.nombre
+        devolucion_data['color_cliente']  = cliente.color
+
+        # Agregar la recepción modificada a la lista
+        devoluciones_pago_data.append(devolucion_data)
+
+    return Response(devoluciones_pago_data, status=status.HTTP_200_OK)
 
 # 🔹 Crear una nueva devolución
 @api_view(['POST'])
