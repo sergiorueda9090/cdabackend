@@ -12,6 +12,7 @@ from rest_framework.permissions import IsAuthenticated
 #Listar todas las recepciones de pago
 @api_view(['GET'])
 def listar_recepciones_pago(request):
+    print("INGRESA")
     recepciones = RecepcionPago.objects.all()
     recepciones_pago_data = []
 
@@ -30,7 +31,6 @@ def listar_recepciones_pago(request):
 
         # Agregar la recepción modificada a la lista
         recepciones_pago_data.append(recepcion_data)
-
     return Response(recepciones_pago_data, status=status.HTTP_200_OK)
 
 # Crear una nueva recepción de pago
