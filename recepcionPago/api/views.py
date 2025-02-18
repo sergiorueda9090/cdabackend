@@ -9,7 +9,7 @@ from .serializers               import RecepcionPagoSerializer
 
 from rest_framework.permissions import IsAuthenticated
 
-# 🔹 Listar todas las recepciones de pago
+#Listar todas las recepciones de pago
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def listar_recepciones_pago(request):
@@ -34,7 +34,7 @@ def listar_recepciones_pago(request):
 
     return Response(recepciones_pago_data, status=status.HTTP_200_OK)
 
-# 🔹 Crear una nueva recepción de pago
+# Crear una nueva recepción de pago
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def crear_recepcion_pago(request):
@@ -75,7 +75,7 @@ def crear_recepcion_pago(request):
     serializer = RecepcionPagoSerializer(recepcion)
     return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-# 🔹 Obtener una recepción de pago por ID
+#Obtener una recepción de pago por ID
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def obtener_recepcion_pago(request, pk):
@@ -88,7 +88,7 @@ def obtener_recepcion_pago(request, pk):
     print(serializer.data)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
-# 🔹 Actualizar una recepción de pago
+#Actualizar una recepción de pago
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
 def actualizar_recepcion_pago(request, pk):
@@ -126,7 +126,7 @@ def actualizar_recepcion_pago(request, pk):
     serializer = RecepcionPagoSerializer(recepcion)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
-# 🔹 Eliminar una recepción de pago
+#Eliminar una recepción de pago
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def eliminar_recepcion_pago(request, pk):
