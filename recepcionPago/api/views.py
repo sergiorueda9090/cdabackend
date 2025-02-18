@@ -13,31 +13,25 @@ from rest_framework.permissions import IsAuthenticated
 @api_view(['GET'])
 def listar_recepciones_pago(request):
     print("INGRESA")
-    try:
-        recepciones = RecepcionPago.objects.all()
-        print(f"Total recepciones: {recepciones.count()}")
-        recepciones_pago_data = []
+    recepciones = RecepcionPago.objects.all()
+    print(f"Total recepciones: {recepciones.count()}")
+    recepciones_pago_data = []
 
-        for recepcion in recepciones:
-            try:
-                tarjeta = get_object_or_404(RegistroTarjetas, id=recepcion.id_tarjeta_bancaria_id)
-                cliente = get_object_or_404(Cliente, id=recepcion.cliente_id)
-            except Http404:
-                return Response({"error": "Datos no encontrados para alguna recepción"}, status=400)
-            except Exception as e:
-                return Response({"error": str(e)}, status=500)
+    for recepcion in recepciones:
+        tarjeta = get_object_or_404(RegistroTarjetas,    id = recepcion .id_tarjeta_bancaria_id)
+        cliente = get_object_or_404(Cliente,             id = recepcion.cliente_id)
 
-            recepcion_serializer = RecepcionPagoSerializer(recepcion)
-            recepcion_data = recepcion_serializer.data
+        # Serializa cada recepción individualmente
+        recepcion_serializer = RecepcionPagoSerializer(recepcion)
+        recepcion_data = recepcion_serializer.data
 
-            recepcion_data['nombre_tarjeta'] = tarjeta.nombre_cuenta
-            recepcion_data['nombre_cliente'] = cliente.nombre
-            recepcion_data['color_cliente']  = cliente.color
+        # Agregar datos personalizados
+        recepcion_data['nombre_tarjeta'] = tarjeta.nombre_cuenta
+        recepcion_data['nombre_cliente'] = cliente.nombre
+        recepcion_data['color_cliente']  = cliente.color
 
-            recepciones_pago_data.append(recepcion_data)
-    except Exception as e:
-        return Response({"error": str(e)}, status=500)
-
+        # Agregar la recepción modificada a la lista
+        recepciones_pago_data.append(recepcion_data)
     return Response(recepciones_pago_data, status=status.HTTP_200_OK)
 
 # Crear una nueva recepción de pago
