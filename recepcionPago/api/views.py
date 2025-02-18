@@ -13,27 +13,30 @@ from rest_framework.permissions import IsAuthenticated
 @api_view(['GET'])
 def listar_recepciones_pago(request):
     print("INGRESA")
-    recepciones = RecepcionPago.objects.all()
-    print(f"Total recepciones: {recepciones.count()}")
-    recepciones_pago_data = []
+    try:
+        recepciones = RecepcionPago.objects.all()
+        print(f"Total recepciones: {recepciones.count()}")
+        recepciones_pago_data = []
 
-    for recepcion in recepciones:
-        try:
-            tarjeta = get_object_or_404(RegistroTarjetas, id=recepcion.id_tarjeta_bancaria_id)
-            cliente = get_object_or_404(Cliente, id=recepcion.cliente_id)
-        except Http404:
-            return Response({"error": "Datos no encontrados para alguna recepción"}, status=400)
-        except Exception as e:
-            return Response({"error": str(e)}, status=500)
+        for recepcion in recepciones:
+            try:
+                tarjeta = get_object_or_404(RegistroTarjetas, id=recepcion.id_tarjeta_bancaria_id)
+                cliente = get_object_or_404(Cliente, id=recepcion.cliente_id)
+            except Http404:
+                return Response({"error": "Datos no encontrados para alguna recepción"}, status=400)
+            except Exception as e:
+                return Response({"error": str(e)}, status=500)
 
-        recepcion_serializer = RecepcionPagoSerializer(recepcion)
-        recepcion_data = recepcion_serializer.data
+            recepcion_serializer = RecepcionPagoSerializer(recepcion)
+            recepcion_data = recepcion_serializer.data
 
-        recepcion_data['nombre_tarjeta'] = tarjeta.nombre_cuenta
-        recepcion_data['nombre_cliente'] = cliente.nombre
-        recepcion_data['color_cliente']  = cliente.color
+            recepcion_data['nombre_tarjeta'] = tarjeta.nombre_cuenta
+            recepcion_data['nombre_cliente'] = cliente.nombre
+            recepcion_data['color_cliente']  = cliente.color
 
-        recepciones_pago_data.append(recepcion_data)
+            recepciones_pago_data.append(recepcion_data)
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
 
     return Response(recepciones_pago_data, status=status.HTTP_200_OK)
 
