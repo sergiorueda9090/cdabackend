@@ -11,7 +11,6 @@ from rest_framework.permissions import IsAuthenticated
 
 #Listar todas las recepciones de pago
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
 def listar_recepciones_pago(request):
     recepciones = RecepcionPago.objects.all()
     recepciones_pago_data = []
