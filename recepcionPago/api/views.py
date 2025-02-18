@@ -13,26 +13,30 @@ from rest_framework.permissions import IsAuthenticated
 @api_view(['GET'])
 def listar_recepciones_pago(request):
     print("INGRESA")
-    recepciones = RecepcionPago.objects.all()
-    print(f"Total recepciones: {recepciones.count()}")
-    recepciones_pago_data = []
+    try:
+        recepciones = RecepcionPago.objects.all()
+        print(f"Total recepciones: {recepciones.count()}")
+        recepciones_pago_data = []
 
-    for recepcion in recepciones:
-        tarjeta = get_object_or_404(RegistroTarjetas,    id = recepcion .id_tarjeta_bancaria_id)
-        cliente = get_object_or_404(Cliente,             id = recepcion.cliente_id)
+        for recepcion in recepciones:
+            tarjeta = get_object_or_404(RegistroTarjetas,    id = recepcion .id_tarjeta_bancaria_id)
+            cliente = get_object_or_404(Cliente,             id = recepcion.cliente_id)
 
-        # Serializa cada recepción individualmente
-        recepcion_serializer = RecepcionPagoSerializer(recepcion)
-        recepcion_data = recepcion_serializer.data
+            # Serializa cada recepción individualmente
+            recepcion_serializer = RecepcionPagoSerializer(recepcion)
+            recepcion_data = recepcion_serializer.data
 
-        # Agregar datos personalizados
-        recepcion_data['nombre_tarjeta'] = tarjeta.nombre_cuenta
-        recepcion_data['nombre_cliente'] = cliente.nombre
-        recepcion_data['color_cliente']  = cliente.color
+            # Agregar datos personalizados
+            recepcion_data['nombre_tarjeta'] = tarjeta.nombre_cuenta
+            recepcion_data['nombre_cliente'] = cliente.nombre
+            recepcion_data['color_cliente']  = cliente.color
 
-        # Agregar la recepción modificada a la lista
-        recepciones_pago_data.append(recepcion_data)
-    return Response(recepciones_pago_data, status=status.HTTP_200_OK)
+            # Agregar la recepción modificada a la lista
+            recepciones_pago_data.append(recepcion_data)
+        return Response(recepciones_pago_data, status=status.HTTP_200_OK)
+    except Exception as e:
+        logger.error(f"Error al obtener tarjeta: {e}")
+        return Response({"error": f"Error al obtener tarjeta: {e}"},status=status.HTTP_200_OK)
 
 # Crear una nueva recepción de pago
 @api_view(['POST'])
