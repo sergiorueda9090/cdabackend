@@ -14,6 +14,7 @@ from rest_framework.permissions import IsAuthenticated
 def listar_recepciones_pago(request):
     print("INGRESA")
     recepciones = RecepcionPago.objects.all()
+    print(f"Total recepciones: {recepciones.count()}")
     recepciones_pago_data = []
 
     for recepcion in recepciones:
