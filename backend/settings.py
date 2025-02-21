@@ -54,7 +54,10 @@ INSTALLED_APPS = [
     'registroTarjetas',
     'recepcionPago',
     'devolucion',
-    'devoluciones'
+    'devoluciones',
+    'ajustesaldos',
+    'gastos',
+    'gastosgenerales',
 ]
 
 MIDDLEWARE = [

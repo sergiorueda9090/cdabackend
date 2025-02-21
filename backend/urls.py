@@ -62,6 +62,10 @@ urlpatterns = [
    path('registrotarjetas/',    include('registroTarjetas.api.urls')            , name="registrotarjetas"),
    path('recepcionpago/',       include('recepcionPago.api.urls')               , name="recepcionpago"),
    path('devolucion/',          include('devoluciones.api.urls')                , name="devoluciones"),
+   path('ajustessaldo/',        include('ajustesaldos.api.urls')                , name="ajustesaldos"),
+   path('gastos/',              include('gastos.api.urls')                      , name="gastos"),
+   path('gastosgenerales/',     include('gastosgenerales.api.urls')             , name="gastosgenerales"),
+
 ]
 
 # Servir archivos de media en modo debug
