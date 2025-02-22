@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     'ajustesaldos',
     'gastos',
     'gastosgenerales',
+    'utilidadocacional',
 ]
 
 MIDDLEWARE = [

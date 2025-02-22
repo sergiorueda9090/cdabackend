@@ -65,7 +65,7 @@ urlpatterns = [
    path('ajustessaldo/',        include('ajustesaldos.api.urls')                , name="ajustesaldos"),
    path('gastos/',              include('gastos.api.urls')                      , name="gastos"),
    path('gastosgenerales/',     include('gastosgenerales.api.urls')             , name="gastosgenerales"),
-
+   path('utilidadocacional/',   include('utilidadocacional.api.urls')           , name="utilidadocacional"),
 ]
 
 # Servir archivos de media en modo debug
