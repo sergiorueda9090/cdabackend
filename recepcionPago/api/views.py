@@ -12,7 +12,6 @@ from rest_framework.permissions import IsAuthenticated
 #Listar todas las recepciones de pago
 @api_view(['GET'])
 def listar_recepciones_pago(request):
-    print("INGRESA")
     try:
         recepciones = RecepcionPago.objects.all()
         total_recepciones = recepciones.count()

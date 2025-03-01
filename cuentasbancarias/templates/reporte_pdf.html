@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte de Cuenta Bancaria</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        h1, h2 { color: #333; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f4f4f4; }
+        .totales { font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h1>Reporte de Cuenta Bancaria</h1>
+    <p><strong>Nombre de la Cuenta:</strong> {{ tarjeta.nombre_cuenta }}</p>
+    <p><strong>Descripción:</strong> {{ tarjeta.descripcion_cuenta }}</p>
+    <p><strong>Número de Cuenta:</strong> {{ tarjeta.numero_cuenta }}</p>
+    <p><strong>Banco:</strong> {{ tarjeta.banco }}</p>
+
+    <h2>Movimientos Financieros</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Fecha Ingreso</th>
+                <th>Fecha Transacción</th>
+                <th>Descripción</th>
+                <th>Valor</th>
+                <th>Origen</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for movimiento in data %}
+            <tr>
+                <td>{{ movimiento.fi|date:"Y-m-d" }}</td>
+                <td>{{ movimiento.ft|date:"Y-m-d" }}</td>
+                <td>{{ movimiento.desc_alias }}</td>
+                <td>${{ movimiento.valor_alias|floatformat:2 }}</td>
+                <td>{{ movimiento.origen }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" style="text-align: center;">No hay movimientos disponibles</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>Totales</h2>
+    <table>
+        <tr>
+            <td class="totales">Total Cuenta Bancaria:</td>
+            <td>${{ totales.total_cuenta_bancaria|floatformat:2 }}</td>
+        </tr>
+        <tr>
+            <td class="totales">Total Devoluciones:</td>
+            <td>${{ totales.total_devoluciones|floatformat:2 }}</td>
+        </tr>
+        <tr>
+            <td class="totales">Total Gastos Generales:</td>
+            <td>${{ totales.total_gastos_generales|floatformat:2 }}</td>
+        </tr>
+        <tr>
+            <td class="totales">Total Utilidad Ocasional:</td>
+            <td>${{ totales.total_utilidad_ocacional|floatformat:2 }}</td>
+        </tr>
+        <tr>
+            <td class="totales">TOTAL GENERAL:</td>
+            <td>${{ totales.total|floatformat:2 }}</td>
+        </tr>
+    </table>
+
+</body>
+</html>

@@ -22,7 +22,7 @@ def get_clientes(request):
 def get_clientes_tramites(request):
     clientes = Cliente.objects.all()
     response_data = [
-        {"value": cliente.id, "label": f"{cliente.nombre} {cliente.apellidos}"} for cliente in clientes
+        {"value": cliente.id, "label": f"{cliente.nombre}"} for cliente in clientes
     ]
     return JsonResponse(response_data, safe=False, status=status.HTTP_200_OK)
 
