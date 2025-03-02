@@ -2,6 +2,7 @@ from django.shortcuts import render
 import pandas as pd
 # cuentas_bancarias/api/views.py
 from django.utils.dateparse import parse_date
+from datetime import datetime
 
 from rest_framework.response    import Response
 from django.http                import HttpResponse
@@ -144,7 +145,7 @@ def obtener_datos_cuenta(request, id):
         origen=Value('Cuenta Bancaria', output_field=CharField())
     ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'id_tarjeta', 'origen')
 
-    recepcionDePagos = RecepcionPago.objects.all().annotate(
+    recepcionDePagos = RecepcionPago.objects.filter(id_tarjeta_bancaria=id).annotate(
         fi=F('fecha_ingreso'),
         ft=F('fecha_transaccion'),
         desc_alias=F('observacion'),
@@ -221,16 +222,16 @@ def obtener_datos_cuenta(request, id):
 @api_view(['GET'])
 def cuentasbancarias_filter_date(request, id):
     # Obtener los parámetros de fecha de la URL
-    print("id {}".format(id))
+
     fecha_inicio = request.GET.get('fechaInicio')
     fecha_fin = request.GET.get('fechaFin')
 
 
     # Convertir las fechas a objetos de Python
-    fecha_inicio = parse_date(fecha_inicio) if fecha_inicio else None
-    fecha_fin = parse_date(fecha_fin) if fecha_fin else None
+    fecha_inicio = parse_date_with_defaults(fecha_inicio)
+    fecha_fin = parse_date_with_defaults(fecha_fin, is_end=True)
 
-    print("id {}".format(id))
+
     print("fecha_inicio {}".format(fecha_inicio))
     print("fecha_fin {}".format(fecha_fin))
     try:
@@ -332,6 +333,19 @@ def cuentasbancarias_filter_date(request, id):
     # Respuesta JSON combinando los datos y los totales
     return Response(response_data, status=status.HTTP_200_OK)
 
+
+def parse_date_with_defaults(date_str, is_end=False):
+    if not date_str:
+        return None
+    
+    parsed_date = datetime.strptime(date_str, "%Y-%m-%d")
+    if is_end:
+        parsed_date = parsed_date.replace(hour=23, minute=59, second=59)
+    else:
+        parsed_date = parsed_date.replace(hour=0, minute=0, second=0)
+    
+    return parsed_date
+
 def safe_sum(queryset, field_name):
     """
     Recupera valores de un queryset y los convierte a Decimal para sumarlos.
@@ -358,118 +372,31 @@ def safe_sum(queryset, field_name):
 @api_view(["GET"])
 def download_report_excel(request, id):
     try:
+        print(f"ID recibido: {id}")  # Depuración
+
+        if not str(id).isdigit():
+            return Response({"error": "ID inválido"}, status=status.HTTP_400_BAD_REQUEST)
+
         tarjeta = RegistroTarjetas.objects.get(pk=id)
-        nombre_cuenta   = tarjeta.nombre_cuenta
-        descripcion     = tarjeta.descripcion
-        numero_cuenta   = tarjeta.numero_cuenta
-        banco           = tarjeta.banco
+
+        cuentas = CuentaBancaria.objects.filter(idBanco=id)
+        recepcionDePagos = RecepcionPago.objects.filter(id_tarjeta_bancaria=id)
+        devoluciones = Devoluciones.objects.filter(id_tarjeta_bancaria=id)
+        gastos = Gastogenerales.objects.filter(id_tarjeta_bancaria=id)
+        utilidadocacional = Utilidadocacional.objects.filter(id_tarjeta_bancaria=id)
+
+        # Depuración
+        print(f"Cuentas encontradas: {cuentas.count()}")
+        print(f"Recepcion de Pagos encontradas: {recepcionDePagos.count()}")
+        print(f"Devoluciones encontradas: {devoluciones.count()}")
+        print(f"Gastos encontrados: {gastos.count()}")
+        print(f"Utilidades ocasionales encontradas: {utilidadocacional.count()}")
+
     except RegistroTarjetas.DoesNotExist:
         return Response({"error": "Tarjeta no encontrada"}, status=status.HTTP_404_NOT_FOUND)
-    
-    # Consulta para Cuentas Bancarias
-    cuentas = CuentaBancaria.objects.filter(idBanco=id).annotate(
-        fi=F("fechaIngreso"),
-        ft=F("fechaTransaccion"),
-        desc_alias=F("descripcion"),
-        valor_alias=F("valor"),
-        id_tarjeta=F("idBanco"),
-        origen=Value("Cuenta Bancaria", output_field=CharField())
-    ).values("id", "fi", "ft", "valor_alias", "desc_alias", "id_tarjeta", "origen")
-
-    recepcionDePagos = RecepcionPago.objects.all().annotate(
-        fi=F('fecha_ingreso'),
-        ft=F('fecha_transaccion'),
-        desc_alias=F('observacion'),
-        valor_alias=F('valor'),
-        id_tarjeta=F('id_tarjeta_bancaria'),
-        origen=Value('Recepcion de Pago', output_field=CharField())
-    ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'id_tarjeta', 'origen')
-
-    # Consulta para Devoluciones
-    devoluciones = Devoluciones.objects.filter(id_tarjeta_bancaria=id).annotate(
-        fi=F("fecha_ingreso"),
-        ft=F("fecha_transaccion"),
-        desc_alias=F("observacion"),
-        valor_alias=F("valor"),
-        id_tarjeta=F("id_tarjeta_bancaria"),
-        origen=Value("Devolución", output_field=CharField())
-    ).values("id", "fi", "ft", "valor_alias", "desc_alias", "id_tarjeta", "origen")
-
-    # Consulta para Gastos Generales
-    gastos = Gastogenerales.objects.filter(id_tarjeta_bancaria=id).annotate(
-        fi=F("fecha_ingreso"),
-        ft=F("fecha_transaccion"),
-        desc_alias=F("observacion"),
-        valor_alias=F("valor"),
-        id_tarjeta=F("id_tarjeta_bancaria"),
-        origen=Value("Gasto General", output_field=CharField())
-    ).values("id", "fi", "ft", "valor_alias", "desc_alias", "id_tarjeta", "origen")
-
-    # Consulta para Utilidad Ocasional
-    utilidadocacional = Utilidadocacional.objects.filter(id_tarjeta_bancaria=id).annotate(
-        fi=F("fecha_ingreso"),
-        ft=F("fecha_transaccion"),
-        desc_alias=F("observacion"),
-        valor_alias=F("valor"),
-        id_tarjeta=F("id_tarjeta_bancaria"),
-        origen=Value("Utilidad Ocasional", output_field=CharField())
-    ).values("id", "fi", "ft", "valor_alias", "desc_alias", "id_tarjeta", "origen")
-
-    # Unir todas las consultas
-    union_result = list(cuentas.union(devoluciones, gastos, utilidadocacional, recepcionDePagos))
-
-    # Crear DataFrame con los datos
-    df = pd.DataFrame(list(union_result))
-
-    # Si hay datos, formatear las fechas quitando la zona horaria
-    if not df.empty:
-        df.rename(columns={
-            "fi": "Fecha Ingreso",
-            "ft": "Fecha Transacción",
-            "desc_alias": "Descripción",
-            "valor_alias": "Valor",
-            "id_tarjeta": "ID Tarjeta",
-            "origen": "Tipo de Movimiento",
-        }, inplace=True)
-
-        # Eliminar zona horaria de las fechas si existen
-        if "Fecha Ingreso" in df.columns:
-            df["Fecha Ingreso"] = pd.to_datetime(df["Fecha Ingreso"]).dt.tz_localize(None)
-        if "Fecha Transacción" in df.columns:
-            df["Fecha Transacción"] = pd.to_datetime(df["Fecha Transacción"]).dt.tz_localize(None)
-
-    # Calcular totales
-    total_cuentas = safe_sum(CuentaBancaria.objects.filter(idBanco=id), "valor")
-    total_devoluciones = safe_sum(Devoluciones.objects.filter(id_tarjeta_bancaria=id), "valor")
-    total_gastos = safe_sum(Gastogenerales.objects.filter(id_tarjeta_bancaria=id), "valor")
-    total_utilidad = safe_sum(Utilidadocacional.objects.filter(id_tarjeta_bancaria=id), "valor")
-    total_recepcionDePagos = safe_sum(RecepcionPago.objects.filter(id_tarjeta_bancaria=id), "valor")
-    total_general = total_cuentas + total_devoluciones + total_gastos + total_utilidad + total_recepcionDePagos
-
-    # Crear DataFrame con los totales
-    df_totales = pd.DataFrame({
-        "Concepto": ["Total Cuenta Bancaria", "Total Devoluciones", "Total Gastos Generales", "Total Utilidad Ocasional", "Total Recepcion de pagos" ,"TOTAL GENERAL"],
-        "Valor": [total_cuentas, total_devoluciones, total_gastos, total_utilidad, total_recepcionDePagos, total_general]
-    })
-
-    # Crear DataFrame con la información de la tarjeta
-    df_tarjeta = pd.DataFrame({
-        "Campo": ["Nombre Cuenta", "Descripción", "Número Cuenta", "Banco"],
-        "Valor": [nombre_cuenta, descripcion, numero_cuenta, banco]
-    })
-
-    # Crear un archivo Excel con múltiples hojas
-    with pd.ExcelWriter("Reporte_Cuenta.xlsx", engine="xlsxwriter") as writer:
-        df_tarjeta.to_excel(writer, sheet_name="Información Cuenta", index=False)
-        df.to_excel(writer, sheet_name="Movimientos", index=False)
-        df_totales.to_excel(writer, sheet_name="Totales", index=False)
-
-    # Leer el archivo Excel y enviarlo como respuesta HTTP
-    with open("Reporte_Cuenta.xlsx", "rb") as excel_file:
-        response = HttpResponse(excel_file.read(), content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-        response["Content-Disposition"] = f'attachment; filename="Reporte_Cuenta_{id}.xlsx"'
-    
-    return response
+    except Exception as e:
+        print(f"Error inesperado: {e}")  # Depuración en logs
+        return Response({"error": "Error interno en el servidor"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(["GET"])
