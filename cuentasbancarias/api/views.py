@@ -372,6 +372,142 @@ def safe_sum(queryset, field_name):
 
 @api_view(["GET"])
 def download_report_excel(request, id):
+    # Obtener los parámetros de fecha de la URL
+    fecha_inicio = request.GET.get('fechaInicio')
+    fecha_fin    = request.GET.get('fechaFin')
+
+
+    # Convertir las fechas a objetos de Python
+    fecha_inicio = parse_date_with_defaults(fecha_inicio)
+    fecha_fin    = parse_date_with_defaults(fecha_fin, is_end=True)
+
+    if fecha_fin and fecha_fin:
+        print(" ===== Ingesa =====")
+        try:
+            # Validar que el ID es un número válido
+            if not str(id).isdigit():
+                return Response({"error": "ID inválido"}, status=status.HTTP_400_BAD_REQUEST)
+
+            tarjeta = RegistroTarjetas.objects.filter(pk=id).first()
+            if not tarjeta:
+                return Response({"error": "Tarjeta no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+
+            # Extraer información de la tarjeta
+            nombre_cuenta = tarjeta.nombre_cuenta
+            descripcion = tarjeta.descripcion
+            numero_cuenta = tarjeta.numero_cuenta
+            banco = tarjeta.banco
+
+            # Consultas optimizadas
+            cuentas = CuentaBancaria.objects.filter(idBanco=id).annotate(
+                fi=F("fechaIngreso"),
+                ft=F("fechaTransaccion"),
+                desc_alias=F("descripcion"),
+                valor_alias=F("valor"),
+                id_tarjeta=F("idBanco"),
+                origen=Value("Cuenta Bancaria", output_field=CharField())
+            ).values("id", "fi", "ft", "valor_alias", "desc_alias", "id_tarjeta", "origen")
+            cuentas = cuentas.filter(fi__range=(fecha_inicio, fecha_fin))
+
+            recepcionDePagos = RecepcionPago.objects.filter(id_tarjeta_bancaria=id).annotate(
+                fi=F('fecha_ingreso'),
+                ft=F('fecha_transaccion'),
+                desc_alias=F('observacion'),
+                valor_alias=F('valor'),
+                id_tarjeta=F('id_tarjeta_bancaria'),
+                origen=Value('Recepcion de Pago', output_field=CharField())
+            ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'id_tarjeta', 'origen')
+            recepcionDePagos = recepcionDePagos.filter(fi__range=(fecha_inicio, fecha_fin))
+
+            devoluciones = Devoluciones.objects.filter(id_tarjeta_bancaria=id).annotate(
+                fi=F("fecha_ingreso"),
+                ft=F("fecha_transaccion"),
+                desc_alias=F("observacion"),
+                valor_alias=F("valor"),
+                id_tarjeta=F("id_tarjeta_bancaria"),
+                origen=Value("Devolución", output_field=CharField())
+            ).values("id", "fi", "ft", "valor_alias", "desc_alias", "id_tarjeta", "origen")
+            devoluciones = devoluciones.filter(fi__range=(fecha_inicio, fecha_fin))
+
+            gastos = Gastogenerales.objects.filter(id_tarjeta_bancaria=id).annotate(
+                fi=F("fecha_ingreso"),
+                ft=F("fecha_transaccion"),
+                desc_alias=F("observacion"),
+                valor_alias=F("valor"),
+                id_tarjeta=F("id_tarjeta_bancaria"),
+                origen=Value("Gasto General", output_field=CharField())
+            ).values("id", "fi", "ft", "valor_alias", "desc_alias", "id_tarjeta", "origen")
+            gastos = gastos.filter(fi__range=(fecha_inicio, fecha_fin))
+            
+            utilidadocacional = Utilidadocacional.objects.filter(id_tarjeta_bancaria=id).annotate(
+                fi=F("fecha_ingreso"),
+                ft=F("fecha_transaccion"),
+                desc_alias=F("observacion"),
+                valor_alias=F("valor"),
+                id_tarjeta=F("id_tarjeta_bancaria"),
+                origen=Value("Utilidad Ocasional", output_field=CharField())
+            ).values("id", "fi", "ft", "valor_alias", "desc_alias", "id_tarjeta", "origen")
+            utilidadocacional = utilidadocacional.filter(fi__range=(fecha_inicio, fecha_fin))
+
+            # Unir todas las consultas
+            union_result = list(cuentas) + list(recepcionDePagos) + list(devoluciones) + list(gastos) + list(utilidadocacional)
+
+            # Crear DataFrame con los datos
+            df = pd.DataFrame(union_result)
+
+            # Renombrar columnas si hay datos
+            if not df.empty:
+                df.rename(columns={
+                    "fi": "Fecha Ingreso",
+                    "ft": "Fecha Transacción",
+                    "desc_alias": "Descripción",
+                    "valor_alias": "Valor",
+                    "id_tarjeta": "ID Tarjeta",
+                    "origen": "Tipo de Movimiento",
+                }, inplace=True)
+
+                # Formatear fechas si existen
+                if "Fecha Ingreso" in df.columns:
+                    df["Fecha Ingreso"] = pd.to_datetime(df["Fecha Ingreso"]).dt.tz_localize(None)
+                if "Fecha Transacción" in df.columns:
+                    df["Fecha Transacción"] = pd.to_datetime(df["Fecha Transacción"]).dt.tz_localize(None)
+
+            # Calcular totales
+            total_cuentas           = safe_sum( CuentaBancaria.objects.filter(idBanco=id).filter(fechaIngreso__range=(fecha_inicio, fecha_fin)), "valor")
+            total_devoluciones      = safe_sum(Devoluciones.objects.filter(id_tarjeta_bancaria=id).filter(fecha_ingreso__range=(fecha_inicio, fecha_fin)), "valor")
+            total_gastos            = safe_sum(Gastogenerales.objects.filter(id_tarjeta_bancaria=id).filter(fecha_ingreso__range=(fecha_inicio, fecha_fin)), "valor")
+            total_utilidad          = safe_sum(Utilidadocacional.objects.filter(id_tarjeta_bancaria=id).filter(fecha_ingreso__range=(fecha_inicio, fecha_fin)), "valor")
+            total_recepcionDePagos  = safe_sum(RecepcionPago.objects.filter(id_tarjeta_bancaria=id).filter(fecha_ingreso__range=(fecha_inicio, fecha_fin)), "valor")
+
+            total_general = total_cuentas + total_devoluciones + total_gastos + total_utilidad + total_recepcionDePagos
+
+            # Crear DataFrame con los totales
+            df_totales = pd.DataFrame({
+                "Concepto": ["Total Cuenta Bancaria", "Total Devoluciones", "Total Gastos Generales", "Total Utilidad Ocasional", "Total Recepcion de pagos", "TOTAL GENERAL"],
+                "Valor": [total_cuentas, total_devoluciones, total_gastos, total_utilidad, total_recepcionDePagos, total_general]
+            })
+
+            # Crear DataFrame con la información de la tarjeta
+            df_tarjeta = pd.DataFrame({
+                "Campo": ["Nombre Cuenta", "Descripción", "Número Cuenta", "Banco"],
+                "Valor": [nombre_cuenta, descripcion, numero_cuenta, banco]
+            })
+
+            # Usar un archivo temporal para evitar problemas de concurrencia
+            with NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
+                with pd.ExcelWriter(tmp.name, engine="xlsxwriter") as writer:
+                    df_tarjeta.to_excel(writer, sheet_name="Información Cuenta", index=False)
+                    df.to_excel(writer, sheet_name="Movimientos", index=False)
+                    df_totales.to_excel(writer, sheet_name="Totales", index=False)
+
+                # Leer el archivo Excel y enviarlo como respuesta HTTP
+                with open(tmp.name, "rb") as excel_file:
+                    response = HttpResponse(excel_file.read(), content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                    response["Content-Disposition"] = f'attachment; filename="Reporte_Cuenta_{id}.xlsx"'
+            return response
+        except Exception as e:
+            return Response({"error": f"Error interno: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     try:
         # Validar que el ID es un número válido
         if not str(id).isdigit():
@@ -492,8 +628,3 @@ def download_report_excel(request, id):
 
     except Exception as e:
         return Response({"error": f"Error interno: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-@api_view(["GET"])
-def download_report_pdf(request, id):
-    pass

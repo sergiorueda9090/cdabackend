@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte Financiero</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            padding: 20px;
+            border: 1px solid #ddd;
+        }
+        .header {
+            text-align: center;
+        }
+        .header img {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+        }
+        .report-title {
+            text-align: center;
+            font-size: 24px;
+            margin-top: 10px;
+        }
+        .table-container {
+            margin-top: 20px;
+            width: 100%;
+            border-collapse: collapse;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+        .total {
+            font-weight: bold;
+        }
+        .cards-container {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        .card {
+            background-color: #F4F6F8;
+            border-radius: 10px;
+            padding: 15px;
+            width: 22%;
+            text-align: center;
+        }
+        .card img {
+            width: 40px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <img src="logo.png" alt="Logo de la empresa">
+        <h1>{{ tarjeta.nombre_cuenta }}</h1>
+    </div>
+    
+    <h2 class="report-title">Reporte Financiero</h2>
+    <p><strong>Descripción:</strong> {{ tarjeta.descripcion_cuenta }}</p>
+    <p><strong>Número de Cuenta:</strong> {{ tarjeta.numero_cuenta }}</p>
+    <p><strong>Banco:</strong> {{ tarjeta.banco }}</p>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Fecha Ingreso</th>
+                <th>Fecha Transacción</th>
+                <th>Descripción</th>
+                <th>Valor ($)</th>
+                <th>Origen</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in data %}
+            <tr>
+                <td>{{ item.fi }}</td>
+                <td>{{ item.ft }}</td>
+                <td>{{ item.desc_alias }}</td>
+                <td>{{ item.valor_alias }}</td>
+                <td>{{ item.origen }}</td>
+            </tr>
+            {% endfor %}
+            <tr class="total">
+                <td colspan="3">Total</td>
+                <td>{{ totales.total }}</td>
+                <td></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="cards-container">
+        <div class="card">
+            <h3>Saldo en Cuenta Bancaria</h3>
+            <p>${{ totales.total_cuenta_bancaria }}</p>
+        </div>
+        <div class="card">
+            <h3>Devoluciones</h3>
+            <p>${{ totales.total_devoluciones }}</p>
+        </div>
+        <div class="card">
+            <h3>Gastos Generales</h3>
+            <p>${{ totales.total_gastos_generales }}</p>
+        </div>
+        <div class="card">
+            <h3>Utilidad Ocasional</h3>
+            <p>${{ totales.total_utilidad_ocacional }}</p>
+        </div>
+    </div>
+</body>
+</html>
