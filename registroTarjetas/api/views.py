@@ -59,6 +59,23 @@ def eliminar_tarjeta(request, id):
 
 @api_view(['GET'])
 def obtener_tarjetas_total(request):
+    # Verificar si todas las tablas existen antes de ejecutar consultas
+    required_models = {
+        "RegistroTarjetas": RegistroTarjetas,
+        "RecepcionPago": RecepcionPago,
+        "Devoluciones": Devoluciones,
+        "Gastogenerales": Gastogenerales,
+        "Utilidadocacional": Utilidadocacional
+    }
+
+    missing_tables = [name for name, model in required_models.items() if not model._meta.db_table]
+
+    if missing_tables:
+        return Response(
+            {"error": "Algunas tablas no existen en la base de datos", "tablas_faltantes": missing_tables},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+    
     cuentas     = RegistroTarjetas.objects.all()
     #total_recepcion_pagos = RecepcionPago.objects.filter(cuentas[0].id)
 
