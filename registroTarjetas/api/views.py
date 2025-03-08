@@ -5,6 +5,13 @@ from rest_framework import status
 from registroTarjetas.models import RegistroTarjetas
 from .serializers import RegistroTarjetasSerializer
 
+from recepcionPago.models     import RecepcionPago
+from devoluciones.models      import Devoluciones
+from gastosgenerales.models   import Gastogenerales
+from utilidadocacional.models import Utilidadocacional
+
+from django.db.models import Sum
+
 @api_view(['GET'])
 def obtener_tarjetas(request):
     cuentas     = RegistroTarjetas.objects.all()
@@ -49,3 +56,41 @@ def eliminar_tarjeta(request, id):
         return Response({"message": "Cuenta bancaria eliminada correctamente"}, status=status.HTTP_204_NO_CONTENT)
     except RegistroTarjetas.DoesNotExist:
         return Response({"error": "Cuenta bancaria no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+
+@api_view(['GET'])
+def obtener_tarjetas_total(request):
+    cuentas     = RegistroTarjetas.objects.all()
+    #total_recepcion_pagos = RecepcionPago.objects.filter(cuentas[0].id)
+
+    serializer  = RegistroTarjetasSerializer(cuentas, many=True)
+
+    for i in range(len(serializer.data)):
+        rtaRecepcionPago = RecepcionPago.objects.filter(
+            id_tarjeta_bancaria=serializer.data[i]['id']
+        ).aggregate(total_suma=Sum('valor'))
+
+        rtaDevoluciones = Devoluciones.objects.filter(
+            id_tarjeta_bancaria=serializer.data[i]['id']
+        ).aggregate(total_suma=Sum('valor'))
+
+
+        rtaGastogenerales = Gastogenerales.objects.filter(
+            id_tarjeta_bancaria=serializer.data[i]['id']
+        ).aggregate(total_suma=Sum('valor'))
+
+        rtaUtilidadocacional = Utilidadocacional.objects.filter(
+            id_tarjeta_bancaria=serializer.data[i]['id']
+        ).aggregate(total_suma=Sum('valor'))
+
+        rtaRecepcionPago['total_suma']      = rtaRecepcionPago['total_suma']     if rtaRecepcionPago['total_suma']      is not None else 0
+        rtaDevoluciones['total_suma']       = rtaDevoluciones['total_suma']      if rtaDevoluciones['total_suma']       is not None else 0
+        rtaGastogenerales['total_suma']     = rtaGastogenerales['total_suma']    if rtaGastogenerales['total_suma']     is not None else 0
+        rtaUtilidadocacional['total_suma']  = rtaUtilidadocacional['total_suma'] if rtaUtilidadocacional['total_suma']  is not None else 0
+
+    
+        print("rtaRecepcionPago : {}\nrtaDevoluciones: {}\nrtaGastogenerales: {}\nrtaUtilidadocacional: {}"
+            .format(rtaRecepcionPago, rtaDevoluciones, rtaGastogenerales, rtaUtilidadocacional))
+    
+        serializer.data[i]['valor'] = rtaRecepcionPago['total_suma']
+
+    return Response(serializer.data, status=status.HTTP_200_OK)

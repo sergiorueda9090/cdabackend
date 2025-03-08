@@ -67,6 +67,7 @@ urlpatterns = [
    path('gastosgenerales/',     include('gastosgenerales.api.urls')             , name="gastosgenerales"),
    path('utilidadocacional/',   include('utilidadocacional.api.urls')           , name="utilidadocacional"),
    path('downloadpdf/',         include('cuentasbancarias.urls')                , name="downloadpdf"),
+   path('fichacliente/',        include('fichacliente.api.urls')                , name="fichacliente"),
 ]
 
 # Servir archivos de media en modo debug

@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     'gastos',
     'gastosgenerales',
     'utilidadocacional',
+    'fichacliente'
 ]
 
 MIDDLEWARE = [
