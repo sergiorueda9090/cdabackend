@@ -1,6 +1,7 @@
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response   import Response
 
+from cuentasbancarias.models    import CuentaBancaria
 from cotizador.models           import Cotizador
 from clientes.models            import Cliente
 from recepcionPago.models       import RecepcionPago
@@ -8,8 +9,10 @@ from devoluciones.models        import Devoluciones
 from ajustesaldos.models        import Ajustesaldo
 from django.db.models           import F, Value, CharField, Sum, Q
 from datetime import datetime
+from rest_framework.permissions import IsAuthenticated
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def get_all_ficha_cliente(request):
     # Obtener parámetros de fecha
     fecha_inicio = request.GET.get('fechaInicio')
@@ -23,6 +26,7 @@ def get_all_ficha_cliente(request):
     except ValueError:
         return Response({"error": "Formato de fecha inválido. Use YYYY-MM-DD."}, status=400)
 
+
     # 1. Obtener los cotizadores con sus idCliente
     cotizadores_qs = Cotizador.objects.values('id', 'fechaCreacion', 'total', 'idCliente')
 
@@ -30,23 +34,27 @@ def get_all_ficha_cliente(request):
     if fecha_inicio and fecha_fin:
         cotizadores_qs = cotizadores_qs.filter(fechaCreacion__range=[fecha_inicio, fecha_fin])
 
+
     # 2. Obtener los clientes en un diccionario {id: nombre}
     clientes_dict = {c['id']: c['nombre'] for c in Cliente.objects.values('id', 'nombre')}
 
+    #valor total
+    cuentasbancarias_qs = {c['idCotizador']: c['valor'] for c in CuentaBancaria.objects.values('idCotizador', 'valor')}
+    
     # 3. Formatear cotizadores en una lista
     cotizadores_list = [
         {
             'id': cotizador['id'],
             'fi': cotizador['fechaCreacion'],
             'ft': None,
-            'valor_alias': cotizador['total'],
+            'valor_alias': cuentasbancarias_qs.get(cotizador['id'], "Desconocido"), #cotizador['total'],
             'desc_alias': "",
             'cliente_nombre': clientes_dict.get(cotizador['idCliente'], "Desconocido"),
-            'origen': "Cotizador"
+            'origen': "Tramites"
         }
         for cotizador in cotizadores_qs
     ]
-
+    print(cuentasbancarias_qs)
     # 4. Obtener y filtrar los otros modelos
     filtros_fecha = Q()
     if fecha_inicio and fecha_fin:

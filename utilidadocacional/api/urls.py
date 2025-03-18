@@ -4,7 +4,8 @@ from .views import (
     crear_utilidad_general,
     obtener_utilidad_general,
     actualizar_utilidad_general,
-    eliminar_utilidad_general
+    eliminar_utilidad_general,
+    obtener_cutilidad_general_filtradas
 )
 
 urlpatterns = [
@@ -13,4 +14,6 @@ urlpatterns = [
     path('api/utilidadocacional/<int:pk>/',           obtener_utilidad_general,     name='obtener_utilidad_general'),
     path('api/utilidadocacional/<int:pk>/update/',    actualizar_utilidad_general,  name='actualizar_utilidad_general'),
     path('api/utilidadocacional/<int:pk>/delete/',    eliminar_utilidad_general,    name='eliminar_utilidad_general'),
+    
+    path('api/utilidadocacional/get_cotizadores_filter_date/',    obtener_cutilidad_general_filtradas, name='eliminar_utilidad_general'),
 ]

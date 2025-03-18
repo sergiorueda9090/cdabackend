@@ -6,7 +6,8 @@ from datetime import datetime
 
 from rest_framework.response    import Response
 from django.http                import HttpResponse
-from rest_framework.decorators  import api_view
+from rest_framework.decorators  import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 from rest_framework             import status
 from cuentasbancarias.models    import CuentaBancaria
 
@@ -20,81 +21,180 @@ from utilidadocacional.models   import Utilidadocacional
 
 from .serializers               import CuentaBancariaSerializer
 
-from django.db.models import F, Value, CharField, Sum
+from django.db.models import F, Value, CharField, Sum, IntegerField, Q
 from decimal import Decimal
 
 from tempfile import NamedTemporaryFile
 
+
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def obtener_cuentas(request):
-    # Normalización de fechas y nombres de columnas sin sobrescribir nombres existentes
-    cuentas = CuentaBancaria.objects.all().annotate(
+    # Obtener todas las cuentas bancarias con los campos necesarios
+    cuentas_qs = CuentaBancaria.objects.annotate(
         fi=F('fechaIngreso'),
         ft=F('fechaTransaccion'),
-        desc_alias=F('descripcion'),  # Se usa 'desc_alias' en vez de 'descripcion'
-        valor_alias=F('valor'),  # Se usa 'valor_alias' en vez de 'valor'
-        id_tarjeta=F('idBanco')
-    ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias','id_tarjeta')
-    
-    recepcionDePagos = RecepcionPago.objects.all().annotate(
+        desc_alias=F('descripcion'),
+        valor_alias=F('valor'),
+        id_tarjeta=F('idBanco'),
+        origen=Value("Tramite", output_field=CharField()),
+        id_cotizador=F('idCotizador')
+    ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador')
+
+    # Obtener todos los cotizadores en un diccionario {id: objeto}
+    cotizador_ids = [c['id_cotizador'] for c in cuentas_qs if c['id_cotizador']]
+    cotizadores = {c.id: c for c in Cotizador.objects.filter(id__in=cotizador_ids)}
+
+    # Convertir cuentas a lista y agregar datos de Cotizador
+    cuentas = list(cuentas_qs)
+    for cuenta in cuentas:
+        cotizador = cotizadores.get(cuenta.get('id_cotizador'))
+        cuenta['placa'] = cotizador.placa if cotizador else None
+        cuenta['cilindraje'] = cotizador.cilindraje if cotizador else None
+        cuenta['archivo'] = cotizador.archivo.url if cotizador and cotizador.archivo else None
+
+    # Obtener datos de las otras tablas y convertirlas en listas
+    recepcionDePagos = list(RecepcionPago.objects.annotate(
         fi=F('fecha_ingreso'),
         ft=F('fecha_transaccion'),
         desc_alias=F('observacion'),
         valor_alias=F('valor'),
-        id_tarjeta=F('id_tarjeta_bancaria')
-    ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias','id_tarjeta')
+        id_tarjeta=F('id_tarjeta_bancaria'),
+        origen=Value("Recepcion Pago", output_field=CharField()),
+        id_cotizador=Value(None, output_field=IntegerField()),
+    ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador'))
 
-    devoluciones = Devoluciones.objects.all().annotate(
+    devoluciones = list(Devoluciones.objects.annotate(
         fi=F('fecha_ingreso'),
         ft=F('fecha_transaccion'),
         desc_alias=F('observacion'),
         valor_alias=F('valor'),
-        id_tarjeta=F('id_tarjeta_bancaria')
-    ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'id_tarjeta')
+        id_tarjeta=F('id_tarjeta_bancaria'),
+        origen=Value("Devoluciones", output_field=CharField()),
+        id_cotizador=Value(None, output_field=IntegerField()),
+    ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador'))
 
-    gastos = Gastogenerales.objects.all().annotate(
+    gastos = list(Gastogenerales.objects.annotate(
         fi=F('fecha_ingreso'),
         ft=F('fecha_transaccion'),
         desc_alias=F('observacion'),
         valor_alias=F('valor'),
-        id_tarjeta=F('id_tarjeta_bancaria')
-    ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'id_tarjeta')
+        id_tarjeta=F('id_tarjeta_bancaria'),
+        origen=Value("Gastos generales", output_field=CharField()),
+        id_cotizador=Value(None, output_field=IntegerField()),
+    ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador'))
 
-    utilidadocacional = Utilidadocacional.objects.all().annotate(
+    utilidadocacional = list(Utilidadocacional.objects.annotate(
         fi=F('fecha_ingreso'),
         ft=F('fecha_transaccion'),
         desc_alias=F('observacion'),
         valor_alias=F('valor'),
-        id_tarjeta=F('id_tarjeta_bancaria')
-    ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'id_tarjeta')
+        id_tarjeta=F('id_tarjeta_bancaria'),
+        origen=Value("Utilidad ocacional", output_field=CharField()),
+        id_cotizador=Value(None, output_field=IntegerField()),
+    ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador'))
 
-    # Unir todas las consultas asegurando que los tipos coincidan
-    union_result = cuentas.union(devoluciones, gastos, utilidadocacional, recepcionDePagos)
-   
-    # Serializar el resultado; en el serializer, podrías convertir 'fi' y 'ft' a los nombres deseados
+    # Unir los datos como listas
+    union_result = cuentas + recepcionDePagos + devoluciones + gastos + utilidadocacional
 
+    # Retornar la respuesta
     return Response(union_result)
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def obtener_cuentas_filtradas(request):
+    # Obtener parámetros de fecha desde la URL
+    fecha_inicio = parse_date_with_defaults(request.GET.get('fechaInicio'))
+    fecha_fin = parse_date_with_defaults(request.GET.get('fechaFin'), is_end=True)
+
+    # Aplicar filtro de fechas en `fi`
+    filtro_fecha = Q()
+    if fecha_inicio and fecha_fin:
+        filtro_fecha = Q(fi__range=[fecha_inicio, fecha_fin])
+    elif fecha_inicio:
+        filtro_fecha = Q(fi__gte=fecha_inicio)
+    elif fecha_fin:
+        filtro_fecha = Q(fi__lte=fecha_fin)
+
+    # Obtener todas las cuentas bancarias con filtro de fecha en `fi`
+    cuentas_qs = CuentaBancaria.objects.annotate(
+        fi=F('fechaIngreso'),
+        ft=F('fechaTransaccion'),
+        desc_alias=F('descripcion'),
+        valor_alias=F('valor'),
+        id_tarjeta=F('idBanco'),
+        origen=Value("Tramite", output_field=CharField()),
+        id_cotizador=F('idCotizador')
+    ).filter(filtro_fecha).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador')
+
+    # Obtener cotizadores en un diccionario {id: objeto}
+    cotizador_ids = [c['id_cotizador'] for c in cuentas_qs if c['id_cotizador']]
+    cotizadores = {c.id: c for c in Cotizador.objects.filter(id__in=cotizador_ids)}
+
+    # Convertir cuentas a lista y agregar datos de Cotizador
+    cuentas = list(cuentas_qs)
+    for cuenta in cuentas:
+        cotizador = cotizadores.get(cuenta.get('id_cotizador'))
+        cuenta['placa'] = cotizador.placa if cotizador else None
+        cuenta['cilindraje'] = cotizador.cilindraje if cotizador else None
+        cuenta['archivo'] = cotizador.archivo.url if cotizador and cotizador.archivo else None
+
+    # Listado de tablas adicionales a procesar
+    otras_tablas = [
+        (RecepcionPago, "Recepcion Pago"),
+        (Devoluciones, "Devoluciones"),
+        (Gastogenerales, "Gastos generales"),
+        (Utilidadocacional, "Utilidad ocacional")
+    ]
+
+    # Unir resultados de todas las consultas
+    union_result = cuentas
+
+    for tabla, origen in otras_tablas:
+        registros = list(tabla.objects.annotate(
+            fi=F('fecha_ingreso'),
+            ft=F('fecha_transaccion'),
+            desc_alias=F('observacion'),
+            valor_alias=F('valor'),
+            id_tarjeta=F('id_tarjeta_bancaria'),
+            origen=Value(origen, output_field=CharField()),
+            id_cotizador=Value(None, output_field=IntegerField()),
+        ).filter(filtro_fecha).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador'))
+        union_result.extend(registros)
+
+    # Retornar la respuesta
+    return Response(union_result)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def obtener_cuenta(request, id):
     try:
-        cuenta      = CuentaBancaria.objects.get(id=id)
-        cotizador   = Cotizador.objects.filter(id=cuenta.idCotizador).first()
-        serializer  = CuentaBancariaSerializer(cuenta)
+        # Obtener la cuenta bancaria
+        cuenta = CuentaBancaria.objects.get(id=id)
+        cotizador = Cotizador.objects.filter(id=cuenta.idCotizador).first()
 
-        # Agregar la URL del archivo al JSON de respuesta
-        response_data = serializer.data
-        # Obtener la URL del archivo si existe
-        archivo_url = request.build_absolute_uri(cotizador.archivo.url) if cotizador.archivo else None
-
-        # Agregar la URL del archivo a la respuesta JSON
-        response_data["archivo"] = archivo_url
+        # Construir manualmente el diccionario de respuesta
+        response_data = {
+            "id": cuenta.id,
+            "fecha_ingreso": cuenta.fechaIngreso,
+            "fecha_transaccion": cuenta.fechaTransaccion,
+            "descripcion": cuenta.descripcion,
+            "valor": cuenta.valor,
+            "id_banco": cuenta.idBanco,
+            "origen": "Tramite",
+            "id_cotizador": cuenta.idCotizador,
+            "placa": cotizador.placa if cotizador else None,
+            "cilindraje": cotizador.cilindraje if cotizador else None,
+            "archivo": request.build_absolute_uri(cotizador.archivo.url) if cotizador and cotizador.archivo else None
+        }
 
         return Response(response_data, status=status.HTTP_200_OK)
+    
     except CuentaBancaria.DoesNotExist:
         return Response({"error": "Cuenta bancaria no encontrada"}, status=status.HTTP_404_NOT_FOUND)
 
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def crear_cuenta(request):
     serializer = CuentaBancariaSerializer(data=request.data)
     if serializer.is_valid():
@@ -103,6 +203,7 @@ def crear_cuenta(request):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['PUT'])
+@permission_classes([IsAuthenticated])
 def actualizar_cuenta(request, id):
     try:
         cuenta = CuentaBancaria.objects.get(id=id)
@@ -116,6 +217,7 @@ def actualizar_cuenta(request, id):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
 def eliminar_cuenta(request, id):
     try:
         cuenta = CuentaBancaria.objects.get(id=id)
@@ -126,6 +228,7 @@ def eliminar_cuenta(request, id):
 
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def obtener_datos_cuenta(request, id):
     try:
         tarjeta = RegistroTarjetas.objects.get(pk=id)
@@ -221,6 +324,7 @@ def obtener_datos_cuenta(request, id):
     return Response(response_data, status=status.HTTP_200_OK)
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def cuentasbancarias_filter_date(request, id):
     # Obtener los parámetros de fecha de la URL
 
@@ -371,6 +475,7 @@ def safe_sum(queryset, field_name):
 
 
 @api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def download_report_excel(request, id):
     # Obtener los parámetros de fecha de la URL
     fecha_inicio = request.GET.get('fechaInicio')

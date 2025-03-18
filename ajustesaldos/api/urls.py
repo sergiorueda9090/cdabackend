@@ -4,7 +4,8 @@ from .views import (
     crear_ajustessaldo,
     obtener_ajustessaldo,
     actualizar_ajustessaldo,
-    eliminar_ajustessaldo
+    eliminar_ajustessaldo,
+    listar_ajustessaldo_filtradas
 )
 
 urlpatterns = [
@@ -13,4 +14,6 @@ urlpatterns = [
     path('api/ajustessaldo/<int:pk>/',          obtener_ajustessaldo,     name='obtener_ajustessaldo'),
     path('api/ajustessaldo/<int:pk>/update/',   actualizar_ajustessaldo,  name='actualizar_ajustessaldo'),
     path('api/ajustessaldo/<int:pk>/delete/',   eliminar_ajustessaldo,    name='eliminar_ajustessaldo'),
+
+    path('api/ajustessaldo/listar_ajustessaldo_filtradas/',   listar_ajustessaldo_filtradas,    name='listar_ajustessaldo_filtradas'),
 ]

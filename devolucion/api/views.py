@@ -1,4 +1,4 @@
-from rest_framework.decorators  import api_view
+from rest_framework.decorators  import api_view, permission_classes
 from rest_framework.response    import Response
 from rest_framework             import status
 from devolucion.models          import Devolucion
@@ -6,8 +6,13 @@ from .serializers               import DevolucionSerializer
 from clientes.models            import Cliente
 from registroTarjetas.models    import RegistroTarjetas
 
+from rest_framework.permissions import IsAuthenticated
+
+from datetime import datetime
+from django.db.models   import Q
 # 🔹 Listar todas las devoluciones
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def listar_devoluciones(request):
     devoluciones = Devolucion.objects.all()
     serializer   = DevolucionSerializer(devoluciones, many=True)
@@ -15,6 +20,7 @@ def listar_devoluciones(request):
 
 # 🔹 Crear una nueva devolución
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def crear_devolucion(request):
     required_fields = ["cliente_id", "id_tarjeta_bancaria", "fecha_transaccion", "valor"]
 
@@ -55,6 +61,7 @@ def crear_devolucion(request):
 
 # 🔹 Obtener una devolución por ID
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def obtener_devolucion(request, pk):
     try:
         devolucion = Devolucion.objects.get(pk=pk)
@@ -66,6 +73,7 @@ def obtener_devolucion(request, pk):
 
 # 🔹 Actualizar una devolución
 @api_view(['PUT'])
+@permission_classes([IsAuthenticated])
 def actualizar_devolucion(request, pk):
     try:
         devolucion = Devolucion.objects.get(pk=pk)
@@ -105,6 +113,7 @@ def actualizar_devolucion(request, pk):
 
 # 🔹 Eliminar una devolución
 @api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
 def eliminar_devolucion(request, pk):
     try:
         devolucion = Devolucion.objects.get(pk=pk)
@@ -112,3 +121,33 @@ def eliminar_devolucion(request, pk):
         return Response({"mensaje": "Devolución eliminada correctamente."}, status=status.HTTP_204_NO_CONTENT)
     except Devolucion.DoesNotExist:
         return Response({"error": "Devolución no encontrada."}, status=status.HTTP_404_NOT_FOUND)
+
+def parse_date_with_defaults(date_str, is_end=False):
+    if not date_str:
+        return None
+    
+    parsed_date = datetime.strptime(date_str, '%Y-%m-%d')
+    if is_end:
+        parsed_date = parsed_date.replace(hour=23, minute=59, second=59)
+    else:
+        parsed_date = parsed_date.replace(hour=0, minute=0, second=0)
+    return parsed_date
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def listar_devoluciones_filtradas(request):
+
+    fecha_inicio = parse_date_with_defaults(request.GET.get('fechaIncio'))
+    fecha_fin    = parse_date_with_defaults(request.GET.get('fechaFin'), is_end=True)
+
+    filtro_fecha = Q()
+    if fecha_inicio and fecha_fin:
+        filtro_fecha = Q(fecha_ingreso__range=(fecha_inicio, fecha_fin))
+    elif fecha_inicio:
+        filtro_fecha = Q(fecha_ingreso__gte=fecha_inicio)
+    elif fecha_fin:
+        filtro_fecha = Q(fecha_ingreso__lte=fecha_fin)
+
+    devoluciones = Devolucion.objects.filter(filtro_fecha)
+    serializer   = DevolucionSerializer(devoluciones, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)

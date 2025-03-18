@@ -4,7 +4,8 @@ from .views import (
     crear_gasto,
     obtener_gasto,
     actualizar_gasto,
-    eliminar_gasto
+    eliminar_gasto,
+    listar_gastos_filtradas
 )
 
 urlpatterns = [
@@ -13,4 +14,7 @@ urlpatterns = [
     path('api/gastos/<int:pk>/',          obtener_gasto,     name='obtener_gasto'),
     path('api/gastos/<int:pk>/update/',   actualizar_gasto,  name='actualizar_gasto'),
     path('api/gastos/<int:pk>/delete/',   eliminar_gasto,    name='eliminar_gasto'),
+
+    path('api/gastos/listar_gastos_filtradas/',   listar_gastos_filtradas,    name='listar_gastos_filtradas'),
+    
 ]

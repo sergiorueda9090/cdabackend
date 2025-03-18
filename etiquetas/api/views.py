@@ -1,11 +1,12 @@
 from rest_framework.response import Response
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework import status
 from etiquetas.models import Etiqueta
 from etiquetas.api.serializer import EtiquetaSerializer
-
+from rest_framework.permissions import IsAuthenticated
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def get_etiquetas(request):
     etiquetas  = Etiqueta.objects.all()
     serializer = EtiquetaSerializer(etiquetas, many=True)
@@ -13,6 +14,7 @@ def get_etiquetas(request):
 
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def get_etiqueta(request, id):
     try:
         etiqueta = Etiqueta.objects.get(id=id)
@@ -23,6 +25,7 @@ def get_etiqueta(request, id):
 
 
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def create_etiqueta(request):
     serializer = EtiquetaSerializer(data=request.data)
     if serializer.is_valid():
@@ -32,6 +35,7 @@ def create_etiqueta(request):
 
 
 @api_view(['PUT'])
+@permission_classes([IsAuthenticated])
 def update_etiqueta(request, id):
     try:
         etiqueta = Etiqueta.objects.get(id=id)
@@ -46,6 +50,7 @@ def update_etiqueta(request, id):
 
 
 @api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
 def delete_etiqueta(request, id):
     try:
         etiqueta = Etiqueta.objects.get(id=id)

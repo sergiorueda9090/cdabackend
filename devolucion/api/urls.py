@@ -4,7 +4,8 @@ from .views import (
     crear_devolucion,
     obtener_devolucion,
     actualizar_devolucion,
-    eliminar_devolucion
+    eliminar_devolucion,
+    listar_devoluciones_filtradas
 )
 
 urlpatterns = [
@@ -13,4 +14,5 @@ urlpatterns = [
     path('api/devoluciones/<int:pk>/',          obtener_devolucion,     name='obtener_devolucion'),
     path('api/devoluciones/<int:pk>/update/',   actualizar_devolucion,  name='actualizar_devolucion'),
     path('api/devoluciones/<int:pk>/delete/',   eliminar_devolucion,    name='eliminar_devolucion'),
+    path('api/devoluciones/listar_devoluciones_filtradas/',   listar_devoluciones_filtradas,    name='listar_devoluciones_filtradas'),
 ]

@@ -9,6 +9,9 @@ from .serializers               import RecepcionPagoSerializer
 
 from rest_framework.permissions import IsAuthenticated
 
+from datetime import datetime
+from django.db.models   import Q
+
 #Listar todas las recepciones de pago
 @api_view(['GET'])
 def listar_recepciones_pago(request):
@@ -161,3 +164,68 @@ def eliminar_recepcion_pago(request, pk):
         return Response({"mensaje": "Recepción de pago eliminada correctamente."}, status=status.HTTP_204_NO_CONTENT)
     except RecepcionPago.DoesNotExist:
         return Response({"error": "Recepción de pago no encontrada."}, status=status.HTTP_404_NOT_FOUND)
+    
+
+def parse_date_with_defaults(date_str, is_end=False):
+    if not date_str:
+        return None
+    
+    parsed_date = datetime.strptime(date_str, '%Y-%m-%d')
+    if is_end:
+        parsed_date = parsed_date.replace(hour=23, minute=59, second=59)
+    else:
+        parsed_date = parsed_date.replace(hour=0, minute=0, second=0)
+    return parsed_date
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def listar_recepciones_pago_filtradas(request):
+    fecha_inicio = parse_date_with_defaults(request.GET.get('fechaIncio'))
+    fecha_fin    = parse_date_with_defaults(request.GET.get('fechaFin'), is_end=True)
+
+    filtro_fecha = Q()
+    if fecha_inicio and fecha_fin:
+        filtro_fecha = Q(fecha_ingreso__range=(fecha_inicio, fecha_fin))
+    elif fecha_inicio:
+        filtro_fecha = Q(fecha_ingreso__gte=fecha_inicio)
+    elif fecha_fin:
+        filtro_fecha = Q(fecha_ingreso__lte=fecha_fin)
+
+    try:
+        recepciones = RecepcionPago.objects.filter(filtro_fecha)
+        total_recepciones = recepciones.count()
+
+        recepciones_pago_data = []
+
+        for recepcion in recepciones:
+            try:
+                # Intentamos obtener la tarjeta y el cliente
+                tarjeta = get_object_or_404(RegistroTarjetas, id=recepcion.id_tarjeta_bancaria_id)
+                cliente = get_object_or_404(Cliente, id=recepcion.cliente_id)
+                # Serializa la recepción
+                recepcion_serializer = RecepcionPagoSerializer(recepcion)
+                recepcion_data = recepcion_serializer.data
+
+                # Agregar datos adicionales
+                recepcion_data['nombre_tarjeta'] = tarjeta.nombre_cuenta
+                recepcion_data['nombre_cliente'] = cliente.nombre
+                recepcion_data['color_cliente'] = cliente.color
+
+                # Agregar al listado
+                recepciones_pago_data.append(recepcion_data)
+
+            except Exception as e:
+                print(f"Error procesando recepción ID {recepcion.id}: {e}")
+                return Response(
+                    {"error": f"Error procesando recepción ID {recepcion.id}: {str(e)}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
+        return Response(recepciones_pago_data, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        print(f"Error en la función listar_recepciones_pago: {e}")
+        return Response(
+            {"error": f"Error en la función listar_recepciones_pago: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

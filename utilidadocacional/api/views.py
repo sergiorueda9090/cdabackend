@@ -9,6 +9,8 @@ from .serializers               import UtilidadocacionalSerializer
 
 from rest_framework.permissions import IsAuthenticated
 
+from datetime           import datetime
+from django.db.models   import Q
 #Listar todas las recepciones de pago
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -133,3 +135,68 @@ def eliminar_utilidad_general(request, pk):
         return Response({"mensaje": "Recepción de Utilidad ocacional eliminada correctamente."}, status=status.HTTP_204_NO_CONTENT)
     except Utilidadocacional.DoesNotExist:
         return Response({"error": "Recepción de Utilidad ocacional no encontrada."}, status=status.HTTP_404_NOT_FOUND)
+    
+def parse_date_with_defaults(date_str, is_end=False):
+    if not date_str:
+        return None
+    
+    parsed_date = datetime.strptime(date_str, '%Y-%m-%d')
+    if is_end:
+        parsed_date = parsed_date.replace(hour=23, minute=59, second=59)
+    else:
+        parsed_date = parsed_date.replace(hour=0, minute=0, second=0)
+    return parsed_date
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def obtener_cutilidad_general_filtradas(request):
+
+    fecha_inicio = parse_date_with_defaults(request.GET.get('fechaInicio'))
+    fecha_fin    = parse_date_with_defaults(request.GET.get('fechaFin'), is_end=True)
+
+    filtro_fecha = Q()
+    if fecha_inicio and fecha_fin:
+        filtro_fecha = Q(fecha_ingreso__range=[fecha_inicio, fecha_fin])
+    elif fecha_inicio:
+        filtro_fecha = Q(fecha_ingreso__gte=fecha_inicio)
+    elif fecha_fin:
+        filtro_fecha = Q(fecha_ingreso__lte=fecha_fin)
+
+    try:
+        utilidades = Utilidadocacional.objects.filter(filtro_fecha)
+        total_utilidades_data = []
+
+        for utilidad in utilidades:
+            try:
+                # Ensure we are getting the correct ID
+                tarjeta_id = utilidad.id_tarjeta_bancaria.pk  # Get the numeric ID
+
+                # Fetch related objects
+                tarjeta = get_object_or_404(RegistroTarjetas, id=tarjeta_id)
+
+                # Serialize gasto
+                utilidad_serializer = UtilidadocacionalSerializer(utilidad)
+                utilidad_data       = utilidad_serializer.data
+
+                # Add extra data
+                utilidad_data['nombre_tarjeta'] = tarjeta.nombre_cuenta
+
+                # Append to result
+                total_utilidades_data.append(utilidad_data)
+            except Exception as e:
+                return Response(
+                    {"error": f"Error procesando recepción ID {tarjeta.id}: {str(e)}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
+        return Response(total_utilidades_data, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response(
+            {"error": f"Error en la función total_utilidades_data: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+

@@ -6,6 +6,9 @@ from rest_framework             import status
 from gastos.models              import Gastos
 from .serializers               import GastosSerializer
 
+from datetime import datetime
+from django.db.models import Q
+
 #Listar todas las devoluciones
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -75,3 +78,34 @@ def eliminar_gasto(request, pk):
         return Response({"mensaje": "Gastos eliminada correctamente."}, status=status.HTTP_204_NO_CONTENT)
     except Gastos.DoesNotExist:
         return Response({"error": "Gastos no encontrada."}, status=status.HTTP_404_NOT_FOUND)
+
+def parse_date_with_defaults(date_str, is_end=False):
+    if not date_str:
+        return None
+    
+    parsed_date = datetime.strptime(date_str, '%Y-%m-%d')
+    if is_end:
+        parsed_date = parsed_date.replace(hour=23, minute=59, second=59)
+    else:
+        parsed_date = parsed_date.replace(hour=0, minute=0, second=0)
+    return parsed_date
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def listar_gastos_filtradas(request):
+    fecha_inicio = parse_date_with_defaults(request.GET.get('fechaIncio'))
+    fecha_fin    = parse_date_with_defaults(request.GET.get('fechaFin'), is_end=True)
+
+    filtro_fecha = Q()
+    if fecha_inicio and fecha_fin:
+        filtro_fecha = Q(fecha_ingreso__range=(fecha_inicio, fecha_fin))
+    elif fecha_inicio:
+        filtro_fecha = Q(fecha_ingreso__gte=fecha_inicio)
+    elif fecha_fin:
+        filtro_fecha = Q(fecha_ingreso__lte=fecha_fin)
+
+    
+    devolucionAll= Gastos.objects.filter(filtro_fecha)
+
+    serializer   = GastosSerializer(devolucionAll, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
