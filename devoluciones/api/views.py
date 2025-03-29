@@ -28,6 +28,7 @@ def listar_devoluciones(request):
         devolucion_data['nombre_cliente'] = cliente.nombre
         devolucion_data['color_cliente']  = cliente.color
 
+        devolucion_data['valor'] = abs(int(devolucion.valor))
         # Agregar la recepción modificada a la lista
         devoluciones_pago_data.append(devolucion_data)
 
@@ -62,11 +63,15 @@ def crear_devolucion(request):
         return Response({"error": "La fecha de transacción no puede ser en el futuro."}, status=status.HTTP_400_BAD_REQUEST)
 
     # Crear la devolución
+    valor = request.data["valor"]
+    valor = int(valor.replace(".", ""))
+    valor = -abs(valor)
+
     devolucionCreate = Devoluciones.objects.create(
-        id_cliente             = cliente,
+        id_cliente          = cliente,
         id_tarjeta_bancaria = tarjeta,
         fecha_transaccion   = fecha_transaccion,
-        valor               = request.data["valor"],
+        valor               = valor,
         observacion         = request.data.get("observacion", "")
     )
 
@@ -78,9 +83,10 @@ def crear_devolucion(request):
 def obtener_devolucion(request, pk):
     try:
         devolucionGet = Devoluciones.objects.get(pk=pk)
-    except Devolucion.DoesNotExist:
+    except Devoluciones.DoesNotExist:
         return Response({"error": "Devolución no encontrada."}, status=status.HTTP_404_NOT_FOUND)
-
+    
+    devolucionGet.valor = f"{abs(int(devolucionGet.valor)):,}".replace(",", ".")
     serializer = DevolucionesSerializer(devolucionGet)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -115,7 +121,13 @@ def actualizar_devolucion(request, pk):
         return Response({"error": "La fecha de transacción no puede ser en el futuro."}, status=status.HTTP_400_BAD_REQUEST)
 
     devolucionGet.fecha_transaccion = request.data.get("fecha_transaccion", devolucionGet.fecha_transaccion)
-    devolucionGet.valor = request.data.get("valor", devolucionGet.valor)
+ 
+    
+    valor = request.data.get("valor", devolucionGet.valor)  # Obtener el valor del request o mantener el actual
+    if isinstance(valor, str):  # Si el valor es una cadena, limpiarlo
+        valor = int(valor.replace(".", ""))  # Eliminar separadores de miles y convertir a número
+    devolucionGet.valor =  -abs(valor)  # Asegurar que siempre sea negativo
+    
     devolucionGet.observacion = request.data.get("observacion", devolucionGet.observacion)
 
     devolucionGet.save()

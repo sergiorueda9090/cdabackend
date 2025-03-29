@@ -28,7 +28,7 @@ def listar_ajustessaldos(request):
         # Agregar datos personalizados
         devolucion_data['nombre_cliente'] = cliente.nombre
         devolucion_data['color_cliente']  = cliente.color
-
+        devolucion_data['valor']          = abs(int(devolucion.valor))
         # Agregar la recepción modificada a la lista
         devoluciones_pago_data.append(devolucion_data)
 
@@ -59,10 +59,14 @@ def crear_ajustessaldo(request):
         return Response({"error": "La fecha de transacción no puede ser en el futuro."}, status=status.HTTP_400_BAD_REQUEST)
 
     # Crear la devolución
+    # Crear la devolución
+    valor = request.data["valor"]
+    valor = int(valor.replace(".", ""))
+    valor = abs(valor)
     devolucionCreate = Ajustesaldo.objects.create(
         id_cliente          = cliente,
         fecha_transaccion   = fecha_transaccion,
-        valor               = request.data["valor"],
+        valor               = valor,
         observacion         = request.data.get("observacion", "")
     )
 
@@ -77,7 +81,8 @@ def obtener_ajustessaldo(request, pk):
         ajuesteSaldoGet = Ajustesaldo.objects.get(pk=pk)
     except Ajustesaldo.DoesNotExist:
         return Response({"error": "Ajuste de saldo no encontrada."}, status=status.HTTP_404_NOT_FOUND)
-
+    
+    ajuesteSaldoGet.valor = f"{abs(int(ajuesteSaldoGet.valor)):,}".replace(",", ".")
     serializer = AjustesaldoSerializer(ajuesteSaldoGet)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -106,7 +111,13 @@ def actualizar_ajustessaldo(request, pk):
         return Response({"error": "La fecha de transacción no puede ser en el futuro."}, status=status.HTTP_400_BAD_REQUEST)
 
     AjustesaldoGet.fecha_transaccion = request.data.get("fecha_transaccion", AjustesaldoGet.fecha_transaccion)
-    AjustesaldoGet.valor = request.data.get("valor", AjustesaldoGet.valor)
+   
+
+    valor = request.data.get("valor", AjustesaldoGet.valor)  # Obtener el valor del request o mantener el actual
+    if isinstance(valor, str):                          # Si el valor es una cadena, limpiarlo
+        valor = int(valor.replace(".", ""))             # Eliminar separadores de miles y convertir a número
+    AjustesaldoGet.valor =  abs(valor)                      # Asegurar que siempre sea negativo
+
     AjustesaldoGet.observacion = request.data.get("observacion", AjustesaldoGet.observacion)
 
     AjustesaldoGet.save()

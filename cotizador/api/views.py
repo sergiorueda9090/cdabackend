@@ -208,11 +208,14 @@ def update_cotizador(request, pk):
         id_banco = request.data.get('idBanco')
         
         if id_banco:
+            precioDeLey = cotizador.precioDeLey
+            precioDeLey = int(precioDeLey.replace(".", ""))
+            precioDeLey = -abs(precioDeLey)
             CuentaBancaria.objects.create(
                 idCotizador   = cotizador.id, 
                 idBanco       = request.data.get('idBanco'),
                 descripcion   = "descripcion",
-                valor         = -abs(int(cotizador.total)),
+                valor         = precioDeLey,
                 cilindraje    = cotizador.cilindraje,
                 nombreTitular = cotizador.nombreCompleto)
 

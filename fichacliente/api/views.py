@@ -28,8 +28,8 @@ def get_all_ficha_cliente(request):
 
 
     # 1. Obtener los cotizadores con sus idCliente
-    cotizadores_qs = Cotizador.objects.values('id', 'fechaCreacion', 'total', 'idCliente')
-
+    cotizadores_qs = Cotizador.objects.exclude(precioDeLey__isnull=True).exclude(precioDeLey="").values('id', 'fechaCreacion', 'total', 'idCliente', 'placa', 'archivo')
+   
     # Aplicar filtro por fecha si es necesario
     if fecha_inicio and fecha_fin:
         cotizadores_qs = cotizadores_qs.filter(fechaCreacion__range=[fecha_inicio, fecha_fin])
@@ -47,14 +47,18 @@ def get_all_ficha_cliente(request):
             'id': cotizador['id'],
             'fi': cotizador['fechaCreacion'],
             'ft': None,
-            'valor_alias': cuentasbancarias_qs.get(cotizador['id'], "Desconocido"), #cotizador['total'],
+            'valor_alias': cuentasbancarias_qs.get(cotizador['id'], "Desconocido"),
             'desc_alias': "",
             'cliente_nombre': clientes_dict.get(cotizador['idCliente'], "Desconocido"),
-            'origen': "Tramites"
+            'origen': "Tramites",
+            'placa': cotizador['placa'],
+            'archivo': cotizador['archivo'],
         }
         for cotizador in cotizadores_qs
+        if cuentasbancarias_qs.get(cotizador['id'], "Desconocido") != "Desconocido"
+        and clientes_dict.get(cotizador['idCliente'], "Desconocido") != "Desconocido"
     ]
-    print(cuentasbancarias_qs)
+
     # 4. Obtener y filtrar los otros modelos
     filtros_fecha = Q()
     if fecha_inicio and fecha_fin:
@@ -68,8 +72,10 @@ def get_all_ficha_cliente(request):
             valor_alias = F('valor'),
             desc_alias = F('observacion'),
             cliente_nombre = F('cliente__nombre'),
-            origen = Value("Recepcion de Pago", output_field=CharField())
-        ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'cliente_nombre', "origen"))
+            origen = Value("Recepcion de Pago", output_field=CharField()),
+            placa = Value("", output_field=CharField()),
+            archivo = Value("", output_field=CharField()),
+        ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'cliente_nombre', "origen", "placa", "archivo"))
     
     devoluciones = list(Devoluciones.objects.select_related('id_cliente')
         .filter(filtros_fecha)
@@ -79,8 +85,10 @@ def get_all_ficha_cliente(request):
             valor_alias = F('valor'),
             desc_alias = F('observacion'),
             cliente_nombre = F('id_cliente__nombre'),
-            origen = Value("Devoluciones", output_field=CharField())
-        ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'cliente_nombre', "origen"))
+            origen = Value("Devoluciones", output_field=CharField()),
+            placa = Value("", output_field=CharField()),
+            archivo = Value("", output_field=CharField()),
+        ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'cliente_nombre', "origen", "placa", "archivo"))
 
     ajuestesSaldos = list(Ajustesaldo.objects.select_related('id_cliente')
         .filter(filtros_fecha)
@@ -90,8 +98,10 @@ def get_all_ficha_cliente(request):
             valor_alias = F('valor'),
             desc_alias = F('observacion'),
             cliente_nombre = F('id_cliente__nombre'),
-            origen = Value("Ajustes de Saldos", output_field=CharField())
-        ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'cliente_nombre', "origen"))
+            origen = Value("Ajustes de Saldos", output_field=CharField()),
+            placa = Value("", output_field=CharField()),
+            archivo = Value("", output_field=CharField()),
+        ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'cliente_nombre', "origen", "placa", "archivo"))
 
     # 5. Unir todos los resultados
     union_result = cotizadores_list + recepcionDePagos + devoluciones + ajuestesSaldos

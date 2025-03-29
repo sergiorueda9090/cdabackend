@@ -25,7 +25,8 @@ def listar_gastos_generales(request):
                 # Ensure we are getting the correct ID
                 tarjeta_id = gasto.id_tarjeta_bancaria.pk  # Get the numeric ID
                 gasto_id   = gasto.id_tipo_gasto.pk
-
+                
+                gasto.valor = abs(int(gasto.valor))
                 # Fetch related objects
                 tarjeta     = get_object_or_404(RegistroTarjetas, id=tarjeta_id)
                 gasto_model = get_object_or_404(Gastos, id=gasto_id)
@@ -88,11 +89,15 @@ def crear_gasto_generale(request):
         return Response({"error": "La fecha de transacción no puede ser en el futuro."}, status=status.HTTP_400_BAD_REQUEST)
 
     # Crear la recepción de pago
+    valor = request.data["valor"]
+    valor = int(valor.replace(".", ""))
+    valor = -abs(valor)
+
     recepcion_gasto_general = Gastogenerales.objects.create(
         id_tipo_gasto       = gasto,
         id_tarjeta_bancaria = tarjeta,
         fecha_transaccion   = request.data["fecha_transaccion"],
-        valor               = request.data["valor"],
+        valor               = valor,
         observacion         = request.data.get("observacion", "")
     )
 
@@ -107,7 +112,7 @@ def obtener_gasto_generale(request, pk):
         recepcion = Gastogenerales.objects.get(pk=pk)
     except Gastogenerales.DoesNotExist:
         return Response({"error": "Recepción de gastos generales no encontrada."}, status=status.HTTP_404_NOT_FOUND)
-
+    recepcion.valor = f"{abs(int(recepcion.valor)):,}".replace(",", ".")
     serializer = GastogeneralesSerializer(recepcion)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -141,7 +146,11 @@ def actualizar_gasto_generale(request, pk):
     # Actualizar otros campos
     #recepcion.cuenta_bancaria_destino = request.data.get("cuenta_bancaria_destino", recepcion.cuenta_bancaria_destino)
     recepcion.fecha_transaccion = request.data.get("fecha_transaccion", recepcion.fecha_transaccion)
-    recepcion.valor             = request.data.get("valor", recepcion.valor)
+    valor = request.data.get("valor", recepcion.valor)  # Obtener el valor del request o mantener el actual
+    if isinstance(valor, str):  # Si el valor es una cadena, limpiarlo
+        valor = int(valor.replace(".", ""))  # Eliminar separadores de miles y convertir a número
+    
+    recepcion.valor =  -abs(valor)  # Asegurar que siempre sea negativo
     recepcion.observacion       = request.data.get("observacion", recepcion.observacion)
 
     recepcion.save()
@@ -200,7 +209,6 @@ def listar_gastos_generales_filtradas(request):
                 tarjeta     = get_object_or_404(RegistroTarjetas, id=tarjeta_id)
                 gasto_model = get_object_or_404(Gastos, id=gasto_id)
 
-                print("gasto_model ",gasto_model)
                 # Serialize gasto
                 gastos_serializer = GastogeneralesSerializer(gasto)
                 gastos_data = gastos_serializer.data

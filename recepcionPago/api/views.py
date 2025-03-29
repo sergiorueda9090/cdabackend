@@ -31,18 +31,16 @@ def listar_recepciones_pago(request):
                 tarjeta = get_object_or_404(RegistroTarjetas, id=recepcion.id_tarjeta_bancaria_id)
                 cliente = get_object_or_404(Cliente, id=recepcion.cliente_id)
 
-                print(f"Tarjeta encontrada: {tarjeta.nombre_cuenta}")
-                print(f"Cliente encontrado: {cliente.nombre}")
 
                 # Serializa la recepción
                 recepcion_serializer = RecepcionPagoSerializer(recepcion)
                 recepcion_data = recepcion_serializer.data
 
                 # Agregar datos adicionales
-                recepcion_data['nombre_tarjeta'] = tarjeta.nombre_cuenta
-                recepcion_data['nombre_cliente'] = cliente.nombre
-                recepcion_data['color_cliente'] = cliente.color
-
+                recepcion_data['nombre_tarjeta']    = tarjeta.nombre_cuenta
+                recepcion_data['nombre_cliente']    = cliente.nombre
+                recepcion_data['color_cliente']     = cliente.color
+                recepcion_data['valor']             = abs(int(recepcion.valor))
                 # Agregar al listado
                 recepciones_pago_data.append(recepcion_data)
 
@@ -92,11 +90,16 @@ def crear_recepcion_pago(request):
         return Response({"error": "La fecha de transacción no puede ser en el futuro."}, status=status.HTTP_400_BAD_REQUEST)
 
     # Crear la recepción de pago
+    # Crear la devolución
+    valor = request.data["valor"]
+    valor = int(valor.replace(".", ""))
+    valor = abs(valor)
+
     recepcion = RecepcionPago.objects.create(
         cliente=cliente,
         id_tarjeta_bancaria=tarjeta,
         fecha_transaccion=request.data["fecha_transaccion"],
-        valor=request.data["valor"],
+        valor=valor,
         observacion=request.data.get("observacion", "")
     )
 
@@ -111,9 +114,9 @@ def obtener_recepcion_pago(request, pk):
         recepcion = RecepcionPago.objects.get(pk=pk)
     except RecepcionPago.DoesNotExist:
         return Response({"error": "Recepción de pago no encontrada."}, status=status.HTTP_404_NOT_FOUND)
-
+    
+    recepcion.valor = f"{abs(int(recepcion.valor)):,}".replace(",", ".")
     serializer = RecepcionPagoSerializer(recepcion)
-    print(serializer.data)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 #Actualizar una recepción de pago
@@ -146,7 +149,12 @@ def actualizar_recepcion_pago(request, pk):
     # Actualizar otros campos
     #recepcion.cuenta_bancaria_destino = request.data.get("cuenta_bancaria_destino", recepcion.cuenta_bancaria_destino)
     recepcion.fecha_transaccion = request.data.get("fecha_transaccion", recepcion.fecha_transaccion)
-    recepcion.valor = request.data.get("valor", recepcion.valor)
+   
+    valor = request.data.get("valor", recepcion.valor)  # Obtener el valor del request o mantener el actual
+    if isinstance(valor, str):                          # Si el valor es una cadena, limpiarlo
+        valor = int(valor.replace(".", ""))             # Eliminar separadores de miles y convertir a número
+    recepcion.valor =  abs(valor)                      # Asegurar que siempre sea negativo
+   
     recepcion.observacion = request.data.get("observacion", recepcion.observacion)
 
     recepcion.save()

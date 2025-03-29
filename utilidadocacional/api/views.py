@@ -33,7 +33,7 @@ def listar_utilidad_general(request):
 
                 # Add extra data
                 utilidad_data['nombre_tarjeta'] = tarjeta.nombre_cuenta
-
+                utilidad_data['valor']          = abs(int(utilidad.valor))
                 # Append to result
                 total_utilidades_data.append(utilidad_data)
             except Exception as e:
@@ -74,10 +74,15 @@ def crear_utilidad_general(request):
         return Response({"error": "La fecha de transacción no puede ser en el futuro."}, status=status.HTTP_400_BAD_REQUEST)
 
     # Crear la recepción de pago
+    # Crear la devolución
+    valor = request.data["valor"]
+    valor = int(valor.replace(".", ""))
+    valor = abs(valor)
+
     recepcion_gasto_general = Utilidadocacional.objects.create(
         id_tarjeta_bancaria = tarjeta,
         fecha_transaccion   = request.data["fecha_transaccion"],
-        valor               = request.data["valor"],
+        valor               = valor,
         observacion         = request.data.get("observacion", "")
     )
 
@@ -92,7 +97,8 @@ def obtener_utilidad_general(request, pk):
         recepcion = Utilidadocacional.objects.get(pk=pk)
     except Utilidadocacional.DoesNotExist:
         return Response({"error": "Recepción de utilidad ocacional no encontrada."}, status=status.HTTP_404_NOT_FOUND)
-
+    
+    recepcion.valor = f"{abs(int(recepcion.valor)):,}".replace(",", ".")
     serializer = UtilidadocacionalSerializer(recepcion)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -117,8 +123,13 @@ def actualizar_utilidad_general(request, pk):
     # Actualizar otros campos
     #recepcion.cuenta_bancaria_destino = request.data.get("cuenta_bancaria_destino", recepcion.cuenta_bancaria_destino)
     recepcion.fecha_transaccion = request.data.get("fecha_transaccion"  , recepcion.fecha_transaccion)
-    recepcion.valor             = request.data.get("valor"              , recepcion.valor)
-    recepcion.observacion       = request.data.get("observacion"        , recepcion.observacion)
+
+    valor = request.data.get("valor",recepcion.valor)  # Obtener el valor del request o mantener el actual
+    if isinstance(valor, str):                          # Si el valor es una cadena, limpiarlo
+        valor = int(valor.replace(".", ""))             # Eliminar separadores de miles y convertir a número
+    recepcion.valor =  abs(valor)                      # Asegurar que siempre sea negativo
+
+    recepcion.observacion = request.data.get("observacion", recepcion.observacion)
 
     recepcion.save()
 
