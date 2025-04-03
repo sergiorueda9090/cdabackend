@@ -59,7 +59,9 @@ INSTALLED_APPS = [
     'gastos',
     'gastosgenerales',
     'utilidadocacional',
-    'fichacliente'
+    'fichacliente',
+    'archivocotizacionesantiguas',
+    'historialtramitesemitidos'
 ]
 
 MIDDLEWARE = [
