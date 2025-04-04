@@ -160,10 +160,9 @@ LANGUAGE_CODE = 'en-us'
 
 TIME_ZONE = 'America/Bogota'  # Configura la zona horaria de Colombia
 
-USE_TZ = True  # Asegura que Django use soporte para zonas horarias
+USE_TZ = False # Asegura que Django use soporte para zonas horarias
 
 USE_I18N = True
-
 
 
 # Static files (CSS, JavaScript, Images)

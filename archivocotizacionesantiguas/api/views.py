@@ -41,7 +41,7 @@ def get_all_cotizadores(request):
                    Q(correo__icontains=search_query) | Q(direccion__icontains=search_query) | \
                    Q(precioDeLey__icontains=search_query) | Q(linkPago__icontains=search_query)
     
-    cotizadores = Cotizador.objects.filter(filters).filter(cotizadorModulo=1)
+    cotizadores = Cotizador.objects.filter(filters).filter(sendToArchivo=1)
     cotizadores_data = []
 
     for cotizador in cotizadores:
@@ -66,8 +66,8 @@ def get_all_cotizadores(request):
 @permission_classes([IsAuthenticated])
 def sent_to_tramites(request, idcotizador):
     cotizador = get_object_or_404(Cotizador, id=idcotizador)
-    cotizador.cotizadorModulo = 0
     cotizador.tramiteModulo   = 1
+    cotizador.sendToArchivo   = 2
     cotizador.save()
     return Response({"message": "Cotizador actualizado exitosamente", "id": idcotizador})
 

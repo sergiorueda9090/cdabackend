@@ -349,3 +349,16 @@ def get_cotizadores_pdfs(request):
         cotizadores_data.append(cotizador_data)
 
     return Response(cotizadores_data)
+
+
+@api_view(['GET'])
+#@permission_classes([IsAuthenticated])
+def update_cotizador_to_send_archivo(request):
+    try:
+        # Actualizar los registros con cotizadorModulo=1 y sendToArchivo=0
+        updated_rows = Cotizador.objects.filter(cotizadorModulo=1, sendToArchivo=0).update(sendToArchivo=1, cotizadorModulo=0)
+        
+        return Response({"success": True, "updated_rows": updated_rows})
+    
+    except Exception as e:
+        return Response({"success": False, "error": str(e)}, status=500)

@@ -1,5 +1,5 @@
 from django.db import models
-from django.utils.timezone import now
+from django.utils.timezone import localtime, now
 
 class Cotizador(models.Model):
     idUsuario       = models.IntegerField()
@@ -28,7 +28,9 @@ class Cotizador(models.Model):
     tramiteModulo               = models.CharField(max_length=1, default="0")  # Por defecto 0
     confirmacionPreciosModulo   = models.CharField(max_length=1, default="0")  # Por defecto 0
     pdfsModulo                  = models.CharField(max_length=1, default="0")  # Por defecto 0
+    sendToArchivo   = models.CharField(max_length=1, default="0")  # Por defecto 0
     idBanco         = models.IntegerField(null=True, blank=True)
+    fechaTramite    = models.DateTimeField(default=now)
 
     def __str__(self):
         return f"Cotizador {self.id} - {self.nombreCompleto}"
