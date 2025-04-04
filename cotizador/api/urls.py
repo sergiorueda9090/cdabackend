@@ -26,5 +26,5 @@ urlpatterns = [
     path('get_cotizadores_pdfs/api/',                   get_cotizadores_pdfs,                   name='get_cotizadores_pdfs'),
     path('get_cotizadores_filter_date/api/',            get_cotizadores_filter_date,            name='get_cotizadores_filter_date'),
     path('search_cotizadores/api/',                     search_cotizadores,                     name='search_cotizadores'),
-    path('api/update_cotizador_to_send_archivo/',       update_cotizador_to_send_archivo,       name='update_cotizador_to_send_archivo'),
+    path('api/updatecotizadortosendarchivo/',       update_cotizador_to_send_archivo,       name='update_cotizador_to_send_archivo'),
 ]
