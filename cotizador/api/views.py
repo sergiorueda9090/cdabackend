@@ -354,6 +354,8 @@ def get_cotizadores_pdfs(request):
 @api_view(['GET'])
 #@permission_classes([IsAuthenticated])
 def update_cotizador_to_send_archivo(request):
+    print("BUENAS")
+    return Response({"ok":"ok"})
     try:
         # Actualizar los registros con cotizadorModulo=1 y sendToArchivo=0
         updated_rows = Cotizador.objects.filter(cotizadorModulo=1, sendToArchivo=0).update(sendToArchivo=1, cotizadorModulo=0)
