@@ -61,7 +61,9 @@ INSTALLED_APPS = [
     'utilidadocacional',
     'fichacliente',
     'archivocotizacionesantiguas',
-    'historialtramitesemitidos'
+    'historialtramitesemitidos',
+    'proveedores',
+    'fichaproveedor'
 ]
 
 MIDDLEWARE = [

@@ -69,7 +69,9 @@ urlpatterns = [
    path('downloadpdf/',         include('cuentasbancarias.urls')                , name="downloadpdf"),
    path('fichacliente/',        include('fichacliente.api.urls')                , name="fichacliente"),
    path('archivocotizacionesantiguas/', include('archivocotizacionesantiguas.api.urls'),     name="archivocotizacionesantiguas"),
-   path('historialtramitesemitidos/',   include('historialtramitesemitidos.api.urls'),        name="historialtramitesemitidos")
+   path('historialtramitesemitidos/',   include('historialtramitesemitidos.api.urls'),        name="historialtramitesemitidos"),
+   path('proveedores/',         include('proveedores.api.urls')                 , name="proveedores"),
+   path('fichaproveedores/',    include('fichaproveedor.api.urls'),               name="fichaproveedor")
 ]
 
 # Servir archivos de media en modo debug

@@ -13,8 +13,11 @@ from clientes.models            import Cliente
 from etiquetas.models           import Etiqueta
 from cotizador.models           import Cotizador, LogCotizador
 from cuentasbancarias.models    import CuentaBancaria
+from proveedores.models         import Proveedor
 
 from .serializers import CotizadorSerializer, LogCotizadorSerializer
+from fichaproveedor.api.serializers import FichaProveedorSerializer
+from fichaproveedor.models import FichaProveedor
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -204,6 +207,32 @@ def update_cotizador(request, pk):
                     nuevoValor=str(new_value),
                     fecha=now()
                 )
+
+        #AGREGAR REGISTRO EN FICHA PROVEEDOR
+        confirmacionPreciosModulo = request.data.get('confirmacionPreciosModulo')
+        pdfsModulo = request.data.get('pdfsModulo')
+
+        if int(confirmacionPreciosModulo) == 0 and int(pdfsModulo) == 1:
+            print("=== if ===")
+            id_proveedor = request.data.get('idProveedor')
+            if not id_proveedor:
+                return Response({'error': 'El idProveedor es obligatorio para crear una ficha de proveedor.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            try:
+                proveedor = Proveedor.objects.get(pk=id_proveedor)
+            except Proveedor.DoesNotExist:
+                return Response({'error': 'Proveedor no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+            
+            comision = request.data.get('comisionproveedor', '0').replace('.', '')  # Elimina separador de miles
+
+            # Crear registro directamente en la base de datos
+            ficha = FichaProveedor.objects.create(
+                idproveedor=proveedor,
+                idcotizador=cotizador,
+                comisionproveedor=comision
+            )
+            print(f"=== Ficha creada con ID {ficha.id} ===")
+            #END AGREGAR REGISTRO EN FICHA PROVEEDOR
 
         id_banco = request.data.get('idBanco')
         
