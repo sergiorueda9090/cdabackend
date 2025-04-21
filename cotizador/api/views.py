@@ -191,6 +191,7 @@ def update_cotizador(request, pk):
 
     serializer = CotizadorSerializer(cotizador, data=request.data, partial=True)
     if serializer.is_valid():
+        print("Is valid 1")
         serializer.save()
         new_data = serializer.data
 
@@ -209,15 +210,18 @@ def update_cotizador(request, pk):
                 )
 
         #AGREGAR REGISTRO EN FICHA PROVEEDOR
-        confirmacionPreciosModulo = request.data.get('confirmacionPreciosModulo')
-        pdfsModulo = request.data.get('pdfsModulo')
-
+        try:
+            confirmacionPreciosModulo   = int(request.data.get('confirmacionPreciosModulo') or 0)
+            pdfsModulo                  = int(request.data.get('pdfsModulo') or 0)
+        except ValueError:
+            confirmacionPreciosModulo = 0
+            pdfsModulo = 0
+        
         if int(confirmacionPreciosModulo) == 0 and int(pdfsModulo) == 1:
             print("=== if ===")
             id_proveedor = request.data.get('idProveedor')
             if not id_proveedor:
                 return Response({'error': 'El idProveedor es obligatorio para crear una ficha de proveedor.'}, status=status.HTTP_400_BAD_REQUEST)
-            
             try:
                 proveedor = Proveedor.objects.get(pk=id_proveedor)
             except Proveedor.DoesNotExist:
