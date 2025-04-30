@@ -11,8 +11,11 @@ from rest_framework.permissions import IsAuthenticated
 from django.utils.timezone import now
 from datetime import datetime
 
+from users.decorators import check_role
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@check_role(1,2,3)
 def create_tramite(request):
     # Hacer una copia mutable de request.data
     data = request.data.copy()
@@ -55,6 +58,7 @@ def create_tramite(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1,2,3)
 def get_tramites(request):
     # Obtener todos los trámites
     tramites = Tramite.objects.all()
@@ -88,6 +92,7 @@ def get_tramites(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1,2,3)
 def get_tramite(request, pk):
     try:
         tramite = Tramite.objects.get(pk=pk)
@@ -99,6 +104,7 @@ def get_tramite(request, pk):
 
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
+@check_role(1,2,3)
 def update_tramite(request, pk):
     try:
         tramite = Tramite.objects.get(pk=pk)
@@ -145,6 +151,7 @@ def update_tramite(request, pk):
 
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
+@check_role(1,2,3)
 def delete_tramite(request, pk):
     try:
         tramite = Tramite.objects.get(pk=pk)
@@ -165,14 +172,12 @@ def delete_tramite(request, pk):
 
 
 
-
-
-
 """
     LOGS_TRAMITES
 """
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1,2,3)
 def get_logs_tramite(request, pk):
     """
     Obtiene todos los registros de LogTramite con el idTramite especificado.

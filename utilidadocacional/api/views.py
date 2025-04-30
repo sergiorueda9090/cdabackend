@@ -11,9 +11,11 @@ from rest_framework.permissions import IsAuthenticated
 
 from datetime           import datetime
 from django.db.models   import Q
+from users.decorators   import check_role
 #Listar todas las recepciones de pago
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1)
 def listar_utilidad_general(request):
     try:
         utilidades = Utilidadocacional.objects.all()
@@ -53,6 +55,7 @@ def listar_utilidad_general(request):
 # Crear una nueva recepción de pago
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@check_role(1)
 def crear_utilidad_general(request):
     required_fields = ["id_tarjeta_bancaria", "fecha_transaccion", "valor"]
 
@@ -92,6 +95,7 @@ def crear_utilidad_general(request):
 #Obtener una recepción de pago por ID
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1)
 def obtener_utilidad_general(request, pk):
     try:
         recepcion = Utilidadocacional.objects.get(pk=pk)
@@ -105,6 +109,7 @@ def obtener_utilidad_general(request, pk):
 #Actualizar una recepción de pago
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
+@check_role(1)
 def actualizar_utilidad_general(request, pk):
     try:
         recepcion = Utilidadocacional.objects.get(pk=pk)
@@ -139,6 +144,7 @@ def actualizar_utilidad_general(request, pk):
 #Eliminar una recepción de pago
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
+@check_role(1)
 def eliminar_utilidad_general(request, pk):
     try:
         recepcion = Utilidadocacional.objects.get(pk=pk)
@@ -161,6 +167,7 @@ def parse_date_with_defaults(date_str, is_end=False):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1)
 def obtener_cutilidad_general_filtradas(request):
 
     fecha_inicio = parse_date_with_defaults(request.GET.get('fechaInicio'))

@@ -8,10 +8,11 @@ from .serializers               import GastosSerializer
 
 from datetime import datetime
 from django.db.models import Q
-
+from users.decorators import check_role
 #Listar todas las devoluciones
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1)
 def listar_gastos(request):
     devolucionAll= Gastos.objects.all()
     serializer   = GastosSerializer(devolucionAll, many=True)
@@ -20,6 +21,7 @@ def listar_gastos(request):
 #Crear una nueva devolución
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@check_role(1)
 def crear_gasto(request):
     required_fields = ["name"]
 
@@ -41,6 +43,7 @@ def crear_gasto(request):
 #Obtener una devolución por ID
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1)
 def obtener_gasto(request, pk):
     try:
         gastosGet = Gastos.objects.get(pk=pk)
@@ -53,6 +56,7 @@ def obtener_gasto(request, pk):
 #Actualizar una devolución
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
+@check_role(1)
 def actualizar_gasto(request, pk):
     try:
         gastosGet = Gastos.objects.get(pk=pk)
@@ -71,6 +75,7 @@ def actualizar_gasto(request, pk):
 #Eliminar una devolución
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
+@check_role(1)
 def eliminar_gasto(request, pk):
     try:
         GastosDelete = Gastos.objects.get(pk=pk)
@@ -92,6 +97,7 @@ def parse_date_with_defaults(date_str, is_end=False):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1)
 def listar_gastos_filtradas(request):
     fecha_inicio = parse_date_with_defaults(request.GET.get('fechaIncio'))
     fecha_fin    = parse_date_with_defaults(request.GET.get('fechaFin'), is_end=True)

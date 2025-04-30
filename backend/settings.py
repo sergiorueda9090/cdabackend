@@ -63,7 +63,8 @@ INSTALLED_APPS = [
     'archivocotizacionesantiguas',
     'historialtramitesemitidos',
     'proveedores',
-    'fichaproveedor'
+    'fichaproveedor',
+    'rolespermisos',
 ]
 
 MIDDLEWARE = [

@@ -10,9 +10,11 @@ from ajustesaldos.models        import Ajustesaldo
 from django.db.models           import F, Value, CharField, Sum, Q
 from datetime import datetime
 from rest_framework.permissions import IsAuthenticated
+from users.decorators import check_role
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1,2)
 def get_all_ficha_cliente(request):
     # Obtener parámetros de fecha
     fecha_inicio = request.GET.get('fechaInicio')

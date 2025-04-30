@@ -19,8 +19,11 @@ from .serializers import CotizadorSerializer, LogCotizadorSerializer
 from fichaproveedor.api.serializers import FichaProveedorSerializer
 from fichaproveedor.models import FichaProveedor
 
+from users.decorators import check_role
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@check_role(1,2,3)
 def create_cotizador(request):
     data = request.data.copy()
     data['idUsuario'] = request.user.id
@@ -58,6 +61,7 @@ def create_cotizador(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1,2,3)
 def get_cotizadores(request):
     cotizadores = Cotizador.objects.filter(Q(cotizadorModulo=1)).all()
     cotizadores_data = []
@@ -87,6 +91,7 @@ def get_cotizadores(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1,2,3)
 def get_cotizador(request, pk):
     try:
         cotizador = Cotizador.objects.get(pk=pk)
@@ -98,6 +103,7 @@ def get_cotizador(request, pk):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1,2,3)
 def get_cotizadores_filter_date(request):
     # Obtener los parámetros de fecha de la URL
     fecha_inicio = request.GET.get('fechaInicio')
@@ -137,6 +143,7 @@ def get_cotizadores_filter_date(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1,2,3)
 def search_cotizadores(request):
     query = request.GET.get('q', '').strip()  # Limpiar espacios en la búsqueda
     # Consulta normal sin select_related
@@ -181,6 +188,7 @@ def search_cotizadores(request):
 
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
+@check_role(1,2,3)
 def update_cotizador(request, pk):
     try:
         cotizador = Cotizador.objects.get(pk=pk)
@@ -259,6 +267,7 @@ def update_cotizador(request, pk):
 
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
+@check_role(1,2,3)
 def delete_cotizador(request, pk):
     try:
         cotizador = Cotizador.objects.get(pk=pk)
@@ -279,6 +288,7 @@ def delete_cotizador(request, pk):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1,2,3)
 def get_logs_cotizador(request, pk):
     try:
         logs = LogCotizador.objects.filter(idCotizador=pk)
@@ -294,6 +304,7 @@ def get_logs_cotizador(request, pk):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1,2,3)
 def get_cotizadores_tramites(request):
     cotizadores = Cotizador.objects.filter(tramiteModulo=1).all()
     
@@ -325,6 +336,7 @@ def get_cotizadores_tramites(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1,2,3)
 def get_cotizadores_confirmacion_precios(request):
     cotizadores = Cotizador.objects.filter(confirmacionPreciosModulo=1).all()
     
@@ -355,6 +367,7 @@ def get_cotizadores_confirmacion_precios(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1,2,3)
 def get_cotizadores_pdfs(request):
     cotizadores = Cotizador.objects.filter(pdfsModulo=1).all()
     
@@ -386,6 +399,7 @@ def get_cotizadores_pdfs(request):
 
 @api_view(['GET'])
 #@permission_classes([IsAuthenticated])
+@check_role(1,2,3)
 def update_cotizador_to_send_archivo(request):
     print("se ejecuta la tarea programada")
     #return Response({"ok":"ok"})

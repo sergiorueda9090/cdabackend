@@ -5,9 +5,11 @@ from rest_framework.response    import Response
 from django.shortcuts           import get_object_or_404
 from proveedores.models         import Proveedor
 from .serializers               import ProveedorSerializer
+from users.decorators           import check_role
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1)
 def get_proveedores(request):
     proveedores = Proveedor.objects.all()
     if not proveedores.exists():
@@ -17,6 +19,7 @@ def get_proveedores(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1)
 def get_proveedor(request, pk):
     proveedor = get_object_or_404(Proveedor, pk=pk)
     serializer = ProveedorSerializer(proveedor)
@@ -24,6 +27,7 @@ def get_proveedor(request, pk):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@check_role(1)
 def create_proveedor(request):
     serializer = ProveedorSerializer(data=request.data)
     if serializer.is_valid():
@@ -33,6 +37,7 @@ def create_proveedor(request):
 
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
+@check_role(1)
 def update_proveedor(request, pk):
     proveedor = get_object_or_404(Proveedor, pk=pk)
     serializer = ProveedorSerializer(proveedor, data=request.data)
@@ -43,6 +48,7 @@ def update_proveedor(request, pk):
 
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
+@check_role(1)
 def delete_proveedor(request, pk):
     proveedor = get_object_or_404(Proveedor, pk=pk)
     proveedor.delete()

@@ -8,9 +8,11 @@ from rest_framework.permissions import IsAuthenticated
 import json
 import random  # Para generar el token
 
+from users.decorators  import check_role 
 # Obtener todos los clientes
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1)
 def get_clientes(request):
     if request.method == 'GET':
         clientes = Cliente.objects.all()
@@ -19,6 +21,7 @@ def get_clientes(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1,2)
 def get_clientes_tramites(request):
     clientes = Cliente.objects.all()
     response_data = [
@@ -30,6 +33,7 @@ def get_clientes_tramites(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@check_role(1)
 def create_cliente(request):
     if request.method == 'POST':
         try:
@@ -116,6 +120,7 @@ def create_cliente(request):
 # Obtener detalles de un cliente específico
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1,2)
 def get_cliente_detail(request, pk):
     if request.method == 'GET':
         try:
@@ -130,6 +135,7 @@ def get_cliente_detail(request, pk):
 # Actualizar un cliente específico
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
+@check_role(1)
 def update_cliente(request, pk):
     if request.method == 'PUT':
         try:
@@ -228,6 +234,7 @@ def update_cliente(request, pk):
 # Eliminar un cliente específico
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
+@check_role(1)
 def delete_cliente(request, pk):
     if request.method == 'DELETE':
         try:
@@ -241,6 +248,7 @@ def delete_cliente(request, pk):
 
 
 @api_view(['POST'])
+@check_role(1)
 def verificar_cliente_y_generar_token(request):
     identificacion = request.data.get("identificacion", None)
     if not identificacion:

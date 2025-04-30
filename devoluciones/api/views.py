@@ -8,9 +8,10 @@ from clientes.models            import Cliente
 from registroTarjetas.models    import RegistroTarjetas
 
 from .serializers               import DevolucionesSerializer
-
+from users.decorators           import check_role
 # 🔹 Listar todas las devoluciones
 @api_view(['GET'])
+@check_role(1)
 def listar_devoluciones(request):
     devolucionAll= Devoluciones.objects.all()
     devoluciones_pago_data = []
@@ -36,6 +37,7 @@ def listar_devoluciones(request):
 
 # 🔹 Crear una nueva devolución
 @api_view(['POST'])
+@check_role(1)
 def crear_devolucion(request):
     required_fields = ["id_cliente", "id_tarjeta_bancaria", "fecha_transaccion", "valor"]
 
@@ -80,6 +82,7 @@ def crear_devolucion(request):
 
 # 🔹 Obtener una devolución por ID
 @api_view(['GET'])
+@check_role(1)
 def obtener_devolucion(request, pk):
     try:
         devolucionGet = Devoluciones.objects.get(pk=pk)
@@ -92,6 +95,7 @@ def obtener_devolucion(request, pk):
 
 # 🔹 Actualizar una devolución
 @api_view(['PUT'])
+@check_role(1)
 def actualizar_devolucion(request, pk):
     try:
         devolucionGet = Devoluciones.objects.get(pk=pk)
@@ -137,6 +141,7 @@ def actualizar_devolucion(request, pk):
 
 # 🔹 Eliminar una devolución
 @api_view(['DELETE'])
+@check_role(1)
 def eliminar_devolucion(request, pk):
     try:
         devolucionDelete = Devoluciones.objects.get(pk=pk)

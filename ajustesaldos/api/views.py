@@ -10,10 +10,12 @@ from rest_framework.permissions import IsAuthenticated
 from .serializers               import AjustesaldoSerializer
 from datetime import datetime
 from django.db.models import Q
+from users.decorators           import check_role
 
 # 🔹 Listar todas las devoluciones
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1)
 def listar_ajustessaldos(request):
     devolucionAll= Ajustesaldo.objects.all()
     devoluciones_pago_data = []
@@ -37,6 +39,7 @@ def listar_ajustessaldos(request):
 # 🔹 Crear una nueva devolución
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@check_role(1)
 def crear_ajustessaldo(request):
     required_fields = ["id_cliente", "fecha_transaccion", "valor"]
 
@@ -76,6 +79,7 @@ def crear_ajustessaldo(request):
 # 🔹 Obtener una devolución por ID
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1)
 def obtener_ajustessaldo(request, pk):
     try:
         ajuesteSaldoGet = Ajustesaldo.objects.get(pk=pk)
@@ -89,6 +93,7 @@ def obtener_ajustessaldo(request, pk):
 # 🔹 Actualizar una devolución
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
+@check_role(1)
 def actualizar_ajustessaldo(request, pk):
     try:
         AjustesaldoGet = Ajustesaldo.objects.get(pk=pk)
@@ -128,6 +133,7 @@ def actualizar_ajustessaldo(request, pk):
 # 🔹 Eliminar una devolución
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
+@check_role(1)
 def eliminar_ajustessaldo(request, pk):
     try:
         AjustesaldoDelete = Ajustesaldo.objects.get(pk=pk)
@@ -150,6 +156,7 @@ def parse_date_with_defaults(date_str, is_end=False):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1)
 def listar_ajustessaldo_filtradas(request):
     fecha_inicio = parse_date_with_defaults(request.GET.get('fechaIncio'))
     fecha_fin    = parse_date_with_defaults(request.GET.get('fechaFin'), is_end=True)

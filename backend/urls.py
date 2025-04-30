@@ -71,7 +71,8 @@ urlpatterns = [
    path('archivocotizacionesantiguas/', include('archivocotizacionesantiguas.api.urls'),     name="archivocotizacionesantiguas"),
    path('historialtramitesemitidos/',   include('historialtramitesemitidos.api.urls'),        name="historialtramitesemitidos"),
    path('proveedores/',         include('proveedores.api.urls')                 , name="proveedores"),
-   path('fichaproveedores/',    include('fichaproveedor.api.urls'),               name="fichaproveedor")
+   path('fichaproveedores/',    include('fichaproveedor.api.urls'),               name="fichaproveedor"),
+   path('permisos/',            include('rolespermisos.api.urls'),                 name="rolespermisos")
 ]
 
 # Servir archivos de media en modo debug

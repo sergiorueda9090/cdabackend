@@ -16,9 +16,11 @@ from django.db.models import Sum, F, Value
 from django.db.models.functions import Replace, Cast
 
 from rest_framework.permissions import IsAuthenticated
+from users.decorators           import check_role
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1,2)
 def obtener_tarjetas(request):
     cuentas     = RegistroTarjetas.objects.all()
     serializer  = RegistroTarjetasSerializer(cuentas, many=True)
@@ -26,6 +28,7 @@ def obtener_tarjetas(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1,2)
 def obtener_tarjeta(request, id):
     try:
         cuenta = RegistroTarjetas.objects.get(id=id)
@@ -36,6 +39,7 @@ def obtener_tarjeta(request, id):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@check_role(1,2)
 def crear_tarjeta(request):
     serializer = RegistroTarjetasSerializer(data=request.data)
     if serializer.is_valid():
@@ -45,6 +49,7 @@ def crear_tarjeta(request):
 
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
+@check_role(1,2)
 def actualizar_tarjeta(request, id):
     try:
         cuenta = RegistroTarjetas.objects.get(id=id)
@@ -59,6 +64,7 @@ def actualizar_tarjeta(request, id):
 
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
+@check_role(1,2)
 def eliminar_tarjeta(request, id):
     try:
         cuenta = RegistroTarjetas.objects.get(id=id)
@@ -69,6 +75,7 @@ def eliminar_tarjeta(request, id):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1,2)
 def obtener_tarjetas_total(request):
     # Verificar si todas las tablas existen antes de ejecutar consultas
     required_models = {

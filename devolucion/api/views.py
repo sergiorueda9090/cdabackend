@@ -10,9 +10,12 @@ from rest_framework.permissions import IsAuthenticated
 
 from datetime import datetime
 from django.db.models   import Q
+from users.decorators   import check_role
+
 # 🔹 Listar todas las devoluciones
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1)
 def listar_devoluciones(request):
     devoluciones = Devolucion.objects.all()
     serializer   = DevolucionSerializer(devoluciones, many=True)
@@ -21,6 +24,7 @@ def listar_devoluciones(request):
 # 🔹 Crear una nueva devolución
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@check_role(1)
 def crear_devolucion(request):
     required_fields = ["cliente_id", "id_tarjeta_bancaria", "fecha_transaccion", "valor"]
 
@@ -62,6 +66,7 @@ def crear_devolucion(request):
 # 🔹 Obtener una devolución por ID
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1)
 def obtener_devolucion(request, pk):
     try:
         devolucion = Devolucion.objects.get(pk=pk)
@@ -74,6 +79,7 @@ def obtener_devolucion(request, pk):
 # 🔹 Actualizar una devolución
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
+@check_role(1)
 def actualizar_devolucion(request, pk):
     try:
         devolucion = Devolucion.objects.get(pk=pk)
@@ -114,6 +120,7 @@ def actualizar_devolucion(request, pk):
 # 🔹 Eliminar una devolución
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
+@check_role(1)
 def eliminar_devolucion(request, pk):
     try:
         devolucion = Devolucion.objects.get(pk=pk)
@@ -135,6 +142,7 @@ def parse_date_with_defaults(date_str, is_end=False):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1)
 def listar_devoluciones_filtradas(request):
 
     fecha_inicio = parse_date_with_defaults(request.GET.get('fechaIncio'))

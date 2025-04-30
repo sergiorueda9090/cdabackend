@@ -10,9 +10,11 @@ from cotizador.models           import Cotizador
 from users.models               import User
 from clientes.models            import Cliente
 from etiquetas.models           import Etiqueta
+from users.decorators           import check_role
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1,2)
 def get_all_cotizadores(request):
     # Obtener parámetros de búsqueda
     fecha_inicio = request.GET.get('fecha_inicio')
@@ -64,6 +66,7 @@ def get_all_cotizadores(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1,2)
 def sent_to_tramites(request, idcotizador):
     cotizador = get_object_or_404(Cotizador, id=idcotizador)
     cotizador.cotizadorModulo = 0
@@ -74,6 +77,7 @@ def sent_to_tramites(request, idcotizador):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1,2)
 def get_cotizador(request, idcotizador):
     # Obtener el cotizador por id
     cotizador = get_object_or_404(Cotizador, id=idcotizador)

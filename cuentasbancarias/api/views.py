@@ -25,10 +25,11 @@ from django.db.models import F, Value, CharField, Sum, IntegerField, Q
 from decimal import Decimal
 
 from tempfile import NamedTemporaryFile
-
+from users.decorators import check_role
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1,2)
 def obtener_cuentas(request):
     # Obtener todas las cuentas bancarias con los campos necesarios sergio 
     cuentas_qs = CuentaBancaria.objects.annotate(
@@ -102,6 +103,7 @@ def obtener_cuentas(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1,2)
 def obtener_cuentas_filtradas(request):
     # Obtener parámetros de fecha desde la URL
     fecha_inicio = parse_date_with_defaults(request.GET.get('fechaInicio'))
@@ -167,6 +169,7 @@ def obtener_cuentas_filtradas(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1,2)
 def obtener_cuenta(request, id):
     try:
         # Obtener la cuenta bancaria
@@ -195,6 +198,7 @@ def obtener_cuenta(request, id):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@check_role(1,2)
 def crear_cuenta(request):
     serializer = CuentaBancariaSerializer(data=request.data)
     if serializer.is_valid():
@@ -204,6 +208,7 @@ def crear_cuenta(request):
 
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
+@check_role(1,2)
 def actualizar_cuenta(request, id):
     try:
         cuenta = CuentaBancaria.objects.get(id=id)
@@ -218,6 +223,7 @@ def actualizar_cuenta(request, id):
 
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
+@check_role(1,2)
 def eliminar_cuenta(request, id):
     try:
         cuenta = CuentaBancaria.objects.get(id=id)
@@ -235,6 +241,7 @@ def ordenar_union_result(union_result):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1,2)
 def obtener_datos_cuenta(request, id):
     try:
         tarjeta = RegistroTarjetas.objects.get(pk=id)
@@ -355,6 +362,7 @@ def obtener_datos_cuenta(request, id):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1,2)
 def cuentasbancarias_filter_date(request, id):
     # Obtener los parámetros de fecha de la URL
 
@@ -506,6 +514,7 @@ def safe_sum(queryset, field_name):
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
+@check_role(1,2)
 def download_report_excel(request, id):
     # Obtener los parámetros de fecha de la URL
     fecha_inicio = request.GET.get('fechaInicio')

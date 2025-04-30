@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import get_users, create_user, update_user, delete_user
+from .views import get_users, create_user, update_user, delete_user, get_user_info
 
 urlpatterns = [
     # Listar todos los usuarios
@@ -16,4 +16,7 @@ urlpatterns = [
     
     # Eliminar un usuario por ID
     path('api/users/<int:user_id>/delete/', delete_user, name='delete_user'),
+
+    # Obtener los datos logeados
+    path('api/user/', get_user_info, name='get_user_info'),
 ]
