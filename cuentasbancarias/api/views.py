@@ -173,7 +173,7 @@ def obtener_cuentas_filtradas(request):
 def obtener_cuenta(request, id):
     try:
         # Obtener la cuenta bancaria
-        cuenta = CuentaBancaria.objects.get(id=id)
+        cuenta    = CuentaBancaria.objects.get(id=id)
         cotizador = Cotizador.objects.filter(id=cuenta.idCotizador).first()
 
         # Construir manualmente el diccionario de respuesta

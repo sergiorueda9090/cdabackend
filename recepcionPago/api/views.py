@@ -9,8 +9,9 @@ from .serializers               import RecepcionPagoSerializer
 
 from rest_framework.permissions import IsAuthenticated
 
-from datetime import datetime
+
 from django.db.models   import Q
+from datetime import date, datetime
 
 #Listar todas las recepciones de pago
 @api_view(['GET'])
@@ -66,39 +67,57 @@ def listar_recepciones_pago(request):
 def crear_recepcion_pago(request):
     required_fields = ["cliente_id", "id_tarjeta_bancaria", "fecha_transaccion", "valor"]
 
-    # Validar que los campos requeridos estén en la petición
     for field in required_fields:
         if field not in request.data or not request.data[field]:
             return Response({"error": f"El campo '{field}' es obligatorio."}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Validar que el cliente exista
     try:
         cliente = Cliente.objects.get(pk=request.data["cliente_id"])
     except Cliente.DoesNotExist:
         return Response({"error": "El cliente proporcionado no existe."}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Validar que la tarjeta bancaria exista
     try:
         tarjeta = RegistroTarjetas.objects.get(pk=request.data["id_tarjeta_bancaria"])
     except RegistroTarjetas.DoesNotExist:
         return Response({"error": "La tarjeta bancaria proporcionada no existe."}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Validar que la fecha de transacción no sea futura
-    from datetime import date
-    fecha_transaccion = request.data.get("fecha_transaccion")
-    if date.fromisoformat(fecha_transaccion) > date.today():
-        return Response({"error": "La fecha de transacción no puede ser en el futuro."}, status=status.HTTP_400_BAD_REQUEST)
+    fecha_transaccion_str = request.data.get("fecha_transaccion")
+    print(fecha_transaccion_str)
+    try:
+        # Espera un string como: "2025-04-07 19:31:17.730203"
+        fecha_transaccion = datetime.strptime(fecha_transaccion_str, "%Y-%m-%d %H:%M:%S.%f")
+    except (ValueError, TypeError):
+        return Response({"error": "La fecha de transacción no es válida."}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Crear la recepción de pago
-    # Crear la devolución
+    #if fecha_transaccion > date.today():
+    #    return Response({"error": "La fecha de transacción no puede ser en el futuro."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Convertir el valor a entero
     valor = request.data["valor"]
     valor = int(valor.replace(".", ""))
     valor = abs(valor)
 
+    # Validación de duplicado
+    confirmar = request.data.get("confirmar", "false").lower() == "true"
+
+    if not confirmar:
+        pago_duplicado = RecepcionPago.objects.filter(
+            cliente=cliente,
+            valor=valor,
+            fecha_transaccion=fecha_transaccion
+        ).exists()
+
+        if pago_duplicado:
+            return Response({
+                "advertencia": "¿Estás seguro que deseas ingresar este pago? Ya existe un pago para este cliente por el mismo valor el día de hoy.",
+                "requiere_confirmacion": True
+            }, status=status.HTTP_200_OK)
+
+    # Crear la recepción de pago
     recepcion = RecepcionPago.objects.create(
         cliente=cliente,
         id_tarjeta_bancaria=tarjeta,
-        fecha_transaccion=request.data["fecha_transaccion"],
+        fecha_transaccion=fecha_transaccion,
         valor=valor,
         observacion=request.data.get("observacion", "")
     )

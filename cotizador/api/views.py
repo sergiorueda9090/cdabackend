@@ -20,7 +20,57 @@ from fichaproveedor.api.serializers import FichaProveedorSerializer
 from fichaproveedor.models import FichaProveedor
 
 from users.decorators import check_role
+def agregar_meses(fecha, meses):
+    año = fecha.year + (fecha.month + meses - 1) // 12
+    mes = (fecha.month + meses - 1) % 12 + 1
+    dia = min(fecha.day, [31,
+                          29 if año % 4 == 0 and (año % 100 != 0 or año % 400 == 0) else 28,
+                          31, 30, 31, 30, 31, 31, 30, 31, 30, 31][mes - 1])
+    return datetime(año, mes, dia)
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@check_role(1, 2, 3)
+def create_cotizador(request):
+    data              = request.data.copy()
+    data['idUsuario'] = request.user.id
+    data['cotizadorModulo'] = 1
+
+    placa = data.get('placa')
+    if not placa:
+        return Response({"error": "El campo 'placa' es obligatorio."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # ✅ Validación: 10 meses desde el último registro
+    ultimo_registro = Cotizador.objects.filter(placa=placa).order_by('-fechaCreacion').first()
+    if ultimo_registro:
+        fecha_limite = agregar_meses(ultimo_registro.fechaCreacion, 10)
+        if datetime.now() < fecha_limite:
+            return Response(
+                {
+                    "error": f"La placa '{placa}' ya fue registrada. Deben pasar al menos 10 meses para volver a registrarla.",
+                    "status": 500
+                },
+                status=status.HTTP_200_OK
+            )
+
+    # ✅ Guardar cotizador
+    serializer = CotizadorSerializer(data=data)
+    if serializer.is_valid():
+        cotizador = serializer.save()
+        LogCotizador.objects.create(
+            idUsuario=request.user.id,
+            idCliente=data.get('idCliente'),
+            accion='crear',
+            antiguoValor='',
+            nuevoValor=str(serializer.data),
+            idCotizador=cotizador.id
+        )
+        response_data = serializer.data
+        response_data['idCotizador'] = cotizador.id
+        return Response(response_data, status=status.HTTP_201_CREATED)
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+"""
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 @check_role(1,2,3)
@@ -56,7 +106,7 @@ def create_cotizador(request):
 
         return Response(response_data, status=status.HTTP_201_CREATED)
 
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)"""
 
 
 @api_view(['GET'])

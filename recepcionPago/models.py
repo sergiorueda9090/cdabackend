@@ -7,7 +7,7 @@ class RecepcionPago(models.Model):
     cliente                     = models.ForeignKey(Cliente,            on_delete=models.CASCADE,   verbose_name="Cliente")
     id_tarjeta_bancaria         = models.ForeignKey(RegistroTarjetas,   on_delete=models.CASCADE,   verbose_name="RegistroTarjetas")
     fecha_ingreso               = models.DateTimeField(default=now,     editable=False,             verbose_name="Fecha de Ingreso")
-    fecha_transaccion           = models.DateField(verbose_name="Fecha de Transacción")
+    fecha_transaccion           = models.DateTimeField(verbose_name="Fecha de Transacción")
     valor                       = models.TextField(verbose_name="Valor")
     observacion                 = models.TextField(blank=True, null=True,                           verbose_name="Observación")
 

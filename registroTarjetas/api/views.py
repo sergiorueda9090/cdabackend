@@ -10,6 +10,8 @@ from recepcionPago.models     import RecepcionPago
 from devoluciones.models      import Devoluciones
 from gastosgenerales.models   import Gastogenerales
 from utilidadocacional.models import Utilidadocacional
+from cotizador.models         import Cotizador
+
 
 from django.db import models
 from django.db.models import Sum, F, Value
@@ -17,6 +19,7 @@ from django.db.models.functions import Replace, Cast
 
 from rest_framework.permissions import IsAuthenticated
 from users.decorators           import check_role
+from django.db import transaction
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -98,7 +101,7 @@ def obtener_tarjetas_total(request):
     #total_recepcion_pagos = RecepcionPago.objects.filter(cuentas[0].id)
 
     serializer  = RegistroTarjetasSerializer(cuentas, many=True)
-    print(serializer.data)
+    
     
     for i in range(len(serializer.data)):
         
@@ -161,3 +164,48 @@ def obtener_tarjetas_total(request):
         serializer.data[i]['valor'] = total_general
 
     return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+@check_role(1, 2)
+def transferir_tarjeta(request, id, idtrans):
+    try:
+        nueva_tarjeta = RegistroTarjetas.objects.get(id=id)  
+    except RegistroTarjetas.DoesNotExist:
+        return Response({"error": "La tarjeta de destino no existe"}, status=status.HTTP_404_NOT_FOUND)
+
+    try:
+        tarjeta_antigua = RegistroTarjetas.objects.get(id=idtrans)
+    except RegistroTarjetas.DoesNotExist:
+        return Response({"error": "La tarjeta original no existe"}, status=status.HTTP_404_NOT_FOUND)
+
+    try:
+        with transaction.atomic():
+            updated_cuentaBancaria = CuentaBancaria.objects.filter(idBanco=nueva_tarjeta.id).update(idBanco=tarjeta_antigua.id)
+            updated_cotizador    = Cotizador.objects.filter(idBanco=nueva_tarjeta.id).update(idBanco=tarjeta_antigua.id)
+            updated_recepcion    = RecepcionPago.objects.filter(id_tarjeta_bancaria=nueva_tarjeta).update(id_tarjeta_bancaria=tarjeta_antigua)
+            updated_devoluciones = Devoluciones.objects.filter(id_tarjeta_bancaria=nueva_tarjeta).update(id_tarjeta_bancaria=tarjeta_antigua)
+            updated_gastos       = Gastogenerales.objects.filter(id_tarjeta_bancaria=nueva_tarjeta).update(id_tarjeta_bancaria=tarjeta_antigua)
+            updated_utilidades   = Utilidadocacional.objects.filter(id_tarjeta_bancaria=nueva_tarjeta).update(id_tarjeta_bancaria=tarjeta_antigua)
+
+            total_actualizados = updated_recepcion + updated_devoluciones + updated_gastos + updated_utilidades + updated_cotizador + updated_cuentaBancaria
+
+            if total_actualizados == 0:
+                return Response({"mensaje": "No se encontraron registros para actualizar."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return Response({
+            "mensaje": "Referencias actualizadas correctamente.",
+            "detalles": {
+                "updated_cotizador"     : updated_cotizador,
+                "updated_cuentaBancaria": updated_cuentaBancaria,
+                "recepcion_pago"        : updated_recepcion,
+                "devoluciones"          : updated_devoluciones,
+                "gastos_generales"      : updated_gastos,
+                "utilidad_ocacional"    : updated_utilidades
+            }
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
