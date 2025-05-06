@@ -17,9 +17,9 @@ from users.decorators           import check_role
 @check_role(1,2)
 def get_all_cotizadores(request):
     # Obtener parámetros de búsqueda
-    fecha_inicio = request.GET.get('fecha_inicio')
-    fecha_fin    = request.GET.get('fecha_fin')
-    search_query = request.GET.get('search', '')
+    fecha_inicio = request.GET.get('fechaInicio')
+    fecha_fin    = request.GET.get('fechaFin')
+    search_query = request.GET.get('q', '')
 
     # Filtrar por fecha si se proporcionan
     filters = Q()
@@ -33,7 +33,7 @@ def get_all_cotizadores(request):
         fecha_fin = datetime.combine(fecha_fin, time(23, 59, 59))  # 23:59:59
         filters &= Q(fechaCreacion__lte=fecha_fin)
 
-    
+    print(search_query)
     # Búsqueda en todos los campos relevantes
     if search_query:
         filters &= Q(placa__icontains=search_query) | Q(cilindraje__icontains=search_query) | \

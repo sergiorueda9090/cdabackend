@@ -19,7 +19,7 @@ def get_all_cotizadores(request):
     # Obtener parámetros de búsqueda
     fecha_inicio = request.GET.get('fecha_inicio')
     fecha_fin    = request.GET.get('fecha_fin')
-    search_query = request.GET.get('search', '')
+    search_query = request.GET.get('q', '')
 
     # Filtrar por fecha si se proporcionan
     filters = Q()

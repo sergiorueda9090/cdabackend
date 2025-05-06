@@ -1,3 +1,4 @@
+from django.utils.dateparse import parse_date
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators  import api_view
 from rest_framework.response    import Response
@@ -9,6 +10,7 @@ from registroTarjetas.models    import RegistroTarjetas
 
 from .serializers               import DevolucionesSerializer
 from users.decorators           import check_role
+
 # 🔹 Listar todas las devoluciones
 @api_view(['GET'])
 @check_role(1)
@@ -149,3 +151,44 @@ def eliminar_devolucion(request, pk):
         return Response({"mensaje": "Devolución eliminada correctamente."}, status=status.HTTP_204_NO_CONTENT)
     except Devoluciones.DoesNotExist:
         return Response({"error": "Devolución no encontrada."}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['GET'])
+@check_role(1)
+def listar_devoluciones_filtro(request):
+    from datetime import datetime, time
+    fecha_inicio_str = request.GET.get('fechaInicio')
+    fecha_fin_str    = request.GET.get('fechaFin')
+
+    if not fecha_inicio_str or not fecha_fin_str:
+        return Response({'error': 'Debe proporcionar fechaInicio y fechaFin como parámetros.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        fecha_inicio_date = parse_date(fecha_inicio_str)
+        fecha_fin_date = parse_date(fecha_fin_str)
+
+        # Convertir a datetime con horas ajustadas
+        fecha_inicio = datetime.combine(fecha_inicio_date, time.min)  # 00:00:00
+        fecha_fin = datetime.combine(fecha_fin_date, time.max)        # 23:59:59.999999
+
+    except (ValueError, TypeError):
+        return Response({'error': 'Formato de fecha inválido. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    devolucionAll = Devoluciones.objects.filter(fecha_transaccion__range=[fecha_inicio, fecha_fin])
+    devoluciones_pago_data = []
+
+    for devolucion in devolucionAll:
+        tarjeta = get_object_or_404(RegistroTarjetas, id=devolucion.id_tarjeta_bancaria_id)
+        cliente = get_object_or_404(Cliente, id=devolucion.id_cliente_id)
+
+        devolucion_serializer = DevolucionesSerializer(devolucion)
+        devolucion_data = devolucion_serializer.data
+
+        devolucion_data['nombre_tarjeta'] = tarjeta.nombre_cuenta
+        devolucion_data['nombre_cliente'] = cliente.nombre
+        devolucion_data['color_cliente'] = cliente.color
+        devolucion_data['valor'] = abs(int(devolucion.valor))
+
+        devoluciones_pago_data.append(devolucion_data)
+
+    return Response(devoluciones_pago_data, status=status.HTTP_200_OK)

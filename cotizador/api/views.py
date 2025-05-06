@@ -157,11 +157,11 @@ def get_cotizador(request, pk):
 def get_cotizadores_filter_date(request):
     # Obtener los parámetros de fecha de la URL
     fecha_inicio = request.GET.get('fechaInicio')
-    fecha_fin = request.GET.get('fechaFin')
+    fecha_fin    = request.GET.get('fechaFin')
 
     # Convertir las fechas a objetos de Python
     fecha_inicio = parse_date(fecha_inicio) if fecha_inicio else None
-    fecha_fin = parse_date(fecha_fin) if fecha_fin else None
+    fecha_fin    = parse_date(fecha_fin) if fecha_fin else None
 
     # Filtrar los cotizadores
     cotizadores = Cotizador.objects.all()
@@ -182,10 +182,14 @@ def get_cotizadores_filter_date(request):
         cliente = get_object_or_404(Cliente, id=cotizador.idCliente)
         cotizador_serializer = CotizadorSerializer(cotizador)
 
+        etiqueta = get_object_or_404(Etiqueta, id = cotizador.idEtiqueta)
+        
         cotizador_data = cotizador_serializer.data
-        cotizador_data['nombre_usuario'] = usuario.username
-        cotizador_data['image_usuario'] = imagen_url
-        cotizador_data['nombre_cliente'] = cliente.nombre
+        cotizador_data['nombre_usuario']  = usuario.username
+        cotizador_data['image_usuario']   = imagen_url
+        cotizador_data['nombre_cliente']  = cliente.nombre
+        cotizador_data['color_cliente']   = cliente.color
+        cotizador_data['color_etiqueta']  = etiqueta.color
 
         cotizadores_data.append(cotizador_data)
 
@@ -462,3 +466,195 @@ def update_cotizador_to_send_archivo(request):
     
     except Exception as e:
         return Response({"success": False, "error": str(e)}, status=500)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+@check_role(1, 2, 3)
+def get_cotizadores_trasabilidad_filter_date(request):
+    # Filtros de fecha
+    fecha_inicio = request.GET.get('fechaInicio')
+    fecha_fin    = request.GET.get('fechaFin')
+    query        = request.GET.get('q', '').strip()
+
+    fecha_inicio = parse_date(fecha_inicio) if fecha_inicio else None
+    fecha_fin    = parse_date(fecha_fin) if fecha_fin else None
+
+    # Filtro base
+    cotizadores = Cotizador.objects.filter(tramiteModulo=1)
+
+    # Filtro por fecha
+    if fecha_inicio and fecha_fin:
+        cotizadores = cotizadores.filter(fechaCreacion__range=[fecha_inicio, fecha_fin])
+    elif fecha_inicio:
+        cotizadores = cotizadores.filter(fechaCreacion__gte=fecha_inicio)
+    elif fecha_fin:
+        cotizadores = cotizadores.filter(fechaCreacion__lte=fecha_fin)
+
+    # Filtro por búsqueda
+    if query:
+        clientes_ids = Cliente.objects.filter(nombre__icontains=query).values_list('id', flat=True)
+        etiqueta_ids = Etiqueta.objects.filter(nombre__icontains=query).values_list('id', flat=True)
+
+        cotizadores = cotizadores.filter(
+            Q(placa__icontains=query) |
+            Q(nombreCompleto__icontains=query) |
+            Q(numeroDocumento__icontains=query) |
+            Q(tipoDocumento__icontains=query) |
+            Q(telefono__icontains=query) |
+            Q(correo__icontains=query) |
+            Q(etiquetaDos__icontains=query) |
+            Q(pagoInmediato__icontains=query) |
+            Q(linkPago__icontains=query) |
+            Q(precioDeLey__icontains=query) |
+            Q(comisionPrecioLey__icontains=query) |
+            Q(total__icontains=query) |
+            Q(idCliente__in=clientes_ids) |
+            Q(idEtiqueta__in=etiqueta_ids)
+        )
+
+    cotizadores_data = []
+
+    for cotizador in cotizadores:
+        usuario = User.objects.filter(id=cotizador.idUsuario).first()
+        cliente = Cliente.objects.filter(id=cotizador.idCliente).first()
+        etiqueta = Etiqueta.objects.filter(id=cotizador.idEtiqueta).first()
+
+        cotizador_data = CotizadorSerializer(cotizador).data
+        cotizador_data['nombre_usuario']  = usuario.username if usuario else "Desconocido"
+        cotizador_data['image_usuario']   = usuario.image.url if usuario and usuario.image else None
+        cotizador_data['nombre_cliente']  = cliente.nombre if cliente else "Desconocido"
+        cotizador_data['color_cliente']   = cliente.color if cliente else None
+        cotizador_data['color_etiqueta']  = etiqueta.color if etiqueta else None
+
+        cotizadores_data.append(cotizador_data)
+
+    return Response(cotizadores_data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+@check_role(1, 2, 3)
+def get_cotizadores_confirmacion_filter_date(request):
+    # Filtros de fecha
+    fecha_inicio = request.GET.get('fechaInicio')
+    fecha_fin    = request.GET.get('fechaFin')
+    query        = request.GET.get('q', '').strip()
+
+    fecha_inicio = parse_date(fecha_inicio) if fecha_inicio else None
+    fecha_fin    = parse_date(fecha_fin) if fecha_fin else None
+
+    # Filtro base
+    cotizadores = Cotizador.objects.filter(confirmacionPreciosModulo=1)
+    
+    # Filtro por fecha
+    if fecha_inicio and fecha_fin:
+        cotizadores = cotizadores.filter(fechaCreacion__range=[fecha_inicio, fecha_fin])
+    elif fecha_inicio:
+        cotizadores = cotizadores.filter(fechaCreacion__gte=fecha_inicio)
+    elif fecha_fin:
+        cotizadores = cotizadores.filter(fechaCreacion__lte=fecha_fin)
+
+    # Filtro por búsqueda
+    if query:
+        clientes_ids = Cliente.objects.filter(nombre__icontains=query).values_list('id', flat=True)
+        etiqueta_ids = Etiqueta.objects.filter(nombre__icontains=query).values_list('id', flat=True)
+
+        cotizadores = cotizadores.filter(
+            Q(placa__icontains=query) |
+            Q(nombreCompleto__icontains=query) |
+            Q(numeroDocumento__icontains=query) |
+            Q(tipoDocumento__icontains=query) |
+            Q(telefono__icontains=query) |
+            Q(correo__icontains=query) |
+            Q(etiquetaDos__icontains=query) |
+            Q(pagoInmediato__icontains=query) |
+            Q(linkPago__icontains=query) |
+            Q(precioDeLey__icontains=query) |
+            Q(comisionPrecioLey__icontains=query) |
+            Q(total__icontains=query) |
+            Q(idCliente__in=clientes_ids) |
+            Q(idEtiqueta__in=etiqueta_ids)
+        )
+
+    cotizadores_data = []
+
+    for cotizador in cotizadores:
+        usuario = User.objects.filter(id=cotizador.idUsuario).first()
+        cliente = Cliente.objects.filter(id=cotizador.idCliente).first()
+        etiqueta = Etiqueta.objects.filter(id=cotizador.idEtiqueta).first()
+
+        cotizador_data = CotizadorSerializer(cotizador).data
+        cotizador_data['nombre_usuario']  = usuario.username if usuario else "Desconocido"
+        cotizador_data['image_usuario']   = usuario.image.url if usuario and usuario.image else None
+        cotizador_data['nombre_cliente']  = cliente.nombre if cliente else "Desconocido"
+        cotizador_data['color_cliente']   = cliente.color if cliente else None
+        cotizador_data['color_etiqueta']  = etiqueta.color if etiqueta else None
+
+        cotizadores_data.append(cotizador_data)
+
+    return Response(cotizadores_data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+@check_role(1, 2, 3)
+def get_cotizadores_pdf_filter_date(request):
+    # Filtros de fecha
+    fecha_inicio = request.GET.get('fechaInicio')
+    fecha_fin    = request.GET.get('fechaFin')
+    query        = request.GET.get('q', '').strip()
+
+    fecha_inicio = parse_date(fecha_inicio) if fecha_inicio else None
+    fecha_fin    = parse_date(fecha_fin) if fecha_fin else None
+
+    # Filtro base
+    cotizadores = Cotizador.objects.filter(pdfsModulo=1)
+    
+    # Filtro por fecha
+    if fecha_inicio and fecha_fin:
+        cotizadores = cotizadores.filter(fechaCreacion__range=[fecha_inicio, fecha_fin])
+    elif fecha_inicio:
+        cotizadores = cotizadores.filter(fechaCreacion__gte=fecha_inicio)
+    elif fecha_fin:
+        cotizadores = cotizadores.filter(fechaCreacion__lte=fecha_fin)
+
+    # Filtro por búsqueda
+    if query:
+        clientes_ids = Cliente.objects.filter(nombre__icontains=query).values_list('id', flat=True)
+        etiqueta_ids = Etiqueta.objects.filter(nombre__icontains=query).values_list('id', flat=True)
+
+        cotizadores = cotizadores.filter(
+            Q(placa__icontains=query) |
+            Q(nombreCompleto__icontains=query) |
+            Q(numeroDocumento__icontains=query) |
+            Q(tipoDocumento__icontains=query) |
+            Q(telefono__icontains=query) |
+            Q(correo__icontains=query) |
+            Q(etiquetaDos__icontains=query) |
+            Q(pagoInmediato__icontains=query) |
+            Q(linkPago__icontains=query) |
+            Q(precioDeLey__icontains=query) |
+            Q(comisionPrecioLey__icontains=query) |
+            Q(total__icontains=query) |
+            Q(idCliente__in=clientes_ids) |
+            Q(idEtiqueta__in=etiqueta_ids)
+        )
+
+    cotizadores_data = []
+
+    for cotizador in cotizadores:
+        usuario = User.objects.filter(id=cotizador.idUsuario).first()
+        cliente = Cliente.objects.filter(id=cotizador.idCliente).first()
+        etiqueta = Etiqueta.objects.filter(id=cotizador.idEtiqueta).first()
+
+        cotizador_data = CotizadorSerializer(cotizador).data
+        cotizador_data['nombre_usuario']  = usuario.username if usuario else "Desconocido"
+        cotizador_data['image_usuario']   = usuario.image.url if usuario and usuario.image else None
+        cotizador_data['nombre_cliente']  = cliente.nombre if cliente else "Desconocido"
+        cotizador_data['color_cliente']   = cliente.color if cliente else None
+        cotizador_data['color_etiqueta']  = etiqueta.color if etiqueta else None
+
+        cotizadores_data.append(cotizador_data)
+
+    return Response(cotizadores_data)

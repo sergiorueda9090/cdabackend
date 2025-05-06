@@ -99,9 +99,8 @@ def parse_date_with_defaults(date_str, is_end=False):
 @permission_classes([IsAuthenticated])
 @check_role(1)
 def listar_gastos_filtradas(request):
-    fecha_inicio = parse_date_with_defaults(request.GET.get('fechaIncio'))
+    fecha_inicio = parse_date_with_defaults(request.GET.get('fechaInicio'))
     fecha_fin    = parse_date_with_defaults(request.GET.get('fechaFin'), is_end=True)
-
     filtro_fecha = Q()
     if fecha_inicio and fecha_fin:
         filtro_fecha = Q(fecha_ingreso__range=(fecha_inicio, fecha_fin))

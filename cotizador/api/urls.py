@@ -11,7 +11,10 @@ from .views import (
     get_cotizadores_pdfs,
     get_cotizadores_filter_date,
     search_cotizadores,
-    update_cotizador_to_send_archivo
+    update_cotizador_to_send_archivo,
+    get_cotizadores_trasabilidad_filter_date,
+    get_cotizadores_confirmacion_filter_date,
+    get_cotizadores_pdf_filter_date
 )
 
 urlpatterns = [
@@ -26,5 +29,8 @@ urlpatterns = [
     path('get_cotizadores_pdfs/api/',                   get_cotizadores_pdfs,                   name='get_cotizadores_pdfs'),
     path('get_cotizadores_filter_date/api/',            get_cotizadores_filter_date,            name='get_cotizadores_filter_date'),
     path('search_cotizadores/api/',                     search_cotizadores,                     name='search_cotizadores'),
-    path('api/updatecotizadortosendarchivo/',       update_cotizador_to_send_archivo,       name='update_cotizador_to_send_archivo'),
+    path('get_cotizadores_trasabilidad_filter_date/api/',get_cotizadores_trasabilidad_filter_date, name='get_cotizadores_trasabilidad_filter_date'),
+    path('get_cotizadores_confirmacion_filter_date/api/',get_cotizadores_confirmacion_filter_date, name='get_cotizadores_confirmacion_filter_date'),
+    path('get_cotizadores_pdf_filter_date/api/',         get_cotizadores_pdf_filter_date,          name='get_cotizadores_pdf_filter_date'),
+    path('api/updatecotizadortosendarchivo/',           update_cotizador_to_send_archivo,       name='update_cotizador_to_send_archivo'),
 ]
