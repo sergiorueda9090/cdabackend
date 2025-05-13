@@ -8,6 +8,7 @@ class RegistroTarjetas(models.Model):
     saldo         = models.TextField(null=True, blank=True)
     imagen        = models.ImageField(upload_to='tarjetas/', null=True, blank=True)
     banco         = models.TextField(null=True, blank=True)
+    is_daviplata  = models.BooleanField(default=False)
     
     def __str__(self):
         return f"{self.nombre_cuenta} ({self.numero_cuenta})"

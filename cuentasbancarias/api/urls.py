@@ -12,7 +12,5 @@ urlpatterns = [
     path('api/cuenta/<int:id>/obtener_datos_cuenta/',               obtener_datos_cuenta,               name='obtener_datos_cuenta'),
     path('api/cuenta/<int:id>/get_cuentasbancarias_filter_date/',   cuentasbancarias_filter_date,       name='cuentasbancarias_filter_date'),
     path('api/cuenta/<int:id>/download_report_excel/',              download_report_excel,              name='download_report_excel'),
-
     path('api/cuentas/obtener_cuentas_filtradas/',                   obtener_cuentas_filtradas,                 name='obtener_cuentas_filtradas'),
-    
 ]

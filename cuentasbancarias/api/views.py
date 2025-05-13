@@ -40,7 +40,7 @@ def obtener_cuentas(request):
         id_tarjeta=F('idBanco'),
         origen=Value("Tramite", output_field=CharField()),
         id_cotizador=F('idCotizador')
-    ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador')
+    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador')
 
     # Obtener todos los cotizadores en un diccionario {id: objeto}
     cotizador_ids = [c['id_cotizador'] for c in cuentas_qs if c['id_cotizador']]
@@ -63,7 +63,7 @@ def obtener_cuentas(request):
         id_tarjeta=F('id_tarjeta_bancaria'),
         origen=Value("Recepcion Pago", output_field=CharField()),
         id_cotizador=Value(None, output_field=IntegerField()),
-    ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador'))
+    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador'))
 
     devoluciones = list(Devoluciones.objects.annotate(
         fi=F('fecha_ingreso'),
@@ -73,7 +73,7 @@ def obtener_cuentas(request):
         id_tarjeta=F('id_tarjeta_bancaria'),
         origen=Value("Devoluciones", output_field=CharField()),
         id_cotizador=Value(None, output_field=IntegerField()),
-    ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador'))
+    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador'))
 
     gastos = list(Gastogenerales.objects.annotate(
         fi=F('fecha_ingreso'),
@@ -83,7 +83,7 @@ def obtener_cuentas(request):
         id_tarjeta=F('id_tarjeta_bancaria'),
         origen=Value("Gastos generales", output_field=CharField()),
         id_cotizador=Value(None, output_field=IntegerField()),
-    ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador'))
+    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador'))
 
     utilidadocacional = list(Utilidadocacional.objects.annotate(
         fi=F('fecha_ingreso'),
@@ -93,7 +93,7 @@ def obtener_cuentas(request):
         id_tarjeta=F('id_tarjeta_bancaria'),
         origen=Value("Utilidad ocacional", output_field=CharField()),
         id_cotizador=Value(None, output_field=IntegerField()),
-    ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador'))
+    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador'))
 
     # Unir los datos como listas
     union_result = cuentas + recepcionDePagos + devoluciones + gastos + utilidadocacional
@@ -262,7 +262,7 @@ def obtener_datos_cuenta(request, id):
         origen=Value('Cuenta Bancaria', output_field=CharField()),
         id_cotizador=F('idCotizador'),
         placa=Value(None, output_field=IntegerField()),
-    ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador','placa')
+    ).values('id', 'fi', 'ft', 'valor_alias', 'cuatro_por_mil','desc_alias', 'id_tarjeta', 'origen', 'id_cotizador','placa')
 
     
     cotizador_ids = [c['id_cotizador'] for c in cuentas if c['id_cotizador']]
@@ -285,7 +285,7 @@ def obtener_datos_cuenta(request, id):
         origen=Value('Recepcion de Pago', output_field=CharField()),
         id_cotizador=Value(None, output_field=IntegerField()),
         placa=Value(None, output_field=IntegerField()),
-    ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador', 'placa')
+    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador', 'placa')
 
     # Consulta para Devoluciones
     devoluciones = Devoluciones.objects.filter(id_tarjeta_bancaria=id).annotate(
@@ -297,7 +297,7 @@ def obtener_datos_cuenta(request, id):
         origen=Value('Devolución', output_field=CharField()),
         id_cotizador=Value(None, output_field=IntegerField()),
         placa=Value(None, output_field=IntegerField()),
-    ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador', 'placa')
+    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador', 'placa')
 
     # Consulta para Gastos Generales
     gastos = Gastogenerales.objects.filter(id_tarjeta_bancaria=id).annotate(
@@ -309,7 +309,7 @@ def obtener_datos_cuenta(request, id):
         origen=Value('Gasto General', output_field=CharField()),
         id_cotizador=Value(None, output_field=IntegerField()),
         placa=Value(None, output_field=IntegerField()),
-    ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador', 'placa')
+    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador', 'placa')
 
     # Consulta para Utilidad Ocasional
     utilidadocacional = Utilidadocacional.objects.filter(id_tarjeta_bancaria=id).annotate(
@@ -321,7 +321,7 @@ def obtener_datos_cuenta(request, id):
         origen=Value('Utilidad Ocasional', output_field=CharField()),
         id_cotizador=Value(None, output_field=IntegerField()),
         placa=Value(None, output_field=IntegerField()),
-    ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador', 'placa')
+    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador', 'placa')
 
     # Unir todas las consultas asegurando que los tipos coincidan
 
@@ -404,7 +404,7 @@ def cuentasbancarias_filter_date(request, id):
         valor_alias=F('valor'),
         id_tarjeta=F('idBanco'),
         origen=Value('Cuenta Bancaria', output_field=CharField())
-    ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'id_tarjeta', 'origen')
+    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen')
 
     recepcionDePagos = filter_by_date(RecepcionPago.objects.filter(id_tarjeta_bancaria=id), "fecha_ingreso").annotate(
         fi=F('fecha_ingreso'),
@@ -413,7 +413,7 @@ def cuentasbancarias_filter_date(request, id):
         valor_alias=F('valor'),
         id_tarjeta=F('id_tarjeta_bancaria'),
         origen=Value('Recepcion de Pago', output_field=CharField())
-    ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'id_tarjeta', 'origen')
+    ).values('id', 'fi', 'ft', 'valor_alias', 'cuatro_por_mil','desc_alias', 'id_tarjeta', 'origen')
 
     devoluciones = filter_by_date(Devoluciones.objects.filter(id_tarjeta_bancaria=id), "fecha_ingreso").annotate(
         fi=F('fecha_ingreso'),
@@ -422,7 +422,7 @@ def cuentasbancarias_filter_date(request, id):
         valor_alias=F('valor'),
         id_tarjeta=F('id_tarjeta_bancaria'),
         origen=Value('Devolución', output_field=CharField())
-    ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'id_tarjeta', 'origen')
+    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen')
 
     gastos = filter_by_date(Gastogenerales.objects.filter(id_tarjeta_bancaria=id), "fecha_ingreso").annotate(
         fi=F('fecha_ingreso'),
@@ -431,7 +431,7 @@ def cuentasbancarias_filter_date(request, id):
         valor_alias=F('valor'),
         id_tarjeta=F('id_tarjeta_bancaria'),
         origen=Value('Gasto General', output_field=CharField())
-    ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'id_tarjeta', 'origen')
+    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen')
 
     utilidadocacional = filter_by_date(Utilidadocacional.objects.filter(id_tarjeta_bancaria=id), "fecha_ingreso").annotate(
         fi=F('fecha_ingreso'),
@@ -440,7 +440,7 @@ def cuentasbancarias_filter_date(request, id):
         valor_alias=F('valor'),
         id_tarjeta=F('id_tarjeta_bancaria'),
         origen=Value('Utilidad Ocasional', output_field=CharField())
-    ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'id_tarjeta', 'origen')
+    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen')
 
     # Unir todas las consultas asegurando que los tipos coincidan
     union_result = list(cuentas.union(devoluciones, gastos, utilidadocacional, recepcionDePagos))

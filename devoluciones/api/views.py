@@ -30,8 +30,13 @@ def listar_devoluciones(request):
         devolucion_data['nombre_tarjeta'] = tarjeta.nombre_cuenta
         devolucion_data['nombre_cliente'] = cliente.nombre
         devolucion_data['color_cliente']  = cliente.color
+        devolucion_data['valor']          = abs(int(devolucion.valor))
 
-        devolucion_data['valor'] = abs(int(devolucion.valor))
+        cuatro_por_mil = devolucion.cuatro_por_mil
+        if not cuatro_por_mil:
+            cuatro_por_mil = 0
+
+        devolucion_data['total'] = abs(int(devolucion.valor)) - abs(int(cuatro_por_mil))
         # Agregar la recepción modificada a la lista
         devoluciones_pago_data.append(devolucion_data)
 
@@ -71,11 +76,17 @@ def crear_devolucion(request):
     valor = int(valor.replace(".", ""))
     valor = -abs(valor)
 
+    if tarjeta.is_daviplata:
+        cuatro_por_mil = 0
+    else:
+        cuatro_por_mil = int(abs(valor) * 0.004)
+
     devolucionCreate = Devoluciones.objects.create(
         id_cliente          = cliente,
         id_tarjeta_bancaria = tarjeta,
         fecha_transaccion   = fecha_transaccion,
         valor               = valor,
+        cuatro_por_mil      = cuatro_por_mil,
         observacion         = request.data.get("observacion", "")
     )
 
@@ -136,6 +147,11 @@ def actualizar_devolucion(request, pk):
     
     devolucionGet.observacion = request.data.get("observacion", devolucionGet.observacion)
 
+    if tarjeta.is_daviplata:
+        devolucionGet.cuatro_por_mil = 0
+    else:
+        devolucionGet.cuatro_por_mil = int(abs(valor) * 0.004)
+                                       
     devolucionGet.save()
 
     serializer = DevolucionesSerializer(devolucionGet)
@@ -188,6 +204,12 @@ def listar_devoluciones_filtro(request):
         devolucion_data['nombre_cliente'] = cliente.nombre
         devolucion_data['color_cliente'] = cliente.color
         devolucion_data['valor'] = abs(int(devolucion.valor))
+
+        cuatro_por_mil = devolucion.cuatro_por_mil
+        if not cuatro_por_mil:
+            cuatro_por_mil = 0
+
+        devolucion_data['total'] = devolucion_data['valor'] - abs(int(cuatro_por_mil))
 
         devoluciones_pago_data.append(devolucion_data)
 

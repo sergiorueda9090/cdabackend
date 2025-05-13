@@ -36,6 +36,13 @@ def listar_utilidad_general(request):
                 # Add extra data
                 utilidad_data['nombre_tarjeta'] = tarjeta.nombre_cuenta
                 utilidad_data['valor']          = abs(int(utilidad.valor))
+
+                cuatro_por_mil = utilidad.cuatro_por_mil
+                if not cuatro_por_mil:
+                    cuatro_por_mil = 0
+
+                utilidad_data['total'] = utilidad_data['valor'] - abs(int(cuatro_por_mil))
+
                 # Append to result
                 total_utilidades_data.append(utilidad_data)
             except Exception as e:
@@ -82,10 +89,16 @@ def crear_utilidad_general(request):
     valor = int(valor.replace(".", ""))
     valor = abs(valor)
 
+    if tarjeta.is_daviplata:
+        cuatro_por_mil = 0
+    else:
+        cuatro_por_mil = int(abs(valor) * 0.004)
+    
     recepcion_gasto_general = Utilidadocacional.objects.create(
         id_tarjeta_bancaria = tarjeta,
         fecha_transaccion   = request.data["fecha_transaccion"],
         valor               = valor,
+        cuatro_por_mil      = cuatro_por_mil,
         observacion         = request.data.get("observacion", "")
     )
 
@@ -132,10 +145,15 @@ def actualizar_utilidad_general(request, pk):
     valor = request.data.get("valor",recepcion.valor)  # Obtener el valor del request o mantener el actual
     if isinstance(valor, str):                          # Si el valor es una cadena, limpiarlo
         valor = int(valor.replace(".", ""))             # Eliminar separadores de miles y convertir a número
-    recepcion.valor =  abs(valor)                      # Asegurar que siempre sea negativo
-
+    
+    recepcion.valor =  abs(valor)                       # Asegurar que siempre sea negativo
     recepcion.observacion = request.data.get("observacion", recepcion.observacion)
 
+    if tarjeta.is_daviplata:
+        recepcion.cuatro_por_mil = 0
+    else:
+        recepcion.cuatro_por_mil = int(abs(valor) * 0.004)
+        
     recepcion.save()
 
     serializer = UtilidadocacionalSerializer(recepcion)
@@ -196,9 +214,15 @@ def obtener_cutilidad_general_filtradas(request):
                 # Serialize gasto
                 utilidad_serializer = UtilidadocacionalSerializer(utilidad)
                 utilidad_data       = utilidad_serializer.data
-
+    
                 # Add extra data
                 utilidad_data['nombre_tarjeta'] = tarjeta.nombre_cuenta
+        
+                cuatro_por_mil = utilidad.cuatro_por_mil
+                if not cuatro_por_mil:
+                    cuatro_por_mil = 0
+
+                utilidad_data['total'] = abs(int(utilidad.valor)) - abs(int(cuatro_por_mil))
 
                 # Append to result
                 total_utilidades_data.append(utilidad_data)

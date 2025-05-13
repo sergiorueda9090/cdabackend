@@ -20,8 +20,7 @@ def listar_recepciones_pago(request):
         recepciones = RecepcionPago.objects.all()
         total_recepciones = recepciones.count()
         print(f"Total recepciones: {total_recepciones}")
-
-
+        
         recepciones_pago_data = []
 
         for recepcion in recepciones:
@@ -42,6 +41,12 @@ def listar_recepciones_pago(request):
                 recepcion_data['nombre_cliente']    = cliente.nombre
                 recepcion_data['color_cliente']     = cliente.color
                 recepcion_data['valor']             = abs(int(recepcion.valor))
+
+                cuatro_por_mil = recepcion.cuatro_por_mil
+                if not cuatro_por_mil:
+                    cuatro_por_mil = 0
+
+                recepcion_data['total'] = recepcion_data['valor'] - abs(int(cuatro_por_mil))
                 # Agregar al listado
                 recepciones_pago_data.append(recepcion_data)
 
@@ -82,7 +87,7 @@ def crear_recepcion_pago(request):
         return Response({"error": "La tarjeta bancaria proporcionada no existe."}, status=status.HTTP_400_BAD_REQUEST)
 
     fecha_transaccion_str = request.data.get("fecha_transaccion")
-    print(fecha_transaccion_str)
+
     try:
         # Espera un string como: "2025-04-07 19:31:17.730203"
         fecha_transaccion = datetime.strptime(fecha_transaccion_str, "%Y-%m-%d %H:%M:%S.%f")
@@ -97,6 +102,11 @@ def crear_recepcion_pago(request):
     valor = int(valor.replace(".", ""))
     valor = abs(valor)
 
+    if tarjeta.is_daviplata:
+        cuatro_por_mil = 0
+    else:
+        cuatro_por_mil = int(abs(valor) * 0.004)
+    
     # Validación de duplicado
     confirmar = request.data.get("confirmar", "false").lower() == "true"
 
@@ -118,6 +128,7 @@ def crear_recepcion_pago(request):
         cliente=cliente,
         id_tarjeta_bancaria=tarjeta,
         fecha_transaccion=fecha_transaccion,
+        cuatro_por_mil = cuatro_por_mil,
         valor=valor,
         observacion=request.data.get("observacion", "")
     )
@@ -176,6 +187,11 @@ def actualizar_recepcion_pago(request, pk):
    
     recepcion.observacion = request.data.get("observacion", recepcion.observacion)
 
+    if tarjeta.is_daviplata:
+        recepcion.cuatro_por_mil = 0
+    else:
+        recepcion.cuatro_por_mil = int(abs(valor) * 0.004)
+    
     recepcion.save()
 
     serializer = RecepcionPagoSerializer(recepcion)
@@ -207,7 +223,7 @@ def parse_date_with_defaults(date_str, is_end=False):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def listar_recepciones_pago_filtradas(request):
-    fecha_inicio = parse_date_with_defaults(request.GET.get('fechaIncio'))
+    fecha_inicio = parse_date_with_defaults(request.GET.get('fechaInicio'))
     fecha_fin    = parse_date_with_defaults(request.GET.get('fechaFin'), is_end=True)
 
     filtro_fecha = Q()
@@ -237,6 +253,12 @@ def listar_recepciones_pago_filtradas(request):
                 recepcion_data['nombre_tarjeta'] = tarjeta.nombre_cuenta
                 recepcion_data['nombre_cliente'] = cliente.nombre
                 recepcion_data['color_cliente'] = cliente.color
+
+                cuatro_por_mil = recepcion.cuatro_por_mil
+                if not cuatro_por_mil:
+                    cuatro_por_mil = 0
+
+                recepcion_data['total'] = abs(int(recepcion_data['valor'])) - abs(int(cuatro_por_mil))
 
                 # Agregar al listado
                 recepciones_pago_data.append(recepcion_data)

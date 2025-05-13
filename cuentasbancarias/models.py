@@ -8,6 +8,7 @@ class CuentaBancaria(models.Model):
     fechaTransaccion    = models.CharField(max_length=250)
     descripcion         = models.TextField(null=True, blank=True)
     valor               = models.TextField(null=True, blank=True)
+    cuatro_por_mil      = models.TextField(null=True, blank=True)
     cilindraje          = models.TextField(null=True, blank=True)
     nombreTitular       = models.TextField(null=True, blank=True)
     image               = models.ImageField(upload_to='comprobantesdepago/', null=True, blank=True)

@@ -33,11 +33,10 @@ def listar_gastos_generales(request):
                 tarjeta     = get_object_or_404(RegistroTarjetas, id=tarjeta_id)
                 gasto_model = get_object_or_404(Gastos, id=gasto_id)
 
-                print("gasto_model ",gasto_model)
                 # Serialize gasto
                 gastos_serializer = GastogeneralesSerializer(gasto)
                 gastos_data = gastos_serializer.data
-
+                
                 # Add extra data
                 gastos_data['nombre_tarjeta'] = tarjeta.nombre_cuenta
                 gastos_data['nombre_gasto'] = gasto_model.name
@@ -96,11 +95,17 @@ def crear_gasto_generale(request):
     valor = int(valor.replace(".", ""))
     valor = -abs(valor)
 
+    if tarjeta.is_daviplata:
+        cuatro_por_mil = 0
+    else:
+        cuatro_por_mil = int(abs(valor) * 0.004)
+    
     recepcion_gasto_general = Gastogenerales.objects.create(
         id_tipo_gasto       = gasto,
         id_tarjeta_bancaria = tarjeta,
         fecha_transaccion   = request.data["fecha_transaccion"],
         valor               = valor,
+        cuatro_por_mil      = cuatro_por_mil,
         observacion         = request.data.get("observacion", "")
     )
 
@@ -155,8 +160,13 @@ def actualizar_gasto_generale(request, pk):
     if isinstance(valor, str):  # Si el valor es una cadena, limpiarlo
         valor = int(valor.replace(".", ""))  # Eliminar separadores de miles y convertir a número
     
-    recepcion.valor =  -abs(valor)  # Asegurar que siempre sea negativo
-    recepcion.observacion       = request.data.get("observacion", recepcion.observacion)
+    recepcion.valor         =  -abs(valor)  # Asegurar que siempre sea negativo
+    recepcion.observacion   = request.data.get("observacion", recepcion.observacion)
+
+    if tarjeta.is_daviplata:
+        recepcion.cuatro_por_mil = 0
+    else:
+        recepcion.cuatro_por_mil = int(abs(valor) * 0.004)
 
     recepcion.save()
 

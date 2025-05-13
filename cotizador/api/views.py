@@ -14,6 +14,7 @@ from etiquetas.models           import Etiqueta
 from cotizador.models           import Cotizador, LogCotizador
 from cuentasbancarias.models    import CuentaBancaria
 from proveedores.models         import Proveedor
+from registroTarjetas.models    import RegistroTarjetas
 
 from .serializers import CotizadorSerializer, LogCotizadorSerializer
 from fichaproveedor.api.serializers import FichaProveedorSerializer
@@ -280,7 +281,6 @@ def update_cotizador(request, pk):
             pdfsModulo = 0
         
         if int(confirmacionPreciosModulo) == 0 and int(pdfsModulo) == 1:
-            print("=== if ===")
             id_proveedor = request.data.get('idProveedor')
             if not id_proveedor:
                 return Response({'error': 'El idProveedor es obligatorio para crear una ficha de proveedor.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -290,7 +290,7 @@ def update_cotizador(request, pk):
                 return Response({'error': 'Proveedor no encontrado'}, status=status.HTTP_404_NOT_FOUND)
             
             comision = request.data.get('comisionproveedor', '0').replace('.', '')  # Elimina separador de miles
-
+        
             # Crear registro directamente en la base de datos
             ficha = FichaProveedor.objects.create(
                 idproveedor=proveedor,
@@ -303,14 +303,32 @@ def update_cotizador(request, pk):
         id_banco = request.data.get('idBanco')
         
         if id_banco:
+            """precioDeLey = cotizador.precioDeLey
+            precioDeLey = int(precioDeLey.replace(".", ""))
+            precioDeLey = -abs(precioDeLey)"""
+            
             precioDeLey = cotizador.precioDeLey
             precioDeLey = int(precioDeLey.replace(".", ""))
             precioDeLey = -abs(precioDeLey)
+
+            # Obtener banco y verificar si es Daviplata
+            registro_tarjeta = RegistroTarjetas.objects.get(id=id_banco)
+
+            if registro_tarjeta.is_daviplata:
+                cuatro_por_mil = 0
+            else:
+                cuatro_por_mil = int(abs(precioDeLey) * 0.004)
+
+            # Mostrar el resultado (opcional)
+            print("Valor original:", precioDeLey)
+            print("4x1000:",         cuatro_por_mil)
+
             CuentaBancaria.objects.create(
                 idCotizador   = cotizador.id, 
                 idBanco       = request.data.get('idBanco'),
                 descripcion   = "descripcion",
                 valor         = precioDeLey,
+                cuatro_por_mil= cuatro_por_mil,
                 cilindraje    = cotizador.cilindraje,
                 nombreTitular = cotizador.nombreCompleto)
 
