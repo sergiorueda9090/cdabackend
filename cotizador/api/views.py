@@ -320,9 +320,6 @@ def update_cotizador(request, pk):
                 cuatro_por_mil = int(abs(precioDeLey) * 0.004)
 
             # Mostrar el resultado (opcional)
-            print("Valor original:", precioDeLey)
-            print("4x1000:",         cuatro_por_mil)
-
             CuentaBancaria.objects.create(
                 idCotizador   = cotizador.id, 
                 idBanco       = request.data.get('idBanco'),
@@ -336,10 +333,9 @@ def update_cotizador(request, pk):
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
-@check_role(1,2,3)
+@check_role(1, 2, 3)
 def delete_cotizador(request, pk):
     try:
         cotizador = Cotizador.objects.get(pk=pk)
@@ -347,16 +343,19 @@ def delete_cotizador(request, pk):
         return Response({'error': 'Cotizador no encontrado'}, status=status.HTTP_404_NOT_FOUND)
 
     old_data = CotizadorSerializer(cotizador).data
-    cotizador.delete()
+
     LogCotizador.objects.create(
-        idUsuario=request.data.get('idUsuario'),
-        idCliente=request.data.get('idCliente'),
+        idUsuario=request.user.id,  # <-- Usa el usuario autenticado
+        idCliente=cotizador.idCliente,  # <-- Puedes obtenerlo directamente del modelo
+        idCotizador=cotizador.id,
         accion='eliminar',
         antiguoValor=str(old_data),
         nuevoValor='',
     )
-    return Response({'message': 'Cotizador eliminado'}, status=status.HTTP_200_OK)
 
+    cotizador.delete()
+
+    return Response({'message': 'Cotizador eliminado'}, status=status.HTTP_200_OK)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -676,3 +675,37 @@ def get_cotizadores_pdf_filter_date(request):
         cotizadores_data.append(cotizador_data)
 
     return Response(cotizadores_data)
+
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+@check_role(1, 2, 3)
+def update_cotizador_devolver(request, pk):
+    try:
+        cotizador = Cotizador.objects.get(pk=pk)
+    except Cotizador.DoesNotExist:
+        return Response({'error': 'Cotizador no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+    
+    devolver = request.data.get('devolver')
+
+    if devolver == "pdf":
+        cotizador.confirmacionPreciosModulo = 1
+        cotizador.pdf                       = ""
+    elif devolver == "confirmarprecio":
+        cotizador.confirmacionPreciosModulo = 0
+        cotizador.pdfsModulo                = 0
+        cotizador.archivo                   = ""
+        cotizador.tramiteModulo             = 1
+        FichaProveedor.objects.filter(idcotizador=cotizador.id).delete()
+        CuentaBancaria.objects.filter(idCotizador=cotizador.id).delete()
+    elif devolver == "tramite":
+        cotizador.confirmacionPreciosModulo = 0
+        cotizador.pdfsModulo                = 0
+        cotizador.tramiteModulo             = 0
+        cotizador.cotizadorModulo           = 1
+    else:
+        return Response({'error': 'Valor de "devolver" inválido'}, status=status.HTTP_400_BAD_REQUEST)
+
+    cotizador.save()
+    serializer = CotizadorSerializer(cotizador)
+    return Response(serializer.data, status=status.HTTP_200_OK)
