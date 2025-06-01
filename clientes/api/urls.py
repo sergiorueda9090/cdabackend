@@ -9,4 +9,5 @@ urlpatterns = [
     path('api/<int:pk>/delete/',   views.delete_cliente,       name='delete-cliente'),
     path('api/clientestramites/',  views.get_clientes_tramites, name='clientestramites'),
     path('api/verificar_cliente_y_generar_token/',  views.verificar_cliente_y_generar_token, name='verificar_cliente_y_generar_token'),
+    path('api/cotizador-cliente/', views.api_get_cotizador_cliente, name='api_get_cotizador_cliente'),
 ]

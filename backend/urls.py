@@ -72,7 +72,9 @@ urlpatterns = [
    path('historialtramitesemitidos/',   include('historialtramitesemitidos.api.urls'),        name="historialtramitesemitidos"),
    path('proveedores/',         include('proveedores.api.urls')                 , name="proveedores"),
    path('fichaproveedores/',    include('fichaproveedor.api.urls'),               name="fichaproveedor"),
-   path('permisos/',            include('rolespermisos.api.urls'),                 name="rolespermisos")
+   path('permisos/',            include('rolespermisos.api.urls'),                name="rolespermisos"),
+   path('balancegeneral/',      include('balancegeneral.api.urls'),               name="balancegeneral"),
+   path('utilidad/',            include('utilidad.api.urls'),                     name="utilidad"),
 ]
 
 # Servir archivos de media en modo debug

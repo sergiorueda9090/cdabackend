@@ -7,8 +7,13 @@ from .serializers               import ClienteSerializer, PrecioLeySerializer
 from rest_framework.permissions import IsAuthenticated
 import json
 import random  # Para generar el token
-
+from rest_framework.response import Response
 from users.decorators  import check_role 
+from datetime import datetime, timedelta
+from django.shortcuts           import get_object_or_404
+from cotizador.api.serializers  import CotizadorSerializer, LogCotizadorSerializer
+from cotizador.models           import Cotizador
+
 # Obtener todos los clientes
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -246,39 +251,88 @@ def delete_cliente(request, pk):
         return JsonResponse({'message': 'Cliente eliminado correctamente'}, status=status.HTTP_204_NO_CONTENT)
 
 
-
 @api_view(['POST'])
-@check_role(1)
 def verificar_cliente_y_generar_token(request):
     identificacion = request.data.get("identificacion", None)
+    
     if not identificacion:
         return JsonResponse(
-            {"error": "El número de identificación es requerido."},status=status.HTTP_201_CREATED
+            {"error": "El número de identificación es requerido."},
+            status=status.HTTP_400_BAD_REQUEST
         )
     
     try:
         cliente = Cliente.objects.get(telefono=identificacion)
-        token = f"{random.randint(100000, 999999)}"  # Generar un token de 6 dígitos
-        
-        # Guardar el token en la base de datos
+
+        # Eliminar tokens anteriores (opcional)
+        GeneradorToken.objects.filter(identificacion=identificacion).delete()
+
+        # Crear token aleatorio y seguro
+        token = str(random.randint(100000, 999999))
+
         GeneradorToken.objects.create(
             identificacion=identificacion,
             token=token
         )
-        dataCliente = ClienteSerializer(cliente).data
- 
-        return JsonResponse(
-            {
-                "message"   : "Cliente encontrado.",
-                "id"        : dataCliente['id'],
-                "nombre"    : dataCliente['nombre'],
-                "apellidos" : dataCliente['apellidos'],
-                "token"     : token
-            },
-            status=status.HTTP_200_OK
-        )
+
+        data_cliente = ClienteSerializer(cliente).data
+
+        return JsonResponse({
+            "message"   : "Cliente autenticado correctamente.",
+            "token"     : token,
+            "telefono"  : data_cliente["telefono"],
+            "color"     : data_cliente.get("color", "#ccc"),  # Por si falta
+            "status"    : 200,
+            "id"        : data_cliente["id"],
+        }, status=status.HTTP_200_OK)
+
+    except Cliente.DoesNotExist as e:
+        return JsonResponse({
+            "message": "Cliente no encontrado.",
+            "error": str(e),
+            "status": 400
+        }, status=status.HTTP_401_UNAUTHORIZED)
+    
+@api_view(['POST'])
+def api_get_cotizador_cliente(request):
+    token          = request.data.get('token')
+    identificacion = request.data.get('telefono')
+    id_cliente     = request.data.get('id_cliente')
+    print("token: ", token)
+    print("identificacion: ", identificacion)
+    print("id_cliente: ", id_cliente)
+    if not token or not identificacion:
+        return Response({"error": "Token e identificación requeridos."}, status=400)
+
+    if not id_cliente:
+        return Response({"error": "Parámetro es requerido."}, status=400)
+    
+    try:
+        cliente = Cliente.objects.get(id=id_cliente)
     except Cliente.DoesNotExist:
-        return JsonResponse(
-            {"error": "Cliente no encontrado."},
-            status=status.HTTP_201_CREATED
-        )
+        return Response({"error": "Cliente no encontrado."}, status=404)
+    print(cliente)
+    # Validar token
+    try:
+        token_obj = GeneradorToken.objects.get(identificacion=identificacion, token=token)
+
+        # Verificar expiración del token (10 minutos)
+        if token_obj.fecha_creacion + timedelta(minutes=1) < datetime.now():
+            return Response({"error": "Token expirado."}, status=401)
+        
+        # Obtener cotizadores del cliente
+        print(cliente.id)
+        cotizadores = Cotizador.objects.filter(idCliente=cliente.id)
+        print("COTIZADORES ",cotizadores)
+        cotizadores_data = []
+
+        for cotizador in cotizadores:
+            cotizador_serializer = CotizadorSerializer(cotizador)
+            cotizador_data = cotizador_serializer.data
+            cotizador_data['nombre_cliente'] = cliente.nombre
+            cotizadores_data.append(cotizador_data)
+
+        return Response({"message": "Token válido. Acceso concedido.", "data": cotizadores_data}, status=200)
+
+    except GeneradorToken.DoesNotExist:
+        return Response({"error": "Token inválido o no encontrado."}, status=401)

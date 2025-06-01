@@ -65,6 +65,8 @@ INSTALLED_APPS = [
     'proveedores',
     'fichaproveedor',
     'rolespermisos',
+    'balancegeneral',
+    'utilidad'
 ]
 
 MIDDLEWARE = [
