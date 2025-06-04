@@ -149,6 +149,24 @@ def obtener_recepcion_pago(request, pk):
     serializer = RecepcionPagoSerializer(recepcion)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def obtener_recepcion_pago_cliente(request, pk):
+    recepciones = RecepcionPago.objects.filter(cliente_id=pk)
+
+    if not recepciones.exists():
+        return Response({"error": "Recepción de pago no encontrada."}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = RecepcionPagoSerializer(recepciones, many=True)
+    
+    # Modificar el campo 'valor' en los datos serializados (no en el modelo)
+    data = serializer.data
+    for item in data:
+        valor = int(item['valor']) if item['valor'] else 0
+        item['valor'] = f"{abs(valor):,}".replace(",", ".")
+    
+    return Response(data, status=status.HTTP_200_OK)
+
 #Actualizar una recepción de pago
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])

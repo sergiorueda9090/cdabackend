@@ -43,11 +43,9 @@ def get_ficha_utilidades(request):
     if proveedor_id:
         proveedores_qs = proveedores_qs.filter(idproveedor__id=proveedor_id)
 
-
     if fecha_inicio and fecha_fin:
         proveedores_qs = proveedores_qs.filter(fechaCreacion__range=[fecha_inicio, fecha_fin])
     else:
-        # Si NO mandan fechas, mostrar solo registros del día de hoy
         hoy = datetime.now().date()
         proveedores_qs = proveedores_qs.filter(fechaCreacion__date=hoy)
 
@@ -72,8 +70,14 @@ def get_ficha_utilidades(request):
         except (ValueError, TypeError):
             return 0.0
 
-    data = [
-        {
+    data = []
+    total_sum = 0.0
+
+    for ficha in proveedores_qs:
+        total_val = safe_abs(ficha.comisionproveedor)
+        total_sum += total_val
+
+        data.append({
             "id"                : ficha.id,
             "nombre"            : ficha.idproveedor.nombre,
             "comisionproveedor" : safe_abs(ficha.comisionproveedor),
@@ -84,9 +88,10 @@ def get_ficha_utilidades(request):
             "chasis"            : ficha.idcotizador.chasis,
             "precioDeLey"       : safe_abs(ficha.idcotizador.precioDeLey),
             "comisionPrecioLey" : safe_abs(ficha.idcotizador.comisionPrecioLey),
-            "total"             : safe_abs(ficha.idcotizador.total),
-        }
-        for ficha in proveedores_qs
-    ]
+            "total"             : total_val,
+        })
 
-    return Response(data)
+    return Response({
+        "data": data,
+        "total": round(total_sum, 2)
+    })
