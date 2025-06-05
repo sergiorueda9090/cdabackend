@@ -32,13 +32,16 @@ from django.db import transaction
 
 def listar_gastos_generales(fecha_inicio=None, fecha_fin=None):
     try:
-        # Parseo seguro de fechas
-        if fecha_inicio:
+        if fecha_inicio and isinstance(fecha_inicio, str):
             fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
-        if fecha_fin:
+        else:
+            fecha_inicio = fecha_inicio
+
+        if fecha_fin and isinstance(fecha_fin, str):
             fecha_fin = datetime.strptime(fecha_fin, "%Y-%m-%d")
+        else:
+            fecha_fin = fecha_fin
     except ValueError:
-        print("Formato de fecha inválido.")
         return []
 
     try:
@@ -80,12 +83,18 @@ def get_all_ficha_cliente(fechaInicio=None, fechaFin=None):
     fecha_fin    = fechaFin
 
     try:
-        if fecha_inicio:
-            fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
-        if fecha_fin:
-            fecha_fin = datetime.strptime(fecha_fin, "%Y-%m-%d")
+        if fechaInicio and isinstance(fechaInicio, str):
+            fecha_inicio = datetime.strptime(fechaInicio, "%Y-%m-%d")
+        else:
+            fecha_inicio = fechaInicio
+
+        if fechaFin and isinstance(fechaFin, str):
+            fecha_fin = datetime.strptime(fechaFin, "%Y-%m-%d")
+        else:
+            fecha_fin = fechaFin
+
     except ValueError:
-        return Response({"error": "Formato de fecha inválido. Use YYYY-MM-DD."}, status=400)
+        return []
 
     # Obtener cotizadores con sus idCliente
     cotizadores_qs = Cotizador.objects.exclude(precioDeLey__isnull=True).exclude(precioDeLey="").values('id', 'fechaCreacion', 'total', 'idCliente', 'placa', 'archivo')
@@ -180,12 +189,17 @@ def get_all_fecha_proveedores(fecha_inicio=None, fecha_fin=None):
     fecha_fin    = fecha_fin
 
     try:
-        if fecha_inicio:
+        if fecha_inicio and isinstance(fecha_inicio, str):
             fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
-        if fecha_fin:
+        else:
+            fecha_inicio = fecha_inicio
+
+        if fecha_fin and isinstance(fecha_fin, str):
             fecha_fin = datetime.strptime(fecha_fin, "%Y-%m-%d")
+        else:
+            fecha_fin = fecha_fin
+
     except ValueError:
-        # Retorna vacío si hay error en fechas
         return []
 
     proveedores_qs = FichaProveedor.objects.all()
@@ -214,6 +228,43 @@ def get_all_fecha_proveedores(fecha_inicio=None, fecha_fin=None):
 
     return resultado
 
+def get_ficha_utilidades(fecha_inicio=None, fecha_fin=None):
+    try:
+        if fecha_inicio and isinstance(fecha_inicio, str):
+            fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
+        else:
+            fecha_inicio = fecha_inicio
+
+        if fecha_fin and isinstance(fecha_fin, str):
+            fecha_fin = datetime.strptime(fecha_fin, "%Y-%m-%d")
+        else:
+            fecha_fin = fecha_fin
+
+    except ValueError:
+        return [{"valor": 0.0, "origen": "utilidades", "error": "Formato de fecha inválido"}]
+
+
+    proveedores_qs = FichaProveedor.objects.all()
+
+    if fecha_inicio and fecha_fin:
+        proveedores_qs = proveedores_qs.filter(fechaCreacion__range=[fecha_inicio, fecha_fin])
+    else:
+        hoy = datetime.now().date()
+        #proveedores_qs = proveedores_qs.filter(fechaCreacion__date=hoy)
+
+    def safe_abs(value):
+        try:
+            return abs(float(value))
+        except (ValueError, TypeError):
+            return 0.0
+
+    total_sum = sum([safe_abs(ficha.comisionproveedor) for ficha in proveedores_qs])
+
+    return [{
+        "valor": round(total_sum, 2),
+        "origen": "utilidades"
+    }]
+
 
 def safe_to_float(value):
     try:
@@ -225,7 +276,6 @@ def safe_to_float(value):
 @permission_classes([IsAuthenticated])
 @check_role(1,2)
 def obtener_balancegeneral(request):
-
     fecha_inicio = request.GET.get('fechaInicio')
     fecha_fin    = request.GET.get('fechaFin')
 
@@ -324,8 +374,8 @@ def obtener_balancegeneral(request):
     valores_clientes = get_all_ficha_cliente(fecha_inicio, fecha_fin)
     valores_gastos   = listar_gastos_generales(fecha_inicio, fecha_fin)
     fichas_proveedor = get_all_fecha_proveedores(fecha_inicio, fecha_fin)
-    
-    
+    utilidades       = get_ficha_utilidades(fecha_inicio, fecha_fin)
+    print("utilidades ", utilidades[0]['valor'])
     total_saldo_clientes = sum(safe_to_float(item['valor']) for item in valores_clientes)
     total_gastos_generales = sum(safe_to_float(item['valor']) for item in valores_gastos)
     total_comisiones_proveedores = sum(safe_to_float(item['valor']) for item in fichas_proveedor)
@@ -347,6 +397,7 @@ def obtener_balancegeneral(request):
         "total_gastos_generales": total_gastos_generales,
         "total_comisiones_proveedores": total_comisiones_proveedores,
         'totalTarjetas': total_tarjetas,
-        "sumaTotal": suma_total
+        "sumaTotal": suma_total,
+        "utilidades":utilidades[0]['valor']
     }, status=status.HTTP_200_OK)
 
