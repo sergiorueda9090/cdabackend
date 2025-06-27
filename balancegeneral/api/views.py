@@ -304,13 +304,14 @@ def obtener_balancegeneral(request):
         )
     
     cuentas     = RegistroTarjetas.objects.all()
-    #total_recepcion_pagos = RecepcionPago.objects.filter(cuentas[0].id)
-
     serializer  = RegistroTarjetasSerializer(cuentas, many=True)
-    
-    
+    tarjetas_info = []
+    print(f" ==== {serializer.data} ==== ")
     for i in range(len(serializer.data)):
-        
+
+        tarjeta_nombre = serializer.data[i]['nombre_cuenta']
+        tarjeta_id = serializer.data[i]['id']
+
         rtaCuentaBancaria = CuentaBancaria.objects.filter(
             idBanco=serializer.data[i]['id']
         ).aggregate(
@@ -351,11 +352,11 @@ def obtener_balancegeneral(request):
             )
         )
 
-        rtaCuentaBancaria['total_suma']      = rtaCuentaBancaria['total_suma']     if rtaCuentaBancaria['total_suma']      is not None else 0
-        rtaRecepcionPago['total_suma']      = rtaRecepcionPago['total_suma']     if rtaRecepcionPago['total_suma']      is not None else 0
-        rtaDevoluciones['total_suma']       = rtaDevoluciones['total_suma']      if rtaDevoluciones['total_suma']       is not None else 0
-        rtaGastogenerales['total_suma']     = rtaGastogenerales['total_suma']    if rtaGastogenerales['total_suma']     is not None else 0
-        rtaUtilidadocacional['total_suma']  = rtaUtilidadocacional['total_suma'] if rtaUtilidadocacional['total_suma']  is not None else 0
+        rtaCuentaBancaria['total_suma']      = rtaCuentaBancaria['total_suma']    if rtaCuentaBancaria['total_suma']     is not None else 0
+        rtaRecepcionPago['total_suma']       = rtaRecepcionPago['total_suma']     if rtaRecepcionPago['total_suma']      is not None else 0
+        rtaDevoluciones['total_suma']        = rtaDevoluciones['total_suma']      if rtaDevoluciones['total_suma']       is not None else 0
+        rtaGastogenerales['total_suma']      = rtaGastogenerales['total_suma']    if rtaGastogenerales['total_suma']     is not None else 0
+        rtaUtilidadocacional['total_suma']   = rtaUtilidadocacional['total_suma'] if rtaUtilidadocacional['total_suma']  is not None else 0
 
         total_general = (
             rtaCuentaBancaria['total_suma'] +
@@ -366,7 +367,11 @@ def obtener_balancegeneral(request):
         )
         print("rtaRecepcionPago : {}\nrtaDevoluciones: {}\nrtaGastogenerales: {}\nrtaUtilidadocacional: {}\ntotal_general: {}"
             .format(rtaRecepcionPago, rtaDevoluciones, rtaGastogenerales, rtaUtilidadocacional, total_general))
-    
+
+
+        # Añadir a lista para respuesta
+        tarjetas_info.append({"nombre": tarjeta_nombre, "valor" :total_general})
+              
         serializer.data[i]['valor'] = total_general
         serializer.data[i]['origen'] = 'tarjetas'
 
@@ -375,7 +380,7 @@ def obtener_balancegeneral(request):
     valores_gastos   = listar_gastos_generales(fecha_inicio, fecha_fin)
     fichas_proveedor = get_all_fecha_proveedores(fecha_inicio, fecha_fin)
     utilidades       = get_ficha_utilidades(fecha_inicio, fecha_fin)
-    print("utilidades ", utilidades[0]['valor'])
+  
     total_saldo_clientes = sum(safe_to_float(item['valor']) for item in valores_clientes)
     total_gastos_generales = sum(safe_to_float(item['valor']) for item in valores_gastos)
     total_comisiones_proveedores = sum(safe_to_float(item['valor']) for item in fichas_proveedor)
@@ -388,11 +393,13 @@ def obtener_balancegeneral(request):
         total_comisiones_proveedores +
         total_tarjetas
     )
+
     print("suma_total ",suma_total)
     # ✅ Armar respuesta final uniendo ambos resultados
     respuesta_final = serializer.data + valores_clientes + valores_gastos + fichas_proveedor
     return Response({
         "datos": respuesta_final,
+        "tarjetas": tarjetas_info,
         "total_saldo_clientes": total_saldo_clientes,
         "total_gastos_generales": total_gastos_generales,
         "total_comisiones_proveedores": total_comisiones_proveedores,

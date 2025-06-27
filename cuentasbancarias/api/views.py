@@ -338,15 +338,41 @@ def obtener_datos_cuenta(request, id):
     total_general = total_cuentas + total_devoluciones + total_gastos + total_utilidad + total_recepcionDePagos
     transacciones_ordenadas = ordenar_union_result(union_result)
 
+    cuatro_por_mil_registros = [
+        {
+            "id": item.get("id"),
+            "cuatro_por_mil": item.get("cuatro_por_mil"),
+            "fi": item.get("fi"),
+            "ft": item.get("ft"),
+            "desc_alias": item.get("desc_alias"),
+            "valor_alias": "",  # Mostrar valor vacío como lo pediste
+            "id_tarjeta": item.get("id_tarjeta"),
+            "origen":"Cuatro Por Mil",
+            "id_cotizador": item.get("id_cotizador"),
+            "placa": item.get("placa"),
+        }
+        for item in transacciones_ordenadas
+        if str(item.get("cuatro_por_mil")).strip() not in ["", "0", "None", None]
+    ]
+    
+    # Calcular total del cuatro por mil
+    total_cuatro_por_mil = sum(
+        int(str(item.get("cuatro_por_mil")).replace('.', '').strip())
+        for item in transacciones_ordenadas
+        if str(item.get("cuatro_por_mil")).strip() not in ["", "0", "None", None]
+    )
+
     # Objeto con los totales
     response_data = {
         "data": list(transacciones_ordenadas),  # Convierte el QuerySet en lista
+        "cuatro_por_mil_data": cuatro_por_mil_registros,
         "totales": {
             "total_cuenta_bancaria"     : total_cuentas or 0,
             "total_devoluciones"        : total_devoluciones or 0,
             "total_gastos_generales"    : total_gastos or 0,
             "total_utilidad_ocacional"  : total_utilidad or 0,
             "total_recepcionDePagos"    : total_recepcionDePagos or 0,
+            "total_cuatro_por_mil"      : total_cuatro_por_mil or 0,  # 👈 Aquí
             "total"                     : total_general or 0
         },
         "tarjeta":{
