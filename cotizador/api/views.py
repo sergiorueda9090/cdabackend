@@ -333,6 +333,40 @@ def update_cotizador(request, pk):
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+@check_role(1, 2, 3)
+def update_cotizador_pdf(request, pk):
+    try:
+        cotizador = Cotizador.objects.get(pk=pk)
+    except Cotizador.DoesNotExist:
+        return Response({'error': 'Cotizador no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    old_archivo = cotizador.archivo  # guarda el valor anterior
+
+    # Solo permitimos actualizar el campo 'archivo'
+    serializer = CotizadorSerializer(cotizador, data={'pdf': request.data.get('pdf')}, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        new_archivo = serializer.validated_data.get('archivo')
+
+        if old_archivo != new_archivo:
+            LogCotizador.objects.create(
+                idCotizador=pk,
+                idUsuario=request.data.get('idUsuario', cotizador.idUsuario),
+                idCliente=request.data.get('idCliente', cotizador.idCliente),
+                accion='editar',
+                campo='archivo',
+                antiguoValor=str(old_archivo),
+                nuevoValor=str(new_archivo),
+                fecha=now()
+            )
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 @check_role(1, 2, 3)
