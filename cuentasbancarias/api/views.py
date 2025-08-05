@@ -4,6 +4,8 @@ import pandas as pd
 from django.utils.dateparse import parse_date
 from datetime import datetime
 
+
+from django.db.models.functions import Concat, Coalesce
 from rest_framework.response    import Response
 from django.http                import HttpResponse
 from rest_framework.decorators  import api_view, permission_classes
@@ -17,11 +19,11 @@ from devoluciones.models        import Devoluciones
 from cotizador.models           import Cotizador
 from gastosgenerales.models     import Gastogenerales
 from utilidadocacional.models   import Utilidadocacional
-
+from clientes.models            import Cliente
 
 from .serializers               import CuentaBancariaSerializer
 
-from django.db.models import F, Value, CharField, Sum, IntegerField, Q
+from django.db.models import F, Value, CharField, Sum, IntegerField, Q, Case, When
 from decimal import Decimal
 
 from tempfile import NamedTemporaryFile
@@ -46,34 +48,84 @@ def obtener_cuentas(request):
     cotizador_ids = [c['id_cotizador'] for c in cuentas_qs if c['id_cotizador']]
     cotizadores = {c.id: c for c in Cotizador.objects.filter(id__in=cotizador_ids)}
 
+    cliente_ids = [c.idCliente for c in cotizadores.values() if c.idCliente]
+    clientes = {cli.id: cli for cli in Cliente.objects.filter(id__in=cliente_ids)}
+
     # Convertir cuentas a lista y agregar datos de Cotizador
     cuentas = list(cuentas_qs)
     for cuenta in cuentas:
         cotizador = cotizadores.get(cuenta.get('id_cotizador'))
         cuenta['placa'] = cotizador.placa if cotizador else None
+        cuenta['desc_alias'] = cotizador.nombreCompleto if cotizador else None
         cuenta['cilindraje'] = cotizador.cilindraje if cotizador else None
         cuenta['archivo'] = cotizador.archivo.url if cotizador and cotizador.archivo else None
+        
+        # Agregar nombre del cliente
+        cliente = clientes.get(cotizador.idCliente) if cotizador else None
+        if cliente:
+            nombre = cliente.nombre or ''
+            apellidos = cliente.apellidos or ''
+            cuenta['cliente_nombre'] = f"{nombre} {apellidos}".strip()
+        else:
+            cuenta['cliente_nombre'] = ''
 
-    # Obtener datos de las otras tablas y convertirlas en listas
-    recepcionDePagos = list(RecepcionPago.objects.annotate(
-        fi=F('fecha_ingreso'),
-        ft=F('fecha_transaccion'),
-        desc_alias=F('observacion'),
-        valor_alias=F('valor'),
-        id_tarjeta=F('id_tarjeta_bancaria'),
-        origen=Value("Recepcion Pago", output_field=CharField()),
-        id_cotizador=Value(None, output_field=IntegerField()),
-    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador'))
+    # Recepción de pagos
+    recepcionDePagos = list(
+        RecepcionPago.objects.annotate(
+            fi=F('fecha_ingreso'),
+            ft=F('fecha_transaccion'),
+            desc_alias=F('observacion'),
+            valor_alias=F('valor'),
+            id_tarjeta=F('id_tarjeta_bancaria'),
+            cliente_nombre=Concat(
+                Coalesce(F('cliente__nombre'), Value('')),
+                Value(' '),
+                Case(
+                    When(cliente__apellidos="undefined", then=Value("")),
+                    default=Coalesce(F('cliente__apellidos'), Value("")),
+                    output_field=CharField()
+                )
+            ),
+            origen=Value("Recepcion Pago", output_field=CharField()),
+            id_cotizador=Value(None, output_field=IntegerField()),
+        ).values(
+            'id', 'fi', 'ft', 'valor_alias', 'cuatro_por_mil', 'desc_alias',
+            'id_tarjeta', 'origen', 'id_cotizador', 'cliente_nombre'
+        )
+    )
 
-    devoluciones = list(Devoluciones.objects.annotate(
-        fi=F('fecha_ingreso'),
-        ft=F('fecha_transaccion'),
-        desc_alias=F('observacion'),
-        valor_alias=F('valor'),
-        id_tarjeta=F('id_tarjeta_bancaria'),
-        origen=Value("Devoluciones", output_field=CharField()),
-        id_cotizador=Value(None, output_field=IntegerField()),
-    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador'))
+    # Devoluciones
+    devoluciones = list(
+        Devoluciones.objects.annotate(
+            fi=F('fecha_ingreso'),
+            ft=F('fecha_transaccion'),
+            desc_alias=F('observacion'),
+            valor_alias=F('valor'),
+            id_tarjeta=F('id_tarjeta_bancaria'),
+            origen=Value("Devoluciones", output_field=CharField()),
+            id_cotizador=Value(None, output_field=IntegerField()),
+            cliente_nombre=Concat(
+                Coalesce(F('id_cliente__nombre'), Value('')),
+                Value(' '),
+                Case(
+                    When(id_cliente__apellidos="undefined", then=Value("")),
+                    default=Coalesce(F('id_cliente__apellidos'), Value("")),
+                    output_field=CharField()
+                )
+            )
+        ).values(
+            'id',
+            'fi',
+            'ft',
+            'valor_alias',
+            'cuatro_por_mil',
+            'desc_alias',
+            'id_tarjeta',
+            'origen',
+            'id_cotizador',
+            'cliente_nombre'
+        )
+    )
 
     gastos = list(Gastogenerales.objects.annotate(
         fi=F('fecha_ingreso'),
@@ -118,7 +170,7 @@ def obtener_cuentas_filtradas(request):
     elif fecha_fin:
         filtro_fecha = Q(fi__lte=fecha_fin)
 
-    # Obtener todas las cuentas bancarias con filtro de fecha en `fi`
+    # Obtener todas las cuentas bancarias con los campos necesarios
     cuentas_qs = CuentaBancaria.objects.annotate(
         fi=F('fechaIngreso'),
         ft=F('fechaTransaccion'),
@@ -127,42 +179,115 @@ def obtener_cuentas_filtradas(request):
         id_tarjeta=F('idBanco'),
         origen=Value("Tramite", output_field=CharField()),
         id_cotizador=F('idCotizador')
-    ).filter(filtro_fecha).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador')
+    ).filter(filtro_fecha).values('id', 'fi', 'ft', 'valor_alias', 'cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador')
 
-    # Obtener cotizadores en un diccionario {id: objeto}
+    # Obtener todos los cotizadores en un diccionario {id: objeto}
     cotizador_ids = [c['id_cotizador'] for c in cuentas_qs if c['id_cotizador']]
     cotizadores = {c.id: c for c in Cotizador.objects.filter(id__in=cotizador_ids)}
+
+    cliente_ids = [c.idCliente for c in cotizadores.values() if c.idCliente]
+    clientes = {cli.id: cli for cli in Cliente.objects.filter(id__in=cliente_ids)}
 
     # Convertir cuentas a lista y agregar datos de Cotizador
     cuentas = list(cuentas_qs)
     for cuenta in cuentas:
         cotizador = cotizadores.get(cuenta.get('id_cotizador'))
         cuenta['placa'] = cotizador.placa if cotizador else None
+        cuenta['desc_alias'] = cotizador.nombreCompleto if cotizador else cuenta['desc_alias']
         cuenta['cilindraje'] = cotizador.cilindraje if cotizador else None
         cuenta['archivo'] = cotizador.archivo.url if cotizador and cotizador.archivo else None
+        
+        # Agregar nombre del cliente
+        cliente = clientes.get(cotizador.idCliente) if cotizador else None
+        if cliente:
+            nombre = cliente.nombre or ''
+            apellidos = cliente.apellidos or ''
+            cuenta['cliente_nombre'] = f"{nombre} {apellidos}".strip()
+        else:
+            cuenta['cliente_nombre'] = ''
 
-    # Listado de tablas adicionales a procesar
-    otras_tablas = [
-        (RecepcionPago, "Recepcion Pago"),
-        (Devoluciones, "Devoluciones"),
-        (Gastogenerales, "Gastos generales"),
-        (Utilidadocacional, "Utilidad ocacional")
-    ]
-
-    # Unir resultados de todas las consultas
-    union_result = cuentas
-
-    for tabla, origen in otras_tablas:
-        registros = list(tabla.objects.annotate(
+    # Recepción de pagos
+    recepcionDePagos = list(
+        RecepcionPago.objects.annotate(
             fi=F('fecha_ingreso'),
             ft=F('fecha_transaccion'),
             desc_alias=F('observacion'),
             valor_alias=F('valor'),
             id_tarjeta=F('id_tarjeta_bancaria'),
-            origen=Value(origen, output_field=CharField()),
+            cliente_nombre=Concat(
+                Coalesce(F('cliente__nombre'), Value('')),
+                Value(' '),
+                Case(
+                    When(cliente__apellidos="undefined", then=Value("")),
+                    default=Coalesce(F('cliente__apellidos'), Value("")),
+                    output_field=CharField()
+                )
+            ),
+            origen=Value("Recepcion Pago", output_field=CharField()),
             id_cotizador=Value(None, output_field=IntegerField()),
-        ).filter(filtro_fecha).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador'))
-        union_result.extend(registros)
+        ).filter(filtro_fecha).values(
+            'id', 'fi', 'ft', 'valor_alias', 'cuatro_por_mil', 'desc_alias',
+            'id_tarjeta', 'origen', 'id_cotizador', 'cliente_nombre'
+        )
+    )
+
+    # Devoluciones
+    devoluciones = list(
+        Devoluciones.objects.annotate(
+            fi=F('fecha_ingreso'),
+            ft=F('fecha_transaccion'),
+            desc_alias=F('observacion'),
+            valor_alias=F('valor'),
+            id_tarjeta=F('id_tarjeta_bancaria'),
+            origen=Value("Devoluciones", output_field=CharField()),
+            id_cotizador=Value(None, output_field=IntegerField()),
+            cliente_nombre=Concat(
+                Coalesce(F('id_cliente__nombre'), Value('')),
+                Value(' '),
+                Case(
+                    When(id_cliente__apellidos="undefined", then=Value("")),
+                    default=Coalesce(F('id_cliente__apellidos'), Value("")),
+                    output_field=CharField()
+                )
+            )
+        ).filter(filtro_fecha).values(
+            'id',
+            'fi',
+            'ft',
+            'valor_alias',
+            'cuatro_por_mil',
+            'desc_alias',
+            'id_tarjeta',
+            'origen',
+            'id_cotizador',
+            'cliente_nombre'
+        )
+    )
+
+    # Gastos generales
+    gastos = list(Gastogenerales.objects.annotate(
+        fi=F('fecha_ingreso'),
+        ft=F('fecha_transaccion'),
+        desc_alias=F('observacion'),
+        valor_alias=F('valor'),
+        id_tarjeta=F('id_tarjeta_bancaria'),
+        origen=Value("Gastos generales", output_field=CharField()),
+        id_cotizador=Value(None, output_field=IntegerField()),
+    ).filter(filtro_fecha).values('id', 'fi', 'ft', 'valor_alias', 'cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador'))
+
+    # Utilidad ocacional
+    utilidadocacional = list(Utilidadocacional.objects.annotate(
+        fi=F('fecha_ingreso'),
+        ft=F('fecha_transaccion'),
+        desc_alias=F('observacion'),
+        valor_alias=F('valor'),
+        id_tarjeta=F('id_tarjeta_bancaria'),
+        origen=Value("Utilidad ocacional", output_field=CharField()),
+        id_cotizador=Value(None, output_field=IntegerField()),
+    ).filter(filtro_fecha).values('id', 'fi', 'ft', 'valor_alias', 'cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador'))
+
+    # Unir los datos como listas
+    union_result = cuentas + recepcionDePagos + devoluciones + gastos + utilidadocacional
 
     # Retornar la respuesta
     return Response(union_result)
