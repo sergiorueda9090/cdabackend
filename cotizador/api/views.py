@@ -250,11 +250,35 @@ def update_cotizador(request, pk):
     except Cotizador.DoesNotExist:
         return Response({'error': 'Cotizador no encontrado'}, status=status.HTTP_404_NOT_FOUND)
 
+    id_banco = request.data.get('idBanco')
+
+    tramite_modulo              = int(request.data.get('tramiteModulo') or 1)
+    confirmacion_precios_modulo = int(request.data.get('confirmacionPreciosModulo') or 1)
+
+    if tramite_modulo != 1:
+        if confirmacion_precios_modulo != 1:
+            if id_banco:
+                # Validar que precioDeLey tenga un valor no vacío y no nulo
+                precio_de_ley_raw = cotizador.precioDeLey
+                if not precio_de_ley_raw:
+                    return Response(
+                        {'error': 'El campo precio De Ley es obligatorio si se proporciona un una tarjeta.'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+            if not cotizador.precioDeLey:
+                precio_de_ley_raw = cotizador.precioDeLey
+                if not precio_de_ley_raw:
+                    return Response(
+                        {'error': 'El campo precio De Ley es obligatorio si se proporciona un una tarjeta.'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+    
     old_data = CotizadorSerializer(cotizador).data
 
     serializer = CotizadorSerializer(cotizador, data=request.data, partial=True)
     if serializer.is_valid():
-        print("Is valid 1")
         serializer.save()
         new_data = serializer.data
 

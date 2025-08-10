@@ -65,7 +65,6 @@ def get_all_fecha_proveedores(request):
     return Response(data)
 
 
-
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 @check_role(1,2)
@@ -214,6 +213,7 @@ def get_ficha_proveedor_por_id(request):
     fecha_fin    = request.GET.get('fechaFin')
     proveedor_id = request.GET.get('proveedorId')
     search       = request.GET.get('search')  # <-- nuevo parámetro
+    print(proveedor_id)
 
     try:
         if fecha_inicio:
@@ -224,16 +224,17 @@ def get_ficha_proveedor_por_id(request):
         return Response({"error": "Formato de fecha inválido. Use YYYY-MM-DD."}, status=400)
 
     proveedores_qs = FichaProveedor.objects.all()
-
+    
     if proveedor_id:
         proveedores_qs = proveedores_qs.filter(idproveedor__id=proveedor_id)
+        print(proveedores_qs)
 
     if fecha_inicio and fecha_fin:
         proveedores_qs = proveedores_qs.filter(fechaCreacion__range=[fecha_inicio, fecha_fin])
     else:
         # Si NO mandan fechas, mostrar solo registros del día de hoy
         hoy = datetime.now().date()
-        proveedores_qs = proveedores_qs.filter(fechaCreacion__date=hoy)
+        #proveedores_qs = proveedores_qs.filter(fechaCreacion__date=hoy)
 
     # Si viene el parámetro "search", aplicar filtro
     if search:
@@ -254,6 +255,7 @@ def get_ficha_proveedor_por_id(request):
     data = [
         {
             "id"                : ficha.id,
+            "idproveedor"       : ficha.idproveedor.id,
             "nombre"            : ficha.idproveedor.nombre,
             "comisionproveedor" : ficha.comisionproveedor,
             "etiquetaDos"       : ficha.idcotizador.etiquetaDos,

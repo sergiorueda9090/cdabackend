@@ -20,7 +20,7 @@ from cotizador.models           import Cotizador
 from gastosgenerales.models     import Gastogenerales
 from utilidadocacional.models   import Utilidadocacional
 from clientes.models            import Cliente
-
+from fichaproveedor.models      import FichaProveedor
 from .serializers               import CuentaBancariaSerializer
 
 from django.db.models import F, Value, CharField, Sum, IntegerField, Q, Case, When
@@ -923,3 +923,113 @@ def download_report_excel(request, id):
 
     except Exception as e:
         return Response({"error": f"Error interno: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@check_role(1, 2)
+def crear_cuenta_bancaria(request):
+    try:
+        # Datos del request
+        id_valor         = request.data.get('id')
+        descripcion      = request.data.get('descripcion')
+        fechaTransaccion = request.data.get('fechaTransaccion')
+        idBanco          = request.data.get('idBanco')
+        valor_str        = request.data.get('valor')
+
+        # Validaciones iniciales
+        if not id_valor or not idBanco or not valor_str:
+            return Response({"error": "Faltan campos obligatorios (id, idBanco, valor)"}, status=400)
+
+        # Conversión de tipos
+        id_valor = int(id_valor)
+        idBanco  = int(idBanco)
+        valor    = int(str(valor_str).replace(".", ""))  # valor siempre como int
+
+        # Buscar ficha y cotizador
+        ficha = FichaProveedor.objects.get(id=id_valor)
+        cotizador = ficha.idcotizador if hasattr(ficha, 'idcotizador') else None
+        if not cotizador:
+            return Response({"error": "La ficha no tiene cotizador asociado"}, status=400)
+
+
+        # Actualizar idBanco del cotizador
+        try:
+            Cotizador.objects.filter(id=cotizador.id).update(idBanco=idBanco)
+        except Exception as e:
+            return Response({"error": f"Error al actualizar el cotizador: {str(e)}"}, status=500)
+
+        cilindraje = cotizador.cilindraje
+
+        # Buscar tarjeta y determinar si es Daviplata
+        tarjeta         = RegistroTarjetas.objects.get(id=idBanco)
+        is_daviplata    = tarjeta.is_daviplata
+
+        if is_daviplata:
+            precioDeLey = -abs(valor)  # siempre negativo
+            cuatro_por_mil = int(abs(precioDeLey) * 0.004)
+        else:
+            precioDeLey = valor
+            cuatro_por_mil = 0
+
+        # Crear cuenta bancaria
+        cuenta = CuentaBancaria.objects.create(
+            fechaTransaccion = fechaTransaccion,
+            descripcion      = descripcion,
+            cilindraje       = cilindraje,
+            idBanco          = idBanco,             # si es FK
+            idCotizador      = cotizador.id,        # si es FK
+            valor            = precioDeLey,
+            cuatro_por_mil   = cuatro_por_mil
+        )
+
+        return Response({
+            "message": "Cuenta bancaria creada con éxito",
+            "idCuenta": cuenta.id
+        }, status=201)
+
+    except FichaProveedor.DoesNotExist:
+        return Response({"error": f"No se encontró FichaProveedor con id={id_valor}"}, status=404)
+    except RegistroTarjetas.DoesNotExist:
+        return Response({"error": f"No se encontró RegistroTarjetas con id={idBanco}"}, status=404)
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+    
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+@check_role(1, 2)
+def eliminar_cuenta_bancaria(request, id):
+    try:
+        # Validar que el id sea un número entero
+        try:
+            id = int(id)
+        except ValueError:
+            return Response({"error": "El id de la ficha debe ser un número entero"}, status=400)
+
+        # Buscar ficha
+        try:
+            ficha = FichaProveedor.objects.get(id=id)
+        except FichaProveedor.DoesNotExist:
+            return Response({"error": f"No se encontró FichaProveedor con id={id}"}, status=404)
+
+        # Obtener cotizador asociado
+        cotizador = getattr(ficha, 'idcotizador', None)
+        if not cotizador:
+            return Response({"error": "La ficha no tiene cotizador asociado"}, status=400)
+
+        # Eliminar TODAS las cuentas bancarias asociadas a ese cotizador
+        cuentas_eliminadas, _ = CuentaBancaria.objects.filter(idCotizador=cotizador.id).delete()
+
+        if cuentas_eliminadas == 0:
+            return Response({"error": f"No se encontraron cuentas bancarias asociadas al cotizador con id={cotizador.id}"}, status=404)
+
+        return Response({
+            "message": f"Se eliminaron {cuentas_eliminadas} cuenta(s) bancaria(s) asociadas al cotizador {cotizador.id}"
+        }, status=200)
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)

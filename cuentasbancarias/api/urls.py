@@ -1,7 +1,8 @@
 from django.urls import path
 from .views import (obtener_cuentas,       obtener_cuenta,      crear_cuenta, 
                     actualizar_cuenta,     eliminar_cuenta,     obtener_datos_cuenta, 
-                    download_report_excel, cuentasbancarias_filter_date, obtener_cuentas_filtradas)
+                    download_report_excel, cuentasbancarias_filter_date, obtener_cuentas_filtradas, 
+                    crear_cuenta_bancaria, eliminar_cuenta_bancaria)
 
 urlpatterns = [
     path('api/cuentas/crear/',            crear_cuenta,       name='crear_cuenta'),
@@ -12,5 +13,10 @@ urlpatterns = [
     path('api/cuenta/<int:id>/obtener_datos_cuenta/',               obtener_datos_cuenta,               name='obtener_datos_cuenta'),
     path('api/cuenta/<int:id>/get_cuentasbancarias_filter_date/',   cuentasbancarias_filter_date,       name='cuentasbancarias_filter_date'),
     path('api/cuenta/<int:id>/download_report_excel/',              download_report_excel,              name='download_report_excel'),
-    path('api/cuentas/obtener_cuentas_filtradas/',                   obtener_cuentas_filtradas,                 name='obtener_cuentas_filtradas'),
+    path('api/cuentas/obtener_cuentas_filtradas/',                   obtener_cuentas_filtradas,         name='obtener_cuentas_filtradas'),
+   
+    path('api/cuentas/crearcuentabancaria/',                 crear_cuenta_bancaria,       name='crear_cuenta_bancaria'),
+    path('api/cuentas/crearcuentabancaria/delete/<int:id>/', eliminar_cuenta_bancaria,    name='eliminar_cuenta_bancaria'),
+
+
 ]
