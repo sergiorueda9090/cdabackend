@@ -1,6 +1,6 @@
 from django.shortcuts import render
 import pandas as pd
-# cuentas_bancarias/api/views.py
+from django.db import transaction
 from django.utils.dateparse import parse_date
 from datetime import datetime
 
@@ -20,7 +20,8 @@ from cotizador.models           import Cotizador
 from gastosgenerales.models     import Gastogenerales
 from utilidadocacional.models   import Utilidadocacional
 from clientes.models            import Cliente
-from fichaproveedor.models      import FichaProveedor
+from proveedores.models         import Proveedor
+from fichaproveedor.models      import FichaProveedor, FichaProveedorPagos
 from .serializers               import CuentaBancariaSerializer
 
 from django.db.models import F, Value, CharField, Sum, IntegerField, Q, Case, When
@@ -926,8 +927,6 @@ def download_report_excel(request, id):
 
 
 
-
-
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 @check_role(1, 2)
@@ -949,12 +948,14 @@ def crear_cuenta_bancaria(request):
         idBanco  = int(idBanco)
         valor    = int(str(valor_str).replace(".", ""))  # valor siempre como int
 
-        # Buscar ficha y cotizador
-        ficha = FichaProveedor.objects.get(id=id_valor)
-        cotizador = ficha.idcotizador if hasattr(ficha, 'idcotizador') else None
+        # Buscar ficha (la primera que encuentre)
+        ficha = FichaProveedor.objects.filter(idproveedor=id_valor).first()
+        if ficha is None:
+            return Response({"error": f"No se encontró ficha para el proveedor con id={id_valor}"}, status=404)
+
+        cotizador = ficha.idcotizador
         if not cotizador:
             return Response({"error": "La ficha no tiene cotizador asociado"}, status=400)
-
 
         # Actualizar idBanco del cotizador
         try:
@@ -965,8 +966,12 @@ def crear_cuenta_bancaria(request):
         cilindraje = cotizador.cilindraje
 
         # Buscar tarjeta y determinar si es Daviplata
-        tarjeta         = RegistroTarjetas.objects.get(id=idBanco)
-        is_daviplata    = tarjeta.is_daviplata
+        try:
+            tarjeta = RegistroTarjetas.objects.get(id=idBanco)
+        except RegistroTarjetas.DoesNotExist:
+            return Response({"error": f"No se encontró RegistroTarjetas con id={idBanco}"}, status=404)
+
+        is_daviplata = tarjeta.is_daviplata
 
         if is_daviplata:
             precioDeLey = -abs(valor)  # siempre negativo
@@ -975,29 +980,34 @@ def crear_cuenta_bancaria(request):
             precioDeLey = valor
             cuatro_por_mil = 0
 
-        # Crear cuenta bancaria
-        cuenta = CuentaBancaria.objects.create(
-            fechaTransaccion = fechaTransaccion,
-            descripcion      = descripcion,
-            cilindraje       = cilindraje,
-            idBanco          = idBanco,             # si es FK
-            idCotizador      = cotizador.id,        # si es FK
-            valor            = precioDeLey,
-            cuatro_por_mil   = cuatro_por_mil
-        )
+        # Crear ambos registros dentro de una transacción atómica
+        with transaction.atomic():
+            cuenta = CuentaBancaria.objects.create(
+                fechaTransaccion=fechaTransaccion,
+                descripcion=descripcion,
+                cilindraje=cilindraje,
+                idBanco=idBanco,            # FK
+                idCotizador=cotizador.id,   # FK
+                valor=precioDeLey,
+                cuatro_por_mil=cuatro_por_mil
+            )
+            if cuenta is None:
+                raise Exception("No se pudo crear la cuenta bancaria")
+
+            pagoProveedor = FichaProveedorPagos.objects.create(
+                pagoProveedor=valor,
+                idproveedor=ficha.idproveedor
+            )
+            if pagoProveedor is None:
+                raise Exception("No se pudo crear el pago proveedor")
 
         return Response({
-            "message": "Cuenta bancaria creada con éxito",
+            "message": "Cuenta bancaria y pago proveedor creados con éxito",
             "idCuenta": cuenta.id
         }, status=201)
 
-    except FichaProveedor.DoesNotExist:
-        return Response({"error": f"No se encontró FichaProveedor con id={id_valor}"}, status=404)
-    except RegistroTarjetas.DoesNotExist:
-        return Response({"error": f"No se encontró RegistroTarjetas con id={idBanco}"}, status=404)
     except Exception as e:
         return Response({"error": str(e)}, status=500)
-    
 
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])

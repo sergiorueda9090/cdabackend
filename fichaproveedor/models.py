@@ -12,4 +12,13 @@ class FichaProveedor(models.Model):
 
     def __str__(self):
         return self.comisionproveedor
+
+
+class FichaProveedorPagos(models.Model):
+    idproveedor         = models.ForeignKey(Proveedor, on_delete=models.CASCADE)
+    pagoProveedor       = models.CharField(max_length=100)
+    fechaCreacion       = models.DateTimeField(default=now)
+
+    def __str__(self):
+        return self.pagoProveedor
     

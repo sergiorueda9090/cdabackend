@@ -10,7 +10,7 @@ from devoluciones.models        import Devoluciones
 from ajustesaldos.models        import Ajustesaldo
 
 from proveedores.models         import Proveedor
-from fichaproveedor.models      import FichaProveedor
+from fichaproveedor.models      import FichaProveedor, FichaProveedorPagos
 
 from django.db.models           import F, Value, CharField, Sum, Q, FloatField
 from django.db.models.functions import Cast, Coalesce
@@ -20,6 +20,7 @@ from rest_framework.permissions import IsAuthenticated
 from .serializers import FichaProveedorSerializer
 
 from users.decorators import check_role
+import random
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -213,7 +214,7 @@ def get_ficha_proveedor_por_id(request):
     fecha_fin    = request.GET.get('fechaFin')
     proveedor_id = request.GET.get('proveedorId')
     search       = request.GET.get('search')  # <-- nuevo parámetro
-    print(proveedor_id)
+   
 
     try:
         if fecha_inicio:
@@ -227,8 +228,7 @@ def get_ficha_proveedor_por_id(request):
     
     if proveedor_id:
         proveedores_qs = proveedores_qs.filter(idproveedor__id=proveedor_id)
-        print(proveedores_qs)
-
+ 
     if fecha_inicio and fecha_fin:
         proveedores_qs = proveedores_qs.filter(fechaCreacion__range=[fecha_inicio, fecha_fin])
     else:
@@ -252,11 +252,52 @@ def get_ficha_proveedor_por_id(request):
             Q(idcotizador__total__icontains=search)
         )
 
+    def to_number(value):
+        """Convierte un string como '50.000' o '-10.000' a int, manejando None."""
+        if value is None:
+            return 0
+        return int(str(value).replace(".", "").replace(",", ""))
+    
+    cuentas = FichaProveedorPagos.objects.filter(idproveedor_id=proveedor_id)
+
+    if fecha_inicio and fecha_fin:
+        cuentas = cuentas.filter(fechaCreacion__range=[fecha_inicio, fecha_fin])
+    else:
+        # Si NO mandan fechas, mostrar solo registros del día de hoy
+        hoy = datetime.now().date()
+        # cuentas = cuentas.filter(fechaCreacion__date=hoy)
+
+    cuentas = cuentas.order_by('-id')
+
+
+    # Construir registros de pagos con el mismo formato que data
+    datacuentas = [
+        {
+            "id": random.randint(1000, 9999),
+            "idproveedor": None,
+            "nombre": None,
+            "fechaCreacion": cuenta.fechaCreacion,
+            "comisionproveedor": None,
+            "etiquetaDos": None,
+            "placa": None,
+            "cilindraje": None,
+            "modelo": None,
+            "chasis": None,
+            "precioDeLey": None,
+            "comisionPrecioLey": None,
+            "total": None,
+            "totalConComisionPagos": abs(to_number(cuenta.pagoProveedor))  # siempre positivo
+        }
+        for cuenta in cuentas
+    ]
+
+
     data = [
         {
             "id"                : ficha.id,
             "idproveedor"       : ficha.idproveedor.id,
             "nombre"            : ficha.idproveedor.nombre,
+            "fechaCreacion"     : ficha.fechaCreacion,
             "comisionproveedor" : ficha.comisionproveedor,
             "etiquetaDos"       : ficha.idcotizador.etiquetaDos,
             "placa"             : ficha.idcotizador.placa,
@@ -266,8 +307,20 @@ def get_ficha_proveedor_por_id(request):
             "precioDeLey"       : ficha.idcotizador.precioDeLey,
             "comisionPrecioLey" : ficha.idcotizador.comisionPrecioLey,
             "total"             : ficha.idcotizador.total,
+            "totalConComision"  : to_number(ficha.idcotizador.total) + abs(to_number(ficha.comisionproveedor))
         }
         for ficha in proveedores_qs
     ]
 
-    return Response(data)
+    # Calcular la suma total de todos los registros
+    total_general = sum(item["totalConComision"] for item in data)
+    total_pagos   = sum(item["totalConComisionPagos"] for item in datacuentas)
+    print(f" == total_general == {total_general}")
+    totalGeneralConComision = -abs(total_general) + total_pagos
+
+    data.extend(datacuentas)
+
+    return Response({
+        "registros": data,
+        "totalGeneralConComision": totalGeneralConComision
+    })
