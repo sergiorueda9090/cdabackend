@@ -74,13 +74,13 @@ def get_ficha_utilidades(request):
     total_sum = 0.0
 
     for ficha in proveedores_qs:
-        total_val = safe_abs(ficha.comisionproveedor)
+        total_val = safe_abs(int(str(ficha.idcotizador.comisionPrecioLey).replace('.', '')))
         total_sum += total_val
 
         data.append({
             "id"                : ficha.id,
             "nombre"            : ficha.idproveedor.nombre,
-            "comisionproveedor" : safe_abs(ficha.comisionproveedor),
+            "comisionproveedor" : int(str(ficha.idcotizador.comisionPrecioLey).replace('.', '')),
             "etiquetaDos"       : ficha.idcotizador.etiquetaDos,
             "placa"             : ficha.idcotizador.placa,
             "cilindraje"        : ficha.idcotizador.cilindraje,

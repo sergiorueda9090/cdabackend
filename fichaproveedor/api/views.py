@@ -273,7 +273,7 @@ def get_ficha_proveedor_por_id(request):
     # Construir registros de pagos con el mismo formato que data
     datacuentas = [
         {
-            "id": random.randint(1000, 9999),
+            "id": cuenta.id,
             "idproveedor": None,
             "nombre": None,
             "fechaCreacion": cuenta.fechaCreacion,
@@ -286,7 +286,8 @@ def get_ficha_proveedor_por_id(request):
             "precioDeLey": None,
             "comisionPrecioLey": None,
             "total": None,
-            "totalConComisionPagos": abs(to_number(cuenta.pagoProveedor))  # siempre positivo
+            "totalConComisionPagos": abs(to_number(cuenta.pagoProveedor)),  # siempre positivo
+            "state":"cuentas"
         }
         for cuenta in cuentas
     ]
@@ -294,7 +295,7 @@ def get_ficha_proveedor_por_id(request):
 
     data = [
         {
-            "id"                : ficha.id,
+            "id"                : random.randint(1000, 9999),
             "idproveedor"       : ficha.idproveedor.id,
             "nombre"            : ficha.idproveedor.nombre,
             "fechaCreacion"     : ficha.fechaCreacion,
@@ -306,8 +307,9 @@ def get_ficha_proveedor_por_id(request):
             "chasis"            : ficha.idcotizador.chasis,
             "precioDeLey"       : ficha.idcotizador.precioDeLey,
             "comisionPrecioLey" : ficha.idcotizador.comisionPrecioLey,
-            "total"             : ficha.idcotizador.total,
-            "totalConComision"  : to_number(ficha.idcotizador.total) + abs(to_number(ficha.comisionproveedor))
+            "total"             : -int(str(ficha.idcotizador.precioDeLey).replace('.', '')) + int(str(ficha.comisionproveedor).replace('.', '')),
+            "totalConComision"  : to_number(ficha.idcotizador.total) + abs(to_number(ficha.comisionproveedor)),
+            "state":"ficha"
         }
         for ficha in proveedores_qs
     ]
