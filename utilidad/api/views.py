@@ -45,9 +45,9 @@ def get_ficha_utilidades(request):
 
     if fecha_inicio and fecha_fin:
         proveedores_qs = proveedores_qs.filter(fechaCreacion__range=[fecha_inicio, fecha_fin])
-    else:
-        hoy = datetime.now().date()
-        proveedores_qs = proveedores_qs.filter(fechaCreacion__date=hoy)
+    #else:
+    #    hoy = datetime.now().date()
+    #    proveedores_qs = proveedores_qs.filter(fechaCreacion__date=hoy)
 
     if search:
         proveedores_qs = proveedores_qs.filter(

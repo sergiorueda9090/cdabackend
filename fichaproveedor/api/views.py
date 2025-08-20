@@ -194,17 +194,140 @@ def get_ficha_proveedores(request):
         )
     )
 
-    data = [
-        {
-            'id': item['idproveedor__id'],
-            'nombre': item['idproveedor__nombre'],
-            'etiqueta': item['idcotizador__etiquetaDos'],
-            'comision_total': item['total_comision']
-        }
-        for item in agrupado
-    ]
+    data = []
+    total_general_global = 0
+
+    for item in agrupado:
+        # Obtenemos el total general individual por proveedor (ingresos - pagos)
+        total_general_individual = get_ficha_proveedor_por_id_total(item['idproveedor__id'])
+
+        data.append({
+            'id'        : item['idproveedor__id'],
+            'nombre'    : item['idproveedor__nombre'],
+            'etiqueta'  : item['idcotizador__etiquetaDos'],
+            'comision_total'     : total_general_individual,    # reemplazando comision_total por total
+        })
+
+        total_general_global += total_general_individual
 
     return Response(data)
+
+
+def get_ficha_proveedor_por_id_total(id):
+    fecha_inicio = ""
+    fecha_fin    = ""
+    proveedor_id = id
+    search       = ""  # <-- nuevo parámetro
+   
+
+    try:
+        if fecha_inicio:
+            fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
+        if fecha_fin:
+            fecha_fin = datetime.strptime(fecha_fin, "%Y-%m-%d")
+    except ValueError:
+        return Response({"error": "Formato de fecha inválido. Use YYYY-MM-DD."}, status=400)
+
+    proveedores_qs = FichaProveedor.objects.all()
+    
+    if proveedor_id:
+        proveedores_qs = proveedores_qs.filter(idproveedor__id=proveedor_id)
+ 
+    if fecha_inicio and fecha_fin:
+        proveedores_qs = proveedores_qs.filter(fechaCreacion__range=[fecha_inicio, fecha_fin])
+    else:
+        # Si NO mandan fechas, mostrar solo registros del día de hoy
+        hoy = datetime.now().date()
+        #proveedores_qs = proveedores_qs.filter(fechaCreacion__date=hoy)
+
+    # Si viene el parámetro "search", aplicar filtro
+    if search:
+        proveedores_qs = proveedores_qs.filter(
+            Q(id__icontains=search) |
+            Q(idproveedor__nombre__icontains=search) |
+            Q(comisionproveedor__icontains=search) |
+            Q(idcotizador__etiquetaDos__icontains=search) |
+            Q(idcotizador__placa__icontains=search) |
+            Q(idcotizador__cilindraje__icontains=search) |
+            Q(idcotizador__modelo__icontains=search) |
+            Q(idcotizador__chasis__icontains=search) |
+            Q(idcotizador__precioDeLey__icontains=search) |
+            Q(idcotizador__comisionPrecioLey__icontains=search) |
+            Q(idcotizador__total__icontains=search)
+        )
+
+    def to_number(value):
+        """Convierte un string como '50.000' o '-10.000' a int, manejando None."""
+        if value is None:
+            return 0
+        return int(str(value).replace(".", "").replace(",", ""))
+    
+    cuentas = FichaProveedorPagos.objects.filter(idproveedor_id=proveedor_id)
+
+    if fecha_inicio and fecha_fin:
+        cuentas = cuentas.filter(fechaCreacion__range=[fecha_inicio, fecha_fin])
+    else:
+        # Si NO mandan fechas, mostrar solo registros del día de hoy
+        hoy = datetime.now().date()
+        # cuentas = cuentas.filter(fechaCreacion__date=hoy)
+
+    cuentas = cuentas.order_by('-id')
+
+
+    # Construir registros de pagos con el mismo formato que data
+    datacuentas = [
+        {
+            "id": cuenta.id,
+            "idproveedor": None,
+            "nombre": None,
+            "fechaCreacion": cuenta.fechaCreacion,
+            "comisionproveedor": None,
+            "etiquetaDos": None,
+            "placa": None,
+            "cilindraje": None,
+            "modelo": None,
+            "chasis": None,
+            "precioDeLey": None,
+            "comisionPrecioLey": None,
+            "total": None,
+            "totalConComisionPagos": abs(to_number(cuenta.pagoProveedor)),  # siempre positivo
+            "state":"cuentas"
+        }
+        for cuenta in cuentas
+    ]
+
+
+    data = [
+        {
+            "id"                : random.randint(1000, 9999),
+            "idproveedor"       : ficha.idproveedor.id,
+            "nombre"            : ficha.idproveedor.nombre,
+            "fechaCreacion"     : ficha.fechaCreacion,
+            "comisionproveedor" : ficha.comisionproveedor,
+            "etiquetaDos"       : ficha.idcotizador.etiquetaDos,
+            "placa"             : ficha.idcotizador.placa,
+            "cilindraje"        : ficha.idcotizador.cilindraje,
+            "modelo"            : ficha.idcotizador.modelo,
+            "chasis"            : ficha.idcotizador.chasis,
+            "precioDeLey"       : ficha.idcotizador.precioDeLey,
+            "comisionPrecioLey" : ficha.idcotizador.comisionPrecioLey,
+            "total"             : -int(str(ficha.idcotizador.precioDeLey).replace('.', '')) + int(str(ficha.comisionproveedor).replace('.', '')),
+            "totalConComision"  : to_number(ficha.idcotizador.precioDeLey) + abs(to_number(ficha.comisionproveedor)),
+            "state":"ficha"
+        }
+        for ficha in proveedores_qs
+    ]
+
+    # Calcular la suma total de todos los registros
+    total_general = sum(item["totalConComision"] for item in data)
+    total_pagos   = sum(item["totalConComisionPagos"] for item in datacuentas)
+    print(f" == total_general == {total_general}")
+    totalGeneralConComision = -abs(total_general) + total_pagos
+
+    data.extend(datacuentas)
+
+    return totalGeneralConComision
+ 
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -308,7 +431,7 @@ def get_ficha_proveedor_por_id(request):
             "precioDeLey"       : ficha.idcotizador.precioDeLey,
             "comisionPrecioLey" : ficha.idcotizador.comisionPrecioLey,
             "total"             : -int(str(ficha.idcotizador.precioDeLey).replace('.', '')) + int(str(ficha.comisionproveedor).replace('.', '')),
-            "totalConComision"  : to_number(ficha.idcotizador.total) + abs(to_number(ficha.comisionproveedor)),
+            "totalConComision"  : to_number(ficha.idcotizador.precioDeLey) + abs(to_number(ficha.comisionproveedor)),
             "state":"ficha"
         }
         for ficha in proveedores_qs

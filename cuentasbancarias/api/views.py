@@ -390,7 +390,7 @@ def obtener_datos_cuenta(request, id):
         placa=Value(None, output_field=IntegerField()),
     ).values('id', 'fi', 'ft', 'valor_alias', 'cuatro_por_mil','desc_alias', 'id_tarjeta', 'origen', 'id_cotizador','placa')
 
-    
+    print(f" === cuentas === {cuentas}")
     cotizador_ids = [c['id_cotizador'] for c in cuentas if c['id_cotizador']]
     cotizadores = {c.id: c for c in Cotizador.objects.filter(id__in=cotizador_ids)}
  
@@ -401,7 +401,7 @@ def obtener_datos_cuenta(request, id):
         else:
             cuenta['placa'] = None
 
-    print(" ========= cuentas ======== ",cuentas)
+
     recepcionDePagos = RecepcionPago.objects.filter(id_tarjeta_bancaria=id).annotate(
         fi=F('fecha_ingreso'),
         ft=F('fecha_transaccion'),
@@ -464,10 +464,16 @@ def obtener_datos_cuenta(request, id):
     total_general = total_cuentas + total_devoluciones + total_gastos + total_utilidad + total_recepcionDePagos
     transacciones_ordenadas = ordenar_union_result(union_result)
 
+    def to_number(value):
+        if value in [None, "", "None"]:
+            return 0
+        # elimina puntos o comas por si viene como "1.000,50"
+        return int(str(value).replace(".", "").replace(",", ""))
+
     cuatro_por_mil_registros = [
         {
             "id": item.get("id"),
-            "cuatro_por_mil": item.get("cuatro_por_mil"),
+            "cuatro_por_mil":  -abs(to_number(item.get("cuatro_por_mil"))),
             "fi": item.get("fi"),
             "ft": item.get("ft"),
             "desc_alias": item.get("desc_alias"),
@@ -488,9 +494,36 @@ def obtener_datos_cuenta(request, id):
         if str(item.get("cuatro_por_mil")).strip() not in ["", "0", "None", None]
     )
 
+    transacciones_limpias = []
+
+    for item in transacciones_ordenadas:
+        item = dict(item)  # convertir a dict editable
+
+        # Obtener los valores actuales
+        valor_alias = item.get("valor_alias") or 0
+        cuatro_por_mil = item.get("cuatro_por_mil") or 0
+
+        # Convertir los valores a número limpiando puntos/comas
+        def to_number(v):
+            if v in [None, "", "None"]:
+                return 0
+            return float(str(v).replace(".", "").replace(",", ""))
+
+        valor_alias_num    = to_number(valor_alias)
+        cuatro_por_mil_num = to_number(cuatro_por_mil)
+
+        # Sumar y reasignar a valor_alias
+        total_valor = valor_alias_num + cuatro_por_mil_num
+        item["valor_alias"] = total_valor
+        item["total"] = valor_alias_num
+        # (Opcional) dejar cuatro_por_mil vacío como dijiste antes
+        item["cuatro_por_mil"] = ""
+
+        transacciones_limpias.append(item)
+        print(transacciones_limpias)
     # Objeto con los totales
     response_data = {
-        "data": list(transacciones_ordenadas),  # Convierte el QuerySet en lista
+        "data": transacciones_limpias,  # Convierte el QuerySet en lista
         "cuatro_por_mil_data": cuatro_por_mil_registros,
         "totales": {
             "total_cuenta_bancaria"     : total_cuentas or 0,
@@ -498,7 +531,7 @@ def obtener_datos_cuenta(request, id):
             "total_gastos_generales"    : total_gastos or 0,
             "total_utilidad_ocacional"  : total_utilidad or 0,
             "total_recepcionDePagos"    : total_recepcionDePagos or 0,
-            "total_cuatro_por_mil"      : total_cuatro_por_mil or 0,  # 👈 Aquí
+            "total_cuatro_por_mil"      : -abs(total_cuatro_por_mil or 0),
             "total"                     : total_general or 0
         },
         "tarjeta":{
