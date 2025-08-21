@@ -16,13 +16,15 @@ from .views import (
     get_cotizadores_confirmacion_filter_date,
     get_cotizadores_pdf_filter_date,
     update_cotizador_devolver,
-    update_cotizador_pdf
+    update_cotizador_pdf,
+    create_cotizador_excel
 )
 
 urlpatterns = [
     path('api/',                                        get_cotizadores,                        name='get_cotizadores'),
     path('api/<int:pk>/',                               get_cotizador,                          name='get_cotizador'),
     path('api/create/',                                 create_cotizador,                       name='create_cotizador'),
+    path('api/createexcel/',                            create_cotizador_excel,                 name='create_cotizador_excel'),
     path('api/<int:pk>/update/',                        update_cotizador,                       name='update_cotizador'),
     path('api/<int:pk>/updatepdf/',                     update_cotizador_pdf,                   name='updatepdf'),
     path('api/<int:pk>/delete/',                        delete_cotizador,                       name='delete_cotizador'),

@@ -71,6 +71,119 @@ def create_cotizador(request):
         return Response(response_data, status=status.HTTP_201_CREATED)
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@check_role(1, 2, 3)
+def create_cotizador_excel(request):
+    registros = request.data.get("registros", [])
+    print("📌 Request recibido en el backend")
+    print("📩 Raw data:", request.data)
+    print("📩 registros:", registros)
+    print(f"✅ Total de registros recibidos: {len(registros)}")
+
+    if not registros or not isinstance(registros, list):
+        return Response(
+            {"error": "Se esperaba un array de registros"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    resultados = []
+    errores = []
+
+    for idx, registro in enumerate(registros, start=1):
+        print(f"➡️ Procesando registro {idx}: {registro.get('nombre_cliente')}")
+        if not registro.get('nombre_cliente'):
+            errores.append({"fila": idx, "error": "El campo 'nombre_cliente' es obligatorio."})
+            continue
+        if not registro.get('nombre_cliente', '').strip():
+            errores.append({"fila": idx, "error": "El campo 'nombre_cliente' no puede estar vacío."})
+            continue
+        # Buscar cliente por nombre
+        cliente = Cliente.objects.filter(nombre=registro.get('nombre_cliente'))
+        if cliente.exists():
+            registro['idCliente'] = cliente.first().id
+        else:
+            errores.append({"fila": idx, "error": f"Cliente '{registro.get('nombre_cliente')}' no encontrado."})
+            continue
+
+        # Buscar etiqueta por nombre
+        etiqueta = Etiqueta.objects.filter(nombre=registro.get('etiqueta'))
+        if etiqueta.exists():
+            registro['idEtiqueta'] = etiqueta.first().id
+        else:
+            errores.append({"fila": idx, "error": f"Etiqueta '{registro.get('etiqueta')}' no encontrada."})
+            continue
+
+        try:
+            data = registro.copy()
+            data['idUsuario'] = request.user.id
+            data['cotizadorModulo'] = 1
+
+            if 'etiqueta' in data:
+                data['etiquetaDos'] = data.pop('etiqueta')
+
+            if 'nombre_cliente' in data:
+                data['nombreCompleto'] = data.pop('nombre_cliente')
+
+            if 'numero_documento' in data:
+                data['numeroDocumento'] = data.pop('numero_documento')
+
+            if 'tipo_documento' in data:
+                data['tipoDocumento'] = data.pop('tipo_documento')
+            
+            print("📩 Datos procesados:", data)
+
+            placa = data.get('placa')
+            if not placa:
+                errores.append({"fila": idx, "error": "El campo 'placa' es obligatorio."})
+                continue
+
+            # ✅ Validación: 10 meses desde el último registro
+            ultimo_registro = Cotizador.objects.filter(placa=placa).order_by('-fechaCreacion').first()
+            if ultimo_registro:
+                fecha_limite = agregar_meses(ultimo_registro.fechaCreacion, 10)
+                if datetime.now() < fecha_limite:
+                    errores.append({
+                        "fila": idx,
+                        "error": f"La placa '{placa}' ya fue registrada. Deben pasar al menos 10 meses para volver a registrarla."
+                    })
+                    continue
+
+            # ✅ Guardar cotizador
+            serializer = CotizadorSerializer(data=data)
+            if serializer.is_valid():
+                cotizador = serializer.save()
+                LogCotizador.objects.create(
+                    idUsuario=request.user.id,
+                    idCliente=data.get('idCliente'),
+                    accion='crear',
+                    antiguoValor='',
+                    nuevoValor=str(serializer.data),
+                    idCotizador=cotizador.id
+                )
+                resultado = serializer.data
+                resultado['idCotizador'] = cotizador.id
+                resultados.append(resultado)
+            else:
+                errores.append({"fila": idx, "error": serializer.errors})
+
+        except Exception as e:
+            print("❌ Error en el backend:", str(e))
+            errores.append({"fila": idx, "error": str(e)})
+
+    if errores:
+        return Response(
+            {"success": False, "guardados": resultados, "errores": errores},
+            status=status.HTTP_207_MULTI_STATUS  # ⚡ respuesta mixta
+        )
+
+    return Response(
+        {"success": True, "guardados": resultados},
+        status=status.HTTP_201_CREATED
+    )
+
 """
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
