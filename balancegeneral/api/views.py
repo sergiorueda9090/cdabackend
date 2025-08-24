@@ -17,6 +17,7 @@ from cotizador.models         import Cotizador
 from clientes.models            import Cliente
 from ajustesaldos.models        import Ajustesaldo
 from fichaproveedor.models      import FichaProveedor
+from cargosnoregistrados.models import Cargosnodesados
 
 from gastosgenerales.api.serializers import GastogeneralesSerializer
 
@@ -292,7 +293,8 @@ def obtener_balancegeneral(request):
         "RecepcionPago"     : RecepcionPago,
         "Devoluciones"      : Devoluciones,
         "Gastogenerales"    : Gastogenerales,
-        "Utilidadocacional" : Utilidadocacional
+        "Utilidadocacional" : Utilidadocacional,
+        "Cargosnodesados"   : Cargosnodesados
     }
 
     missing_tables = [name for name, model in required_models.items() if not model._meta.db_table]
@@ -306,7 +308,7 @@ def obtener_balancegeneral(request):
     cuentas     = RegistroTarjetas.objects.all()
     serializer  = RegistroTarjetasSerializer(cuentas, many=True)
     tarjetas_info = []
-    print(f" ==== {serializer.data} ==== ")
+
     for i in range(len(serializer.data)):
 
         tarjeta_nombre = serializer.data[i]['nombre_cuenta']
@@ -335,6 +337,16 @@ def obtener_balancegeneral(request):
                 Cast(Replace(F('valor'), Value('.'), Value('')), output_field=models.IntegerField())
             )
         )
+        # Nuevo agregado para Cargos no registrados
+        rtaCargosNoDeseados = Cargosnodesados.objects.filter(
+            id_tarjeta_bancaria=serializer.data[i]['id']
+        ).aggregate(
+            total_suma=Sum(
+                Cast(Replace(F('valor'), Value('.'), Value('')), output_field=models.IntegerField())
+            )
+        )
+        # Fin nuevo agregado
+    
 
         rtaGastogenerales = Gastogenerales.objects.filter(
             id_tarjeta_bancaria=serializer.data[i]['id']

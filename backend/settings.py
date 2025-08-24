@@ -66,7 +66,8 @@ INSTALLED_APPS = [
     'fichaproveedor',
     'rolespermisos',
     'balancegeneral',
-    'utilidad'
+    'utilidad',
+    'cargosnoregistrados'
 ]
 
 MIDDLEWARE = [

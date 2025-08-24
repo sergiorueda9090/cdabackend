@@ -23,6 +23,7 @@ from clientes.models            import Cliente
 from proveedores.models         import Proveedor
 from fichaproveedor.models      import FichaProveedor, FichaProveedorPagos
 from .serializers               import CuentaBancariaSerializer
+from cargosnoregistrados.models import Cargosnodesados
 
 from django.db.models import F, Value, CharField, Sum, IntegerField, Q, Case, When
 from decimal import Decimal
@@ -95,6 +96,31 @@ def obtener_cuentas(request):
         )
     )
 
+    # Cargos no registrados
+    cargosNoRegistrados = list(
+        Cargosnodesados.objects.annotate(
+            fi=F('fecha_ingreso'),
+            ft=F('fecha_transaccion'),
+            desc_alias=F('observacion'),
+            valor_alias=F('valor'),
+            id_tarjeta=F('id_tarjeta_bancaria'),
+            cliente_nombre=Concat(
+                Coalesce(F('id_cliente__nombre'), Value('')),
+                Value(' '),
+                Case(
+                    When(id_cliente__apellidos="undefined", then=Value("")),
+                    default=Coalesce(F('id_cliente__apellidos'), Value("")),
+                    output_field=CharField()
+                )
+            ),
+            origen=Value("Cargos no registrados", output_field=CharField()),
+            id_cotizador=Value(None, output_field=IntegerField()),
+        ).values(
+            'id', 'fi', 'ft', 'valor_alias', 'cuatro_por_mil', 'desc_alias',
+            'id_tarjeta', 'origen', 'id_cotizador', 'cliente_nombre'
+        )
+    )
+
     # Devoluciones
     devoluciones = list(
         Devoluciones.objects.annotate(
@@ -149,7 +175,7 @@ def obtener_cuentas(request):
     ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador'))
 
     # Unir los datos como listas
-    union_result = cuentas + recepcionDePagos + devoluciones + gastos + utilidadocacional
+    union_result = cuentas + recepcionDePagos + devoluciones + gastos + utilidadocacional + cargosNoRegistrados
 
     # Retornar la respuesta
     return Response(union_result)
@@ -390,7 +416,7 @@ def obtener_datos_cuenta(request, id):
         placa=Value(None, output_field=IntegerField()),
     ).values('id', 'fi', 'ft', 'valor_alias', 'cuatro_por_mil','desc_alias', 'id_tarjeta', 'origen', 'id_cotizador','placa')
 
-    print(f" === cuentas === {cuentas}")
+    
     cotizador_ids = [c['id_cotizador'] for c in cuentas if c['id_cotizador']]
     cotizadores = {c.id: c for c in Cotizador.objects.filter(id__in=cotizador_ids)}
  
@@ -425,6 +451,20 @@ def obtener_datos_cuenta(request, id):
         placa=Value(None, output_field=IntegerField()),
     ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador', 'placa')
 
+
+    # Cargos no registrados
+    cargosNoRegistrados = Cargosnodesados.objects.filter(id_tarjeta_bancaria=id).annotate(
+        fi=F('fecha_ingreso'),
+        ft=F('fecha_transaccion'),
+        desc_alias=F('observacion'),
+        valor_alias=F('valor'),
+        id_tarjeta=F('id_tarjeta_bancaria'),
+        origen=Value('Cargos no registrados', output_field=CharField()),
+        id_cotizador=Value(None, output_field=IntegerField()),
+        placa=Value(None, output_field=IntegerField()),
+    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador', 'placa')
+    
+    
     # Consulta para Gastos Generales
     gastos = Gastogenerales.objects.filter(id_tarjeta_bancaria=id).annotate(
         fi=F('fecha_ingreso'),
@@ -451,7 +491,7 @@ def obtener_datos_cuenta(request, id):
 
     # Unir todas las consultas asegurando que los tipos coincidan
 
-    union_result = list(cuentas) + list(devoluciones) + list(gastos) + list(utilidadocacional) + list(recepcionDePagos)
+    union_result = list(cuentas) + list(devoluciones) + list(gastos) + list(utilidadocacional) + list(recepcionDePagos) + list(cargosNoRegistrados)
  
     # Calcular totales de cada categoría
     total_cuentas           = safe_sum(CuentaBancaria.objects.filter(idBanco=id), "valor")
@@ -459,9 +499,10 @@ def obtener_datos_cuenta(request, id):
     total_gastos            = safe_sum(Gastogenerales.objects.filter(id_tarjeta_bancaria=id), "valor")
     total_utilidad          = safe_sum(Utilidadocacional.objects.filter(id_tarjeta_bancaria=id), "valor")
     total_recepcionDePagos  = safe_sum(RecepcionPago.objects.filter(id_tarjeta_bancaria=id), "valor")
+    total_cargosNoDeseados  = safe_sum(Cargosnodesados.objects.filter(id_tarjeta_bancaria=id), "valor")
 
     # Calcular el total de todas las categorías
-    total_general = total_cuentas + total_devoluciones + total_gastos + total_utilidad + total_recepcionDePagos
+    total_general = total_cuentas + total_devoluciones + total_gastos + total_utilidad + total_recepcionDePagos + total_cargosNoDeseados
     transacciones_ordenadas = ordenar_union_result(union_result)
 
     def to_number(value):
@@ -531,6 +572,7 @@ def obtener_datos_cuenta(request, id):
             "total_gastos_generales"    : total_gastos or 0,
             "total_utilidad_ocacional"  : total_utilidad or 0,
             "total_recepcionDePagos"    : total_recepcionDePagos or 0,
+            "total_cargosNoDeseados"    : total_cargosNoDeseados or 0,
             "total_cuatro_por_mil"      : -abs(total_cuatro_por_mil or 0),
             "total"                     : total_general or 0
         },

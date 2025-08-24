@@ -75,6 +75,7 @@ urlpatterns = [
    path('permisos/',            include('rolespermisos.api.urls'),                name="rolespermisos"),
    path('balancegeneral/',      include('balancegeneral.api.urls'),               name="balancegeneral"),
    path('utilidad/',            include('utilidad.api.urls'),                     name="utilidad"),
+   path('cargosnoregistrados/', include('cargosnoregistrados.api.urls')                , name="cargosnoregistrados"),
 ]
 
 # Servir archivos de media en modo debug
