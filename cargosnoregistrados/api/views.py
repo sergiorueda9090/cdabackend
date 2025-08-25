@@ -83,7 +83,7 @@ def crear_cargosnoregistrados(request):
     # Crear la devolución
     valor = request.data["valor"]
     valor = int(valor.replace(".", ""))
-    valor = -abs(valor)
+    valor = abs(valor)
 
     if tarjeta.is_daviplata:
         cuatro_por_mil = 0
