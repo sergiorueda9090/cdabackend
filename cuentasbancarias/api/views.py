@@ -414,7 +414,8 @@ def obtener_datos_cuenta(request, id):
         origen=Value('Cuenta Bancaria', output_field=CharField()),
         id_cotizador=F('idCotizador'),
         placa=Value(None, output_field=IntegerField()),
-    ).values('id', 'fi', 'ft', 'valor_alias', 'cuatro_por_mil','desc_alias', 'id_tarjeta', 'origen', 'id_cotizador','placa')
+        cliente_nombre=Value('', output_field=CharField()),
+    ).values('id', 'fi', 'ft', 'valor_alias', 'cuatro_por_mil','desc_alias', 'id_tarjeta', 'origen', 'id_cotizador','placa','cliente_nombre')
 
     
     cotizador_ids = [c['id_cotizador'] for c in cuentas if c['id_cotizador']]
@@ -437,7 +438,8 @@ def obtener_datos_cuenta(request, id):
         origen=Value('Recepcion de Pago', output_field=CharField()),
         id_cotizador=Value(None, output_field=IntegerField()),
         placa=Value(None, output_field=IntegerField()),
-    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador', 'placa')
+        cliente_nombre=Value('', output_field=CharField()),
+    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador', 'placa','cliente_nombre')
 
     # Consulta para Devoluciones
     devoluciones = Devoluciones.objects.filter(id_tarjeta_bancaria=id).annotate(
@@ -449,7 +451,8 @@ def obtener_datos_cuenta(request, id):
         origen=Value('Devolución', output_field=CharField()),
         id_cotizador=Value(None, output_field=IntegerField()),
         placa=Value(None, output_field=IntegerField()),
-    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador', 'placa')
+        cliente_nombre=Value('', output_field=CharField()),
+    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador', 'placa','cliente_nombre')
 
 
     # Cargos no registrados
@@ -462,9 +465,18 @@ def obtener_datos_cuenta(request, id):
         origen=Value('Cargos no registrados', output_field=CharField()),
         id_cotizador=Value(None, output_field=IntegerField()),
         placa=Value(None, output_field=IntegerField()),
-    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador', 'placa')
+        cliente_nombre=Concat(
+                Coalesce(F('id_cliente__nombre'), Value('')),
+                Value(' '),
+                Case(
+                    When(id_cliente__apellidos="undefined", then=Value("")),
+                    default=Coalesce(F('id_cliente__apellidos'), Value("")),
+                    output_field=CharField()
+                )
+            ),
+    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador', 'placa','cliente_nombre')
     
-    
+
     # Consulta para Gastos Generales
     gastos = Gastogenerales.objects.filter(id_tarjeta_bancaria=id).annotate(
         fi=F('fecha_ingreso'),
@@ -475,7 +487,8 @@ def obtener_datos_cuenta(request, id):
         origen=Value('Gasto General', output_field=CharField()),
         id_cotizador=Value(None, output_field=IntegerField()),
         placa=Value(None, output_field=IntegerField()),
-    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador', 'placa')
+        cliente_nombre=Value('', output_field=CharField()),
+    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador', 'placa','cliente_nombre')
 
     # Consulta para Utilidad Ocasional
     utilidadocacional = Utilidadocacional.objects.filter(id_tarjeta_bancaria=id).annotate(
@@ -487,7 +500,8 @@ def obtener_datos_cuenta(request, id):
         origen=Value('Utilidad Ocasional', output_field=CharField()),
         id_cotizador=Value(None, output_field=IntegerField()),
         placa=Value(None, output_field=IntegerField()),
-    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador', 'placa')
+        cliente_nombre=Value('', output_field=CharField()),
+    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador', 'placa','cliente_nombre')
 
     # Unir todas las consultas asegurando que los tipos coincidan
 

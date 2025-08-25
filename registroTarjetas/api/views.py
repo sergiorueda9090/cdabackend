@@ -34,11 +34,40 @@ def obtener_tarjetas(request):
 @check_role(1,2)
 def obtener_tarjeta(request, id):
     try:
-        cuenta = RegistroTarjetas.objects.get(id=id)
+        cuenta     = RegistroTarjetas.objects.get(id=id)
         serializer = RegistroTarjetasSerializer(cuenta)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+
+        # 🔥 Aquí llamamos a la función auxiliar
+        total = calcular_total_tarjeta(id)
+
+        data = serializer.data
+        data["saldo"] = total  # 👉 añadimos el total al response
+
+        return Response(data, status=status.HTTP_200_OK)
+
     except RegistroTarjetas.DoesNotExist:
         return Response({"error": "Cuenta bancaria no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+
+def calcular_total_tarjeta(tarjeta_id: int) -> int:
+    """Calcula el total de una tarjeta en todas las tablas relacionadas."""
+    
+    def get_total(model, field="id_tarjeta_bancaria"):
+        rta = model.objects.filter(**{field: tarjeta_id}).aggregate(
+            total_suma=Sum(
+                Cast(Replace(F('valor'), Value('.'), Value('')), output_field=models.IntegerField())
+            )
+        )
+        return rta['total_suma'] if rta['total_suma'] is not None else 0
+
+    total_general = (
+        get_total(CuentaBancaria, field="idBanco") +
+        get_total(RecepcionPago) +
+        get_total(Devoluciones) +
+        get_total(Gastogenerales) +
+        get_total(Utilidadocacional)
+    )
+
+    return total_general
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -82,10 +111,10 @@ def eliminar_tarjeta(request, id):
 def obtener_tarjetas_total(request):
     # Verificar si todas las tablas existen antes de ejecutar consultas
     required_models = {
-        "RegistroTarjetas": RegistroTarjetas,
-        "RecepcionPago": RecepcionPago,
-        "Devoluciones": Devoluciones,
-        "Gastogenerales": Gastogenerales,
+        "RegistroTarjetas" : RegistroTarjetas,
+        "RecepcionPago"    : RecepcionPago,
+        "Devoluciones"     : Devoluciones,
+        "Gastogenerales"   : Gastogenerales,
         "Utilidadocacional": Utilidadocacional
     }
 
@@ -184,11 +213,11 @@ def transferir_tarjeta(request, id, idtrans):
     try:
         with transaction.atomic():
             updated_cuentaBancaria = CuentaBancaria.objects.filter(idBanco=nueva_tarjeta.id).update(idBanco=tarjeta_antigua.id)
-            updated_cotizador    = Cotizador.objects.filter(idBanco=nueva_tarjeta.id).update(idBanco=tarjeta_antigua.id)
-            updated_recepcion    = RecepcionPago.objects.filter(id_tarjeta_bancaria=nueva_tarjeta).update(id_tarjeta_bancaria=tarjeta_antigua)
-            updated_devoluciones = Devoluciones.objects.filter(id_tarjeta_bancaria=nueva_tarjeta).update(id_tarjeta_bancaria=tarjeta_antigua)
-            updated_gastos       = Gastogenerales.objects.filter(id_tarjeta_bancaria=nueva_tarjeta).update(id_tarjeta_bancaria=tarjeta_antigua)
-            updated_utilidades   = Utilidadocacional.objects.filter(id_tarjeta_bancaria=nueva_tarjeta).update(id_tarjeta_bancaria=tarjeta_antigua)
+            updated_cotizador      = Cotizador.objects.filter(idBanco=nueva_tarjeta.id).update(idBanco=tarjeta_antigua.id)
+            updated_recepcion      = RecepcionPago.objects.filter(id_tarjeta_bancaria=nueva_tarjeta).update(id_tarjeta_bancaria=tarjeta_antigua)
+            updated_devoluciones   = Devoluciones.objects.filter(id_tarjeta_bancaria=nueva_tarjeta).update(id_tarjeta_bancaria=tarjeta_antigua)
+            updated_gastos         = Gastogenerales.objects.filter(id_tarjeta_bancaria=nueva_tarjeta).update(id_tarjeta_bancaria=tarjeta_antigua)
+            updated_utilidades     = Utilidadocacional.objects.filter(id_tarjeta_bancaria=nueva_tarjeta).update(id_tarjeta_bancaria=tarjeta_antigua)
 
             total_actualizados = updated_recepcion + updated_devoluciones + updated_gastos + updated_utilidades + updated_cotizador + updated_cuentaBancaria
 
