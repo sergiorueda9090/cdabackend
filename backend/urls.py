@@ -56,6 +56,7 @@ urlpatterns = [
    path('users/',               include('users.api.urls')                       , name="users"),
    path('clientes/',            include('clientes.api.urls')                    , name="clientes"),
    path('cotizador/',           include('cotizador.api.urls')                   , name="cotizador"),
+   path('cotizador/me/',        include('cotizador.urls')                       , name="cotizador_me"),
    path('tramites/',            include('tramites.api.urls')                    , name="tramites"),
    path('etiquetas/',           include('etiquetas.api.urls')                   , name="etiquetas"),
    path('cuentasbancarias/',    include('cuentasbancarias.api.urls')            , name="cuentasbancarias"),

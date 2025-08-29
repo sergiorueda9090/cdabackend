@@ -16,3 +16,4 @@ class Ajustesaldo(models.Model):
     class Meta:
         verbose_name = "Ajustesaldo"
         verbose_name_plural = "Ajustesaldo"
+        db_table = "ajustesaldo"
