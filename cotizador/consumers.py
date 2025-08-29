@@ -47,6 +47,9 @@ class ChatConsumer(WebsocketConsumer):
             )
 
     def disconnect(self, close_code):
+        from .models import Room, Message
+        from django.contrib.auth import get_user_model  # ✅ lazy
+        User = get_user_model()
         async_to_sync(self.channel_layer.group_discard)(
             self.room_group_name,
             self.channel_name,
@@ -64,6 +67,9 @@ class ChatConsumer(WebsocketConsumer):
             self.room.online.remove(self.user)
 
     def receive(self, text_data=None, bytes_data=None):
+        from .models import Room, Message
+        from django.contrib.auth import get_user_model  # ✅ lazy
+        User = get_user_model()
         text_data_json = json.loads(text_data)
         message = text_data_json["message"]
 
@@ -134,7 +140,6 @@ class ChatConsumer(WebsocketConsumer):
         self.send(text_data=json.dumps(event))
 
 
-User = get_user_model()
 
 class TableConsumer(WebsocketConsumer):
     def connect(self):
