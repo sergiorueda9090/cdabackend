@@ -3,7 +3,7 @@ import json
 
 from asgiref.sync import async_to_sync
 from channels.generic.websocket import WebsocketConsumer
-from django.contrib.auth import get_user_model
+#from django.contrib.auth import get_user_model
 import logging
 logger = logging.getLogger(__name__)
 
@@ -19,6 +19,8 @@ class ChatConsumer(WebsocketConsumer):
 
     def connect(self):
         from .models import Room, Message
+        from django.contrib.auth import get_user_model  # ✅ lazy
+        User = get_user_model()
         self.room_name = self.scope['url_route']['kwargs']['room_name']
         self.room_group_name = f'chat_{self.room_name}'
         self.room = Room.objects.get(name=self.room_name)
