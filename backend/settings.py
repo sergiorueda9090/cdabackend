@@ -68,7 +68,8 @@ INSTALLED_APPS = [
     'rolespermisos',
     'balancegeneral',
     'utilidad',
-    'cargosnoregistrados'
+    'cargosnoregistrados',
+    'tarjetastrasladofondo'
 ]
 
 MIDDLEWARE = [

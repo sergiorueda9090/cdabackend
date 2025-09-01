@@ -24,8 +24,9 @@ from proveedores.models         import Proveedor
 from fichaproveedor.models      import FichaProveedor, FichaProveedorPagos
 from .serializers               import CuentaBancariaSerializer
 from cargosnoregistrados.models import Cargosnodesados
+from tarjetastrasladofondo.models import Tarjetastrasladofondo
 
-from django.db.models import F, Value, CharField, Sum, IntegerField, Q, Case, When
+from django.db.models import F, Value, CharField, Sum, IntegerField, Q, Case, When, ExpressionWrapper, DecimalField
 from decimal import Decimal
 
 from tempfile import NamedTemporaryFile
@@ -503,9 +504,37 @@ def obtener_datos_cuenta(request, id):
         cliente_nombre=Value('', output_field=CharField()),
     ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador', 'placa','cliente_nombre')
 
+    # Consulta para Tarjetas traslado fondo
+    tarjetastrasladofondoResta = Tarjetastrasladofondo.objects.filter(id_tarjeta_bancaria_envia_id=id).annotate(
+        fi=F('fecha_ingreso'),
+        ft=F('fecha_transaccion'),
+        desc_alias=F('observacion'),
+        valor_alias=ExpressionWrapper(F('valor') * -1, output_field=DecimalField()),
+        id_tarjeta=F('id_tarjeta_bancaria_envia'),
+        origen=Value('Cuenta origen', output_field=CharField()),
+        id_cotizador=Value(None, output_field=IntegerField()),
+        placa=Value(None, output_field=IntegerField()),
+        cliente_nombre=Value('', output_field=CharField()),
+    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador', 'placa','cliente_nombre')
+
+        # Consulta para Tarjetas traslado fondo
+    tarjetastrasladofondoSuma = Tarjetastrasladofondo.objects.filter(id_tarjeta_bancaria_recibe_id=id).annotate(
+        fi=F('fecha_ingreso'),
+        ft=F('fecha_transaccion'),
+        desc_alias=F('observacion'),
+        valor_alias=F('valor'),
+        id_tarjeta=F('id_tarjeta_bancaria_recibe'),
+        origen=Value('Cuenta destino', output_field=CharField()),
+        id_cotizador=Value(None, output_field=IntegerField()),
+        placa=Value(None, output_field=IntegerField()),
+        cliente_nombre=Value('', output_field=CharField()),
+    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador', 'placa','cliente_nombre')
+
+
+    
     # Unir todas las consultas asegurando que los tipos coincidan
 
-    union_result = list(cuentas) + list(devoluciones) + list(gastos) + list(utilidadocacional) + list(recepcionDePagos) + list(cargosNoRegistrados)
+    union_result = list(cuentas) + list(devoluciones) + list(gastos) + list(utilidadocacional) + list(recepcionDePagos) + list(cargosNoRegistrados) + list(tarjetastrasladofondoResta) + list(tarjetastrasladofondoSuma)
  
     # Calcular totales de cada categoría
     total_cuentas           = safe_sum(CuentaBancaria.objects.filter(idBanco=id), "valor")
@@ -514,9 +543,11 @@ def obtener_datos_cuenta(request, id):
     total_utilidad          = safe_sum(Utilidadocacional.objects.filter(id_tarjeta_bancaria=id), "valor")
     total_recepcionDePagos  = safe_sum(RecepcionPago.objects.filter(id_tarjeta_bancaria=id), "valor")
     total_cargosNoDeseados  = safe_sum(Cargosnodesados.objects.filter(id_tarjeta_bancaria=id), "valor")
+    total_tarjetastrasladofondoResta  = safe_sum(Tarjetastrasladofondo.objects.filter(id_tarjeta_bancaria_envia_id=id), "valor")
+    total_tarjetastrasladofondoSuma  =  safe_sum(Tarjetastrasladofondo.objects.filter(id_tarjeta_bancaria_recibe=id), "valor")
 
     # Calcular el total de todas las categorías
-    total_general = total_cuentas + total_devoluciones + total_gastos + total_utilidad + total_recepcionDePagos + total_cargosNoDeseados
+    total_general = total_cuentas + total_devoluciones + total_gastos + total_utilidad + total_recepcionDePagos + total_cargosNoDeseados - total_tarjetastrasladofondoResta + total_tarjetastrasladofondoSuma
     transacciones_ordenadas = ordenar_union_result(union_result)
 
     def to_number(value):

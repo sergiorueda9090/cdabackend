@@ -11,7 +11,7 @@ from devoluciones.models      import Devoluciones
 from gastosgenerales.models   import Gastogenerales
 from utilidadocacional.models import Utilidadocacional
 from cotizador.models         import Cotizador
-
+from tarjetastrasladofondo.models import Tarjetastrasladofondo
 
 from django.db import models
 from django.db.models import Sum, F, Value
@@ -64,7 +64,9 @@ def calcular_total_tarjeta(tarjeta_id: int) -> int:
         get_total(RecepcionPago) +
         get_total(Devoluciones) +
         get_total(Gastogenerales) +
-        get_total(Utilidadocacional)
+        get_total(Utilidadocacional) -
+        get_total(Tarjetastrasladofondo, field="id_tarjeta_bancaria_envia") +
+        get_total(Tarjetastrasladofondo, field="id_tarjeta_bancaria_recibe")
     )
 
     return total_general
@@ -115,7 +117,8 @@ def obtener_tarjetas_total(request):
         "RecepcionPago"    : RecepcionPago,
         "Devoluciones"     : Devoluciones,
         "Gastogenerales"   : Gastogenerales,
-        "Utilidadocacional": Utilidadocacional
+        "Utilidadocacional": Utilidadocacional,
+        "Tarjetastrasladofondo":Tarjetastrasladofondo,
     }
 
     missing_tables = [name for name, model in required_models.items() if not model._meta.db_table]
@@ -174,19 +177,43 @@ def obtener_tarjetas_total(request):
             )
         )
 
+        rtaTarjetastrasladofondoResta = Tarjetastrasladofondo.objects.filter(
+            id_tarjeta_bancaria_envia=serializer.data[i]['id']
+        ).aggregate(
+            total_suma=Sum(
+                Cast(Replace(F('valor'), Value('.'), Value('')), output_field=models.IntegerField())
+            )
+        )
+
+        rtaTarjetastrasladofondoSuma = Tarjetastrasladofondo.objects.filter(
+            id_tarjeta_bancaria_recibe=serializer.data[i]['id']
+        ).aggregate(
+            total_suma=Sum(
+                Cast(Replace(F('valor'), Value('.'), Value('')), output_field=models.IntegerField())
+            )
+        )
+
+
+
         rtaCuentaBancaria['total_suma']      = rtaCuentaBancaria['total_suma']     if rtaCuentaBancaria['total_suma']      is not None else 0
-        rtaRecepcionPago['total_suma']      = rtaRecepcionPago['total_suma']     if rtaRecepcionPago['total_suma']      is not None else 0
-        rtaDevoluciones['total_suma']       = rtaDevoluciones['total_suma']      if rtaDevoluciones['total_suma']       is not None else 0
-        rtaGastogenerales['total_suma']     = rtaGastogenerales['total_suma']    if rtaGastogenerales['total_suma']     is not None else 0
-        rtaUtilidadocacional['total_suma']  = rtaUtilidadocacional['total_suma'] if rtaUtilidadocacional['total_suma']  is not None else 0
+        rtaRecepcionPago['total_suma']       = rtaRecepcionPago['total_suma']      if rtaRecepcionPago['total_suma']       is not None else 0
+        rtaDevoluciones['total_suma']        = rtaDevoluciones['total_suma']       if rtaDevoluciones['total_suma']        is not None else 0
+        rtaGastogenerales['total_suma']      = rtaGastogenerales['total_suma']     if rtaGastogenerales['total_suma']      is not None else 0
+        rtaUtilidadocacional['total_suma']   = rtaUtilidadocacional['total_suma']  if rtaUtilidadocacional['total_suma']   is not None else 0
+
+        rtaTarjetastrasladofondoResta['total_suma']  = rtaTarjetastrasladofondoResta['total_suma']  if rtaTarjetastrasladofondoResta['total_suma']   is not None else 0
+        rtaTarjetastrasladofondoSuma['total_suma']   = rtaTarjetastrasladofondoSuma['total_suma']  if rtaTarjetastrasladofondoSuma['total_suma']   is not None else 0
 
         total_general = (
             rtaCuentaBancaria['total_suma'] +
             rtaRecepcionPago['total_suma'] +
             rtaDevoluciones['total_suma'] +
             rtaGastogenerales['total_suma'] +
-            rtaUtilidadocacional['total_suma']
+            rtaUtilidadocacional['total_suma'] -
+            rtaTarjetastrasladofondoResta['total_suma'] +
+            rtaTarjetastrasladofondoSuma['total_suma']
         )
+        
         print("rtaRecepcionPago : {}\nrtaDevoluciones: {}\nrtaGastogenerales: {}\nrtaUtilidadocacional: {}\ntotal_general: {}"
             .format(rtaRecepcionPago, rtaDevoluciones, rtaGastogenerales, rtaUtilidadocacional, total_general))
     
