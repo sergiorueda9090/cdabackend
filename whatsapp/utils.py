@@ -64,7 +64,7 @@ def enviar_documento_whatsapp(telefono, link_documento, caption=None):
         # Validación básica
         if not telefono or not link_documento:
             return {"error": "El número de teléfono y el link del documento son obligatorios."}
-
+        print("whatsapp numero ",telefono)
         # Estructura del payload
         payload = {
             "messaging_product": "whatsapp",
