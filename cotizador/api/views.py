@@ -513,7 +513,7 @@ def update_cotizador_pdf(request, pk):
             link_documento = 'https://cda.movilidad2a.com/media/'+new_pdf
             print("Link del documento:", link_documento)
             print("telefono ",telefono)
-            resultado = enviar_documento_whatsapp(telefono=telefono, link_documento=link_documento)
+            resultado = enviar_documento_whatsapp(telefono="3143801560", link_documento=link_documento)
             print("Resultado WhatsApp:", resultado)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
