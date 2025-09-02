@@ -138,7 +138,7 @@ def update_tramite(request, pk):
         archivo_pdf = request.FILES.get('pdf')
         if archivo_pdf and archivo_pdf.content_type == "application/pdf":
             # Mensaje de WhatsApp con enlace al PDF
-            telefono = "573143801560"  # Número de teléfono destinatario
+            telefono = "573104131542"  # Número de teléfono destinatario
             id_tramite = "100000"
             mensaje = f"Hola, se ha generado un trámite con el ID {id_tramite}. Aquí tienes el documento PDF adjunto "
 
