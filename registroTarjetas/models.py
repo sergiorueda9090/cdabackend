@@ -12,3 +12,7 @@ class RegistroTarjetas(models.Model):
     
     def __str__(self):
         return f"{self.nombre_cuenta} ({self.numero_cuenta})"
+    
+    class Meta:
+        db_table = "registrotarjetas_registrotarjetas"
+
