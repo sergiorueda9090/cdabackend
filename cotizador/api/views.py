@@ -475,7 +475,7 @@ def update_cotizador(request, pk):
 @permission_classes([IsAuthenticated])
 @check_role(1, 2, 3)
 def update_cotizador_pdf(request, pk):
-    from whatsapp.utils import enviar_documento_whatsapp
+    from whatsapp.utils import enviar_documento_whatsapp, send_email
 
     try:
         cotizador = Cotizador.objects.get(pk=pk)
@@ -483,10 +483,18 @@ def update_cotizador_pdf(request, pk):
         return Response({'error': 'Cotizador no encontrado'}, status=status.HTTP_404_NOT_FOUND)
 
     try:
-        telefono = Cliente.objects.filter(id=cotizador.idCliente).values_list('telefono', flat=True).first()
+        cliente = Cliente.objects.filter(id=cotizador.idCliente).values_list('telefono','email','medio_contacto').first()
     except Cotizador.DoesNotExist:
         return Response({'error': 'El cliente no tiene un número telefónico para enviar el WhatsApp'}, status=status.HTTP_404_NOT_FOUND)
     
+    if not cliente:
+        return Response(
+            {'error': 'El cliente no tiene un número telefónico para enviar el WhatsApp'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    telefono, email, medio_contacto = cliente
+
     old_archivo = cotizador.archivo  # guarda el valor anterior
 
     # Solo permitimos actualizar el campo 'archivo'
@@ -495,7 +503,7 @@ def update_cotizador_pdf(request, pk):
         serializer.save()
         new_archivo = serializer.validated_data.get('archivo')
         new_pdf     = Cotizador.objects.filter(pk=pk).values_list('pdf', flat=True).first()
-        print("new_pdf ",new_pdf)
+   
         if old_archivo != new_archivo:
             LogCotizador.objects.create(
                 idCotizador=pk,
@@ -509,12 +517,18 @@ def update_cotizador_pdf(request, pk):
             )
 
         #Envío del WhatsApp con el nuevo documento
-        if telefono and new_pdf:
+        if medio_contacto == "whatsapp":
+            if telefono and new_pdf:
+                link_documento = 'https://backend.movilidad2a.com/media/'+new_pdf
+                print("Link del documento:", link_documento)
+                telefono = "573143801560"#"573104131542"
+                resultado = enviar_documento_whatsapp(telefono=telefono, link_documento=link_documento)
+                print("Resultado WhatsApp:", resultado)
+        else:
             link_documento = 'https://backend.movilidad2a.com/media/'+new_pdf
-            print("Link del documento:", link_documento)
-            telefono = "573104131542"
-            resultado = enviar_documento_whatsapp(telefono=telefono, link_documento=link_documento)
-            print("Resultado WhatsApp:", resultado)
+            print("email ",email)
+            print("link_documento ",link_documento)
+            send_email(email, pdf=link_documento)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 

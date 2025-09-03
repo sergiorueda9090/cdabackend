@@ -1,5 +1,7 @@
 import requests
 from decouple import config
+from django.core.mail import send_mail, BadHeaderError, EmailMultiAlternatives
+from django.template.loader import render_to_string
 
 def enviar_mensaje_whatsapp(telefono, mensaje):
     """
@@ -55,7 +57,8 @@ def enviar_documento_whatsapp(telefono, link_documento, caption=None):
     try:
         # Configuración del token y la URL
         access_token = config("TOKEN_WHATSAPP")
-        url = "https://graph.facebook.com/v21.0/251081758099306/messages"
+        url_ws       = config("URL_WHATSAPP")
+        url = url_ws #"https://graph.facebook.com/v21.0/251081758099306/messages"
 
         if not caption:
             caption = "📑 CDA Movilidad 2A le envía el soporte ✅."
@@ -98,3 +101,29 @@ def enviar_documento_whatsapp(telefono, link_documento, caption=None):
 
     except Exception as e:
         return {"success": False, "error": f"Excepción ocurrida: {str(e)}"}
+    
+
+def send_email(email, pdf):
+    """
+    Envía un correo HTML con link al PDF usando WorkMail SMTP
+    """
+    subject = 'CDA Movilidad 2 A'
+    from_email = 'tramites@movilidad2a.com'
+    to = [email]
+
+    # Renderiza plantilla HTML (puedes crear tu archivo email_template.html)
+    html_content = render_to_string('email_template.html', {'pdf_url': pdf})
+
+    try:
+        # Crear correo con HTML
+        msg = EmailMultiAlternatives(subject, 'Si no puedes ver el correo, revisa en HTML', from_email, to)
+        msg.attach_alternative(html_content, "text/html")
+        msg.send(fail_silently=False)
+        print("Correo enviado correctamente")
+        return True
+    except BadHeaderError:
+        print("Error: encabezado inválido en el correo")
+        return False
+    except Exception as e:
+        print(f"Error al enviar correo: {e}")
+        return False

@@ -20,7 +20,7 @@ from cotizador.models           import Cotizador
 @check_role(1)
 def get_clientes(request):
     if request.method == 'GET':
-        clientes = Cliente.objects.all()
+        clientes   = Cliente.objects.all()
         serializer = ClienteSerializer(clientes, many=True)
         return JsonResponse(serializer.data, safe=False, status=status.HTTP_200_OK)
 
@@ -71,6 +71,10 @@ def create_cliente(request):
             direccion = data.get('direccion', '')
             color     = data.get('color', '')
 
+            email     = data.get('email', '')
+            username  = data.get('username', '')
+            medio_contacto = data.get('medio_contacto', '')
+
             # Crear el cliente
             cliente = Cliente.objects.create(
                 nombre=nombre.strip(),
@@ -78,6 +82,9 @@ def create_cliente(request):
                 telefono=telefono.strip(),
                 direccion=direccion.strip(),
                 color=color,
+                email=email,
+                username=username,
+                medio_contacto=medio_contacto,
             )
 
             # Crear los precios de ley asociados al cliente
@@ -173,6 +180,9 @@ def update_cliente(request, pk):
         cliente.telefono    = data.get('telefono'   , cliente.telefono).strip()
         cliente.direccion   = data.get('direccion'  , cliente.direccion).strip()
         cliente.color       = data.get('color'      , cliente.color).strip()
+        cliente.email           = data.get('email'          , cliente.email)
+        cliente.username        = data.get('username'       , cliente.username)
+        cliente.medio_contacto  = data.get('medio_contacto' , cliente.medio_contacto)
         cliente.save()
 
         # Obtener los IDs de los precios de ley actuales

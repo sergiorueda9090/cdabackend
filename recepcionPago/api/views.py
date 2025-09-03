@@ -105,7 +105,7 @@ def crear_recepcion_pago(request):
     if tarjeta.is_daviplata:
         cuatro_por_mil = 0
     else:
-        cuatro_por_mil = int(abs(valor) * 0.004) #0
+        cuatro_por_mil = 0 #int(abs(valor) * 0.004)
     
     # Validación de duplicado
     confirmar = request.data.get("confirmar", "false").lower() == "true"
@@ -208,7 +208,7 @@ def actualizar_recepcion_pago(request, pk):
     if tarjeta.is_daviplata:
         recepcion.cuatro_por_mil = 0
     else:
-        recepcion.cuatro_por_mil = int(abs(valor) * 0.004) #0
+        recepcion.cuatro_por_mil = 0 #int(abs(valor) * 0.004)
     
     recepcion.save()
 
