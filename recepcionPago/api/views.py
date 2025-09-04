@@ -156,26 +156,36 @@ def obtener_recepcion_pago(request, pk):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def obtener_recepcion_pago_cliente(request, pk):
-    recepciones       = RecepcionPago.objects.filter(cliente_id=pk)
-    cotizadores_total = Cotizador.objects.filter(idCliente=pk).aggregate( total_sum=Sum("total"))["total_sum"] or 0
-    recepciones_total = RecepcionPago.objects.filter(cliente_id=pk).aggregate( total_sum=Sum("valor"))["total_sum"] or 0
-    ajuste_total      = Ajustesaldo.objects.filter(id_cliente=pk).aggregate( total_sum=Sum("valor"))["total_sum"] or 0
-    devoluciones_total = Devoluciones.objects.filter(id_cliente=pk).aggregate( total_sum=Sum("valor"))["total_sum"] or 0
+    recepciones = RecepcionPago.objects.filter(cliente_id=pk)
+
+    # Sumas con fallback a 0 si no existen
+    cotizadores_total  = Cotizador.objects.filter(idCliente=pk).aggregate(total_sum=Sum("total"))["total_sum"] or 0
+    recepciones_total  = RecepcionPago.objects.filter(cliente_id=pk).aggregate(total_sum=Sum("valor"))["total_sum"] or 0
+    ajuste_total       = Ajustesaldo.objects.filter(id_cliente=pk).aggregate(total_sum=Sum("valor"))["total_sum"] or 0
+    devoluciones_total = Devoluciones.objects.filter(id_cliente=pk).aggregate(total_sum=Sum("valor"))["total_sum"] or 0
+
+    # Asegurar devoluciones como valor positivo
     devoluciones_total = abs(devoluciones_total)
 
+    # Cálculo total
     total_total = cotizadores_total - recepciones_total + ajuste_total + devoluciones_total
-  
-    if not recepciones.exists():
-        return Response({"error": "Recepción de pago no encontrada."}, status=status.HTTP_404_NOT_FOUND)
 
+    # 🚩 Si no hay recepciones → devolver data vacía y el total
+    if not recepciones.exists():
+        return Response({
+            "data": [],
+            "total": total_total
+        }, status=status.HTTP_200_OK)
+
+    # Serializar datos
     serializer = RecepcionPagoSerializer(recepciones, many=True)
-    
-    # Modificar el campo 'valor' en los datos serializados (no en el modelo)
     data = serializer.data
+
+    # Formatear el campo valor
     for item in data:
-        valor = int(item['valor']) if item['valor'] else 0
+        valor = int(item.get('valor') or 0)
         item['valor'] = f"{abs(valor):,}".replace(",", ".")
-    
+
     return Response({
         "data": data,
         "total": total_total
