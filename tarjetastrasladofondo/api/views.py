@@ -42,7 +42,7 @@ def crear_traslado(request):
     # calcular el 4 x 1000 (0.4%) si aplica
     valor = float(data['valor'])
     if tarjeta.is_daviplata == 0:  # si aplica el cuatro por mil
-        data['cuatro_por_mil'] = round(valor * 0.004, 2)
+        data['cuatro_por_mil'] = int(abs(valor) * 0.004)
     else:
         data['cuatro_por_mil'] = 0
 

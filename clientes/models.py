@@ -2,7 +2,7 @@ from django.db import models
 import uuid
 
 class Cliente(models.Model):
-    username    = models.CharField(max_length=50, null=True, blank=True)
+    username    = models.CharField(max_length=50, unique=True, null=True, blank=True)
     nombre      = models.CharField(max_length=100)
     email       = models.CharField(max_length=100, blank=True, null=True)
     apellidos   = models.CharField(max_length=100)

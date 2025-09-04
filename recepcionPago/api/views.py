@@ -6,6 +6,10 @@ from recepcionPago.models       import RecepcionPago
 from clientes.models            import Cliente
 from registroTarjetas.models    import RegistroTarjetas
 from .serializers               import RecepcionPagoSerializer
+from cotizador.models           import Cotizador
+from ajustesaldos.models        import Ajustesaldo
+from devoluciones.models        import Devoluciones
+from django.db.models           import Sum
 
 from rest_framework.permissions import IsAuthenticated
 
@@ -152,8 +156,15 @@ def obtener_recepcion_pago(request, pk):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def obtener_recepcion_pago_cliente(request, pk):
-    recepciones = RecepcionPago.objects.filter(cliente_id=pk)
+    recepciones       = RecepcionPago.objects.filter(cliente_id=pk)
+    cotizadores_total = Cotizador.objects.filter(idCliente=pk).aggregate( total_sum=Sum("total"))["total_sum"] or 0
+    recepciones_total = RecepcionPago.objects.filter(cliente_id=pk).aggregate( total_sum=Sum("valor"))["total_sum"] or 0
+    ajuste_total      = Ajustesaldo.objects.filter(id_cliente=pk).aggregate( total_sum=Sum("valor"))["total_sum"] or 0
+    devoluciones_total = Devoluciones.objects.filter(id_cliente=pk).aggregate( total_sum=Sum("valor"))["total_sum"] or 0
+    devoluciones_total = abs(devoluciones_total)
 
+    total_total = cotizadores_total - recepciones_total + ajuste_total + devoluciones_total
+  
     if not recepciones.exists():
         return Response({"error": "Recepción de pago no encontrada."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -165,7 +176,10 @@ def obtener_recepcion_pago_cliente(request, pk):
         valor = int(item['valor']) if item['valor'] else 0
         item['valor'] = f"{abs(valor):,}".replace(",", ".")
     
-    return Response(data, status=status.HTTP_200_OK)
+    return Response({
+        "data": data,
+        "total": total_total
+    }, status=status.HTTP_200_OK)
 
 #Actualizar una recepción de pago
 @api_view(['PUT'])

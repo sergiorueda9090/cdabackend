@@ -640,6 +640,31 @@ def get_cotizadores_confirmacion_precios(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 @check_role(1,2,3)
+def get_cotizadores_confirmacion_precios_id(request, pk):
+    cotizador = Cotizador.objects.filter(confirmacionPreciosModulo=1, id=pk).first()
+    if not cotizador:
+        return Response({"error": "Cotizador no encontrado"}, status=404)
+
+    usuario = get_object_or_404(User, id=cotizador.idUsuario)
+    imagen_url = usuario.image.url if usuario.image else None
+    cliente = get_object_or_404(Cliente, id=cotizador.idCliente)
+    etiqueta = get_object_or_404(Etiqueta, id=cotizador.idEtiqueta)
+
+    cotizador_serializer = CotizadorSerializer(cotizador)
+    cotizador_data = cotizador_serializer.data
+
+    cotizador_data['nombre_usuario'] = usuario.username
+    cotizador_data['image_usuario']  = imagen_url
+    cotizador_data['nombre_cliente'] = cliente.nombre
+    cotizador_data['color_cliente']  = cliente.color
+    cotizador_data['color_etiqueta'] = etiqueta.color
+    print(cotizador_data)
+    return Response(cotizador_data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+@check_role(1,2,3)
 def get_cotizadores_pdfs(request):
     cotizadores = Cotizador.objects.filter(pdfsModulo=1).all()
     

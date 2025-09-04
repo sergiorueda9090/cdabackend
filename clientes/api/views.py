@@ -75,6 +75,11 @@ def create_cliente(request):
             username  = data.get('username', '')
             medio_contacto = data.get('medio_contacto', '')
 
+            # Validar que username sea único
+            if username:
+                if Cliente.objects.filter(username=username).exists():
+                    return JsonResponse({"error": f"El username '{username}' ya está en uso. Debe ser único."},status=status.HTTP_400_BAD_REQUEST)
+                
             # Crear el cliente
             cliente = Cliente.objects.create(
                 nombre=nombre.strip(),
@@ -263,25 +268,25 @@ def delete_cliente(request, pk):
 
 @api_view(['POST'])
 def verificar_cliente_y_generar_token(request):
-    identificacion = request.data.get("identificacion", None)
+    username = request.data.get("username", None)
     
-    if not identificacion:
+    if not username:
         return JsonResponse(
-            {"error": "El número de identificación es requerido."},
+            {"error": "El username es requerido."},
             status=status.HTTP_400_BAD_REQUEST
         )
     
     try:
-        cliente = Cliente.objects.get(telefono=identificacion)
+        cliente = Cliente.objects.get(username=username)
 
         # Eliminar tokens anteriores (opcional)
-        GeneradorToken.objects.filter(identificacion=identificacion).delete()
+        GeneradorToken.objects.filter(identificacion=username).delete()
 
         # Crear token aleatorio y seguro
         token = str(random.randint(100000, 999999))
 
         GeneradorToken.objects.create(
-            identificacion=identificacion,
+            identificacion=username,
             token=token
         )
 
@@ -294,6 +299,7 @@ def verificar_cliente_y_generar_token(request):
             "color"     : data_cliente.get("color", "#ccc"),  # Por si falta
             "status"    : 200,
             "id"        : data_cliente["id"],
+            "username"  : data_cliente["username"],
         }, status=status.HTTP_200_OK)
 
     except Cliente.DoesNotExist as e:
@@ -308,10 +314,13 @@ def api_get_cotizador_cliente(request):
     token          = request.data.get('token')
     identificacion = request.data.get('telefono')
     id_cliente     = request.data.get('id_cliente')
+    username     = request.data.get('username')
     print("token: ", token)
     print("identificacion: ", identificacion)
     print("id_cliente: ", id_cliente)
-    if not token or not identificacion:
+    print("username: ", username)
+
+    if not token:
         return Response({"error": "Token e identificación requeridos."}, status=400)
 
     if not id_cliente:
@@ -321,13 +330,14 @@ def api_get_cotizador_cliente(request):
         cliente = Cliente.objects.get(id=id_cliente)
     except Cliente.DoesNotExist:
         return Response({"error": "Cliente no encontrado."}, status=404)
+    
     print(cliente)
     # Validar token
     try:
-        token_obj = GeneradorToken.objects.get(identificacion=identificacion, token=token)
+        token_obj = GeneradorToken.objects.get(identificacion=username, token=token)
 
         # Verificar expiración del token (10 minutos)
-        if token_obj.fecha_creacion + timedelta(minutes=1) < datetime.now():
+        if token_obj.fecha_creacion + timedelta(minutes=10) < datetime.now():
             return Response({"error": "Token expirado."}, status=401)
         
         # Obtener cotizadores del cliente
