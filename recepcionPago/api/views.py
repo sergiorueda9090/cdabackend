@@ -154,7 +154,7 @@ def obtener_recepcion_pago(request, pk):
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+#@permission_classes([IsAuthenticated])
 def obtener_recepcion_pago_cliente(request, pk):
     recepciones = RecepcionPago.objects.filter(cliente_id=pk)
 
