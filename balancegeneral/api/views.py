@@ -657,7 +657,7 @@ def obtener_patrimonio_neto(request):
             "total_gastos"         : total_gastos,
             "total_cuatro_por_mil" : total_cuatro_por_mil,
             "t"                    : patrimonio_bruto,
-            "patrimonio_neto"      : patrimonio_bruto - total_gastos - total_cuatro_por_mil
+            "patrimonio_neto"      : patrimonio_bruto + total_gastos + total_cuatro_por_mil
         }
 
         return Response(response_data, status=status.HTTP_200_OK)
