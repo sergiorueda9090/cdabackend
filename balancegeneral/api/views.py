@@ -727,7 +727,7 @@ def get_total_utilidad_nominal(request):
         total_val = safe_abs(int(str(ficha.idcotizador.comisionPrecioLey).replace('.', '')))
         total_sum += total_val
 
-    return Response({ "total": round(total_sum * -1, 2)})
+    return Response({ "total": round(total_sum * 1, 2)})
 """
 ================================
 ===== FIN UTILIDAD NOMINAL =====
