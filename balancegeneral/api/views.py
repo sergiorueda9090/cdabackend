@@ -920,12 +920,13 @@ def total_utilidad_real(request):
     try:
         patrimonio = obtener_patrimonio_neto() #calcular_patrimonio_neto()
         resultado  = Decimal(calcular_total_utilidad_nominal(fecha_inicio, fecha_fin))
-        total_utilidad_real = patrimonio - resultado
+        total_utilidad_real = patrimonio - abs(resultado)
 
         return Response({
             "total_utilidad_real": round(total_utilidad_real),
             "patrimonio"         : round(patrimonio),
-            "resultado"          : round(resultado)
+            "resultado"          : round(total_utilidad_real),
+            "testresultado"      : round(resultado),
         })
 
     except Exception as e:
