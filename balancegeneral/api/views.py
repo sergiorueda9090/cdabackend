@@ -692,7 +692,7 @@ def get_total_utilidad_nominal(request):
         if fecha_inicio:
             fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
         if fecha_fin:
-            fecha_fin = datetime.strptime(fecha_fin, "%Y-%m-%d")
+            fecha_fin    = datetime.strptime(fecha_fin, "%Y-%m-%d")
     except ValueError:
         return Response({"error": "Formato de fecha inválido. Use YYYY-MM-DD."}, status=400)
 
@@ -703,21 +703,6 @@ def get_total_utilidad_nominal(request):
 
     if fecha_inicio and fecha_fin:
         proveedores_qs = proveedores_qs.filter(fechaCreacion__range=[fecha_inicio, fecha_fin])
-
-    if search:
-        proveedores_qs = proveedores_qs.filter(
-            Q(id__icontains=search) |
-            Q(idproveedor__nombre__icontains=search) |
-            Q(comisionproveedor__icontains=search) |
-            Q(idcotizador__etiquetaDos__icontains=search) |
-            Q(idcotizador__placa__icontains=search) |
-            Q(idcotizador__cilindraje__icontains=search) |
-            Q(idcotizador__modelo__icontains=search) |
-            Q(idcotizador__chasis__icontains=search) |
-            Q(idcotizador__precioDeLey__icontains=search) |
-            Q(idcotizador__comisionPrecioLey__icontains=search) |
-            Q(idcotizador__total__icontains=search)
-        )
 
     def safe_abs(value):
         try:
@@ -912,7 +897,6 @@ def total_utilidad_real(request):
     fecha_inicio = request.GET.get('fechaInicio')
     fecha_fin    = request.GET.get('fechaFin')
 
-
     try:
         if fecha_inicio:
             fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
@@ -922,15 +906,15 @@ def total_utilidad_real(request):
         return Response({"error": "Formato de fecha inválido. Use YYYY-MM-DD."}, status=400)
 
     try:
-        patrimonio = obtener_patrimonio_neto() #calcular_patrimonio_neto()
-        resultado  = Decimal(calcular_total_utilidad_nominal(fecha_inicio, fecha_fin))
-        total_utilidad_real = patrimonio - abs(resultado)
+        patrimonio          = obtener_patrimonio_neto(fecha_inicio, fecha_fin) #calcular_patrimonio_neto()
+        utilidad_nominal    = Decimal(calcular_total_utilidad_nominal(fecha_inicio, fecha_fin))
+        total_utilidad_real = patrimonio - abs(utilidad_nominal)
 
         return Response({
-            "total_utilidad_real": round(total_utilidad_real),
             "patrimonio"         : round(patrimonio),
+            "utilidad_nominal"   : round(utilidad_nominal),
+            "total_utilidad_real": round(total_utilidad_real),
             "resultado"          : round(total_utilidad_real),
-            "testresultado"      : round(resultado),
         })
 
     except Exception as e:
