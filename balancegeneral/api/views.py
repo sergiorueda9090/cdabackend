@@ -943,28 +943,42 @@ def total_utilidad_real(request):
 ===== UTILIDAD DIFERENCIAL =====
 ================================
 """
-def total_diferencial_utilidad_real():
-    try:
-        patrimonio = calcular_patrimonio_neto()  # ya es Decimal
-        resultado  = Decimal(str(calcular_total_utilidad_nominal()))  # fuerza a Decimal
-        total_utilidad_real = patrimonio - resultado
-        return total_utilidad_real
-    except Exception as e:
-        raise Exception(f"Error en utilidad real: {e}")
-    
-def total_diferencial_utilidad_nominal():
-    fecha_inicio = None
-    fecha_fin    = None
-    proveedor_id = None
-    search       = None
-
+def total_diferencial_utilidad_real(fecha_inicio=None, fecha_fin=None):
     try:
         if fecha_inicio:
             fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
         if fecha_fin:
             fecha_fin = datetime.strptime(fecha_fin, "%Y-%m-%d")
     except ValueError:
-        return Response({"error": "Formato de fecha inválido. Use YYYY-MM-DD."}, status=400)
+        raise ValueError("Formato de fecha inválido. Use YYYY-MM-DD.")
+
+    try:
+        patrimonio = obtener_patrimonio_neto()
+        resultado = Decimal(calcular_total_utilidad_nominal(fecha_inicio, fecha_fin))
+
+        # ✅ Siempre restar el resultado en valor absoluto
+        total_utilidad_real = patrimonio - abs(resultado)
+
+        return round(total_utilidad_real)
+
+    except Exception as e:
+        raise Exception(f"Error calculando utilidad real: {str(e)}")
+    
+
+def total_diferencial_utilidad_nominal(fecha_inicio=None, fecha_fin=None, proveedor_id=None, search=None):
+    """
+    Calcula la utilidad nominal total en base a los filtros aplicados.
+    Retorna solo un valor numérico (float).
+    """
+
+    # Validar fechas
+    try:
+        if fecha_inicio:
+            fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
+        if fecha_fin:
+            fecha_fin = datetime.strptime(fecha_fin, "%Y-%m-%d")
+    except ValueError:
+        raise ValueError("Formato de fecha inválido. Use YYYY-MM-DD.")
 
     proveedores_qs = FichaProveedor.objects.all()
 
@@ -995,12 +1009,13 @@ def total_diferencial_utilidad_nominal():
         except (ValueError, TypeError):
             return 0.0
 
-    total_sum = Decimal("0")
+    total_sum = 0.0
+
     for ficha in proveedores_qs:
-        total_val = Decimal(str(int(str(ficha.idcotizador.comisionPrecioLey).replace('.', ''))))
+        total_val = safe_abs(int(str(ficha.idcotizador.comisionPrecioLey).replace('.', '')))
         total_sum += total_val
 
-    return total_sum 
+    return round(total_sum)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -1008,7 +1023,6 @@ def total_diferencial_utilidad_nominal():
 def total_diferencia(request):
     fecha_inicio = request.GET.get('fechaInicio')
     fecha_fin    = request.GET.get('fechaFin')
-
 
     try:
         if fecha_inicio:
