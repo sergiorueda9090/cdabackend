@@ -912,7 +912,7 @@ def total_utilidad_real(request):
 
         return Response({
             "patrimonio"         : round(patrimonio),
-            "utilidad_nominal"   : round(utilidad_nominal),
+            "utilidad_nominal"   : round(abs(utilidad_nominal)),
             "total_utilidad_real": round(total_utilidad_real),
             "resultado"          : round(total_utilidad_real),
         })
