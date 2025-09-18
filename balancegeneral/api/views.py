@@ -598,7 +598,7 @@ def safe_sum(queryset, field_name):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 @check_role(1,2)
-def obtener_patrimonio_neto(request):
+def obtener_patrimonio_neto_endpoint(request):
     try:
         fecha_inicio = request.GET.get("fechaInicio") 
         fecha_fin    = request.GET.get("fechaFin")
