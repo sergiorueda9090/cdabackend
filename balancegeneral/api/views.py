@@ -789,7 +789,7 @@ def calcular_patrimonio_neto(fecha_inicio=None, fecha_fin=None):
 
         # ---- Patrimonio neto ----
         patrimonio_bruto = Decimal(obtener_patrimonio_bruto_function())
-        patrimonio_neto  = patrimonio_bruto - total_gastos - total_cuatro_por_mil
+        patrimonio_neto  = patrimonio_bruto + total_gastos + total_cuatro_por_mil
 
         return patrimonio_neto
 
@@ -842,6 +842,65 @@ def calcular_total_utilidad_nominal(fecha_inicio=None, fecha_fin=None, proveedor
 
     return Decimal(str(round(total_sum * -1)))
 
+def obtener_patrimonio_neto(fecha_inicio=None, fecha_fin=None):
+    try:
+        # ---- Helper para convertir a Decimal ----
+        def to_decimal(value):
+            if value in [None, "", "None"]:
+                return Decimal("0")
+            try:
+                return Decimal(str(value).replace(".", "").replace(",", ""))
+            except:
+                return Decimal("0")
+
+        # ---- Helper para aplicar filtro de fechas ----
+        def apply_date_filter(qs, field_name):
+            if fecha_inicio and fecha_fin:
+                return qs.filter(**{f"{field_name}__range": [fecha_inicio, fecha_fin]})
+            elif fecha_inicio:
+                return qs.filter(**{f"{field_name}__gte": fecha_inicio})
+            elif fecha_fin:
+                return qs.filter(**{f"{field_name}__lte": fecha_fin})
+            return qs
+
+        # ---- Gastos Generales ----
+        gastos_qs = apply_date_filter(Gastogenerales.objects.all(), "fecha_transaccion")
+        total_gastos = safe_sum(gastos_qs, "valor") or Decimal("0")
+
+        # ---- Reunir todos los cuatro_por_mil ----
+        cuentas           = apply_date_filter(CuentaBancaria.objects.all(),    "fechaTransaccion").values("cuatro_por_mil")
+        recepcion         = apply_date_filter(RecepcionPago.objects.all(),     "fecha_transaccion").values("cuatro_por_mil")
+        devoluciones      = apply_date_filter(Devoluciones.objects.all(),      "fecha_transaccion").values("cuatro_por_mil")
+        cargosnodesados   = apply_date_filter(Cargosnodesados.objects.all(),   "fecha_transaccion").values("cuatro_por_mil")
+        gastos            = apply_date_filter(Gastogenerales.objects.all(),    "fecha_transaccion").values("cuatro_por_mil")
+        utilidadocacional = apply_date_filter(Utilidadocacional.objects.all(), "fecha_transaccion").values("cuatro_por_mil")
+
+        union_result = (
+            list(cuentas) +
+            list(recepcion) +
+            list(devoluciones) +
+            list(cargosnodesados) +
+            list(gastos) +
+            list(utilidadocacional)
+        )
+
+        total_cuatro_por_mil = sum(
+            -abs(to_decimal(item.get("cuatro_por_mil")))
+            for item in union_result
+            if str(item.get("cuatro_por_mil")).strip() not in ["", "0", "None", None]
+        )
+
+        # ---- Patrimonio bruto ----
+        patrimonio_bruto = Decimal(obtener_patrimonio_bruto_function())
+
+        # ---- Patrimonio neto ----
+        patrimonio_neto = patrimonio_bruto + total_gastos + total_cuatro_por_mil
+
+        return patrimonio_neto
+
+    except Exception as e:
+        raise Exception(f"Error al calcular patrimonio neto: {str(e)}")
+    
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 @check_role(1, 2)
@@ -854,12 +913,12 @@ def total_utilidad_real(request):
         if fecha_inicio:
             fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
         if fecha_fin:
-            fecha_fin = datetime.strptime(fecha_fin, "%Y-%m-%d")
+            fecha_fin    = datetime.strptime(fecha_fin, "%Y-%m-%d")
     except ValueError:
         return Response({"error": "Formato de fecha inválido. Use YYYY-MM-DD."}, status=400)
 
     try:
-        patrimonio = calcular_patrimonio_neto()
+        patrimonio = obtener_patrimonio_neto() #calcular_patrimonio_neto()
         resultado  = Decimal(calcular_total_utilidad_nominal(fecha_inicio, fecha_fin))
         total_utilidad_real = patrimonio - resultado
 

@@ -183,6 +183,96 @@ class TableConsumer(WebsocketConsumer):
                 }
             )
 
+        if event_type == "update_etiqueta":
+            row_id = data.get("rowId")
+            new_value = data.get("value")
+            user = data.get("user")
+
+            print("📤 update_etiqueta recibido en backend:", row_id, new_value)
+
+            async_to_sync(self.channel_layer.group_send)(
+                self.group_name,
+                {
+                    "type": "etiqueta_update",  # 👈 debe coincidir con el handler abajo
+                    "user": user,
+                    "rowId": row_id,
+                    "value": new_value,
+                }
+            )
+
+        if event_type == "update_link":
+            row_id = data.get("rowId")
+            new_value = data.get("value")
+            user = data.get("user")
+
+            print("📤 update_link recibido en backend:", row_id, new_value)
+
+            async_to_sync(self.channel_layer.group_send)(
+                self.group_name,
+                {
+                    "type": "link_update",
+                    "user": user,
+                    "rowId": row_id,
+                    "value": new_value,
+                }
+            )
+
+        if event_type == "copy_link":
+            row_id = data.get("rowId")
+            user = data.get("user")
+
+            print(f"📤 copy_link recibido en backend: fila {row_id} por {user}")
+
+            async_to_sync(self.channel_layer.group_send)(
+                self.group_name,
+                {
+                    "type": "link_copy_update",  # 👈 handler abajo
+                    "user": user,
+                    "rowId": row_id,
+                }
+            )
+
+        if event_type == "stop_loading":
+            row_id = data.get("rowId")
+            user = data.get("user")
+
+            print(f"📤 stop_loading recibido en backend: fila {row_id} por {user}")
+
+            async_to_sync(self.channel_layer.group_send)(
+                self.group_name,
+                {
+                    "type": "loading_stop_update",  # 👈 nuevo handler abajo
+                    "user": user,
+                    "rowId": row_id,
+                }
+            )
+
+
+        if event_type == "update_email":
+            row_id = data.get("rowId")
+            new_value = data.get("value")
+            user = data.get("user")
+
+            print("📤 update_email recibido en backend:", row_id, new_value)
+
+            async_to_sync(self.channel_layer.group_send)(
+                self.group_name,
+                {
+                    "type": "email_update",
+                    "user": user,
+                    "rowId": row_id,
+                    "value": new_value,
+                }
+            )
+
+        if event_type == "refresh_request":
+            async_to_sync(self.channel_layer.group_send)(
+                self.group_name,
+                {
+                    "type": "refresh_order",
+                }
+            )
+    
     # Este método se llama para todos los clientes del grupo
     def cell_update(self, event):
         self.send(text_data=json.dumps({
@@ -191,6 +281,50 @@ class TableConsumer(WebsocketConsumer):
             "rowId": event["rowId"],
             "column": event["column"],
         }))
+
+    def etiqueta_update(self, event):
+        self.send(text_data=json.dumps({
+            "type": "update_etiqueta",
+            "user": event["user"],
+            "rowId": event["rowId"],
+            "value": event["value"],
+        }))
+
+    def link_update(self, event):
+        self.send(text_data=json.dumps({
+            "type": "update_link",
+            "user": event["user"],
+            "rowId": event["rowId"],
+            "value": event["value"],
+        }))
+
+    def link_copy_update(self, event):
+        self.send(text_data=json.dumps({
+            "type": "copy_link",
+            "user": event["user"],
+            "rowId": event["rowId"],
+        }))
+
+    def loading_stop_update(self, event):
+        self.send(text_data=json.dumps({
+            "type": "stop_loading",
+            "user": event["user"],
+            "rowId": event["rowId"],
+        }))
+
+    def email_update(self, event):
+        self.send(text_data=json.dumps({
+            "type": "update_email",
+            "user": event["user"],
+            "rowId": event["rowId"],
+            "value": event["value"],
+        }))
+
+    def refresh_order(self, event):
+        self.send(text_data=json.dumps({
+            "type": "refresh_request",
+        }))
+
 """from channels.generic.websocket import AsyncWebsocketConsumer
 import json
 
