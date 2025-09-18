@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import (obtener_balancegeneral, obtener_patrimonio_bruto, obtener_patrimonio_neto, get_total_utilidad_nominal, total_utilidad_real, total_diferencia)
-
+#obtener_patrimonio_neto
 urlpatterns = [
      path('api/balancegeneral/',                          obtener_balancegeneral,              name='balancegeneral'),
      path('api/balancegeneral/obtenertotaltarjetas',      obtener_patrimonio_bruto,            name='obtener_patrimonio_bruto'),
