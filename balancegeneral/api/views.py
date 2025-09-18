@@ -419,7 +419,11 @@ def obtener_balancegeneral(request):
             clientes_info[nombre] = valor
 
     # Convertir a lista como en tarjetas
-    clientes_info = [{"nombre": nombre, "valor": valor} for nombre, valor in clientes_info.items()]
+    clientes_info = [
+        {"nombre": nombre, "valor": valor}
+        for nombre, valor in clientes_info.items()
+        if valor > 0
+    ]
 
     """
     [{'nombre_cuenta': 'Tecno Carrillo', 'valor': '1800000', 'origen': 'Clientes'}, {'nombre_cuenta': 'Tecno Carrillo', 'valor': '200000', 'origen': 'Clientes'}]
