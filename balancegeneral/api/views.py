@@ -925,7 +925,7 @@ def total_utilidad_real(request):
         return Response({
             "total_utilidad_real": round(total_utilidad_real),
             "patrimonio"         : round(patrimonio),
-            "resultado"          : round(resultado)
+            "resultado"          : round(total_utilidad_real)
         })
 
     except Exception as e:
