@@ -890,6 +890,38 @@ def obtener_patrimonio_neto(fecha_inicio=None, fecha_fin=None):
     except Exception as e:
         raise Exception(f"Error al calcular patrimonio neto: {str(e)}")
     
+def calcular_gastos_totales(fecha_inicio=None, fecha_fin=None):
+    """
+    Calcula el total de gastos generales en el periodo dado.
+    Si no se pasan fechas, trae todos los registros.
+    """
+
+    # ---- Helper para convertir a Decimal ----
+    def to_decimal(value):
+        if value in [None, "", "None"]:
+            return Decimal("0")
+        try:
+            return Decimal(str(value).replace(".", "").replace(",", ""))
+        except:
+            return Decimal("0")
+
+    # ---- Helper para aplicar filtro de fechas ----
+    def apply_date_filter(qs, field_name):
+        if fecha_inicio and fecha_fin:
+            return qs.filter(**{f"{field_name}__range": [fecha_inicio, fecha_fin]})
+        elif fecha_inicio:
+            return qs.filter(**{f"{field_name}__gte": fecha_inicio})
+        elif fecha_fin:
+            return qs.filter(**{f"{field_name}__lte": fecha_fin})
+        return qs
+
+    # ---- Gastos Generales ----
+    gastos_qs = apply_date_filter(Gastogenerales.objects.all(), "fecha_transaccion")
+
+    total_gastos = safe_sum(gastos_qs, "valor") or Decimal("0")
+
+    return total_gastos
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 @check_role(1, 2)
@@ -906,15 +938,17 @@ def total_utilidad_real(request):
         return Response({"error": "Formato de fecha inválido. Use YYYY-MM-DD."}, status=400)
 
     try:
-        patrimonio          = obtener_patrimonio_neto(fecha_inicio, fecha_fin) #calcular_patrimonio_neto()
+        calcular_gastos  = calcular_gastos_totales(fecha_inicio, fecha_fin) #calcular_patrimonio_neto()
         utilidad_nominal    = Decimal(calcular_total_utilidad_nominal(fecha_inicio, fecha_fin))
-        total_utilidad_real = patrimonio - abs(utilidad_nominal)
-
+        
+        total_utilidad_real = abs(utilidad_nominal)
+        total = total_utilidad_real + calcular_gastos
+       
         return Response({
-            "patrimonio"         : round(patrimonio),
-            "utilidad_nominal"   : round(abs(utilidad_nominal)),
-            "total_utilidad_real": round(total_utilidad_real),
-            "resultado"          : round(total_utilidad_real),
+            "calcular_gastos_totales"         : round(calcular_gastos),
+            "utilidad_nominal"                : round(abs(utilidad_nominal)),
+            "total_utilidad_real"             : round(total),
+            "resultado"                       : round(total),
         })
 
     except Exception as e:
@@ -1037,5 +1071,82 @@ def total_diferencia(request):
 """
 ================================
 === FIN UTILIDAD DIFERENCIAL ===
+================================
+"""
+
+"""
+================================
+=== GASTOS TOTALES DEL PERIODO ===
+================================
+"""
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+@check_role(1, 2)
+def gasto_totales_del_periodo(request):
+    try:
+        fecha_inicio = request.GET.get("fechaInicio") 
+        fecha_fin    = request.GET.get("fechaFin")
+
+        # ---- Helper para convertir a Decimal ----
+        def to_decimal(value):
+            if value in [None, "", "None"]:
+                return Decimal("0")
+            try:
+                return Decimal(str(value).replace(".", "").replace(",", ""))
+            except:
+                return Decimal("0")
+
+        # ---- Helper para aplicar filtro de fechas ----
+        def apply_date_filter(qs, field_name):
+            if fecha_inicio and fecha_fin:
+                return qs.filter(**{f"{field_name}__range": [fecha_inicio, fecha_fin]})
+            elif fecha_inicio:
+                return qs.filter(**{f"{field_name}__gte": fecha_inicio})
+            elif fecha_fin:
+                return qs.filter(**{f"{field_name}__lte": fecha_fin})
+            return qs
+
+        # ---- Gastos Generales ----
+        gastos_qs = apply_date_filter(Gastogenerales.objects.all(), "fecha_transaccion")
+        total_gastos = safe_sum(gastos_qs, "valor") or Decimal("0")
+
+        # ---- Reunir todos los cuatro_por_mil ----
+        cuentas           = apply_date_filter(CuentaBancaria.objects.all(),    "fechaTransaccion").values("cuatro_por_mil")
+        recepcion         = apply_date_filter(RecepcionPago.objects.all(),     "fecha_transaccion").values("cuatro_por_mil")
+        devoluciones      = apply_date_filter(Devoluciones.objects.all(),      "fecha_transaccion").values("cuatro_por_mil")
+        cargosnodesados   = apply_date_filter(Cargosnodesados.objects.all(),   "fecha_transaccion").values("cuatro_por_mil")
+        gastos            = apply_date_filter(Gastogenerales.objects.all(),    "fecha_transaccion").values("cuatro_por_mil")
+        utilidadocacional = apply_date_filter(Utilidadocacional.objects.all(), "fecha_transaccion").values("cuatro_por_mil")
+
+        union_result = (
+            list(cuentas) +
+            list(recepcion) +
+            list(devoluciones) +
+            list(cargosnodesados) +
+            list(gastos) +
+            list(utilidadocacional)
+        )
+
+        total_cuatro_por_mil = sum(
+            -abs(to_decimal(item.get("cuatro_por_mil")))
+            for item in union_result
+            if str(item.get("cuatro_por_mil")).strip() not in ["", "0", "None", None]
+        )
+
+        # ---- Response ----
+        response_data = {
+            "total_gastos"         : total_gastos,
+            "total_cuatro_por_mil" : total_cuatro_por_mil,
+            "gastos_totales_de_periodo": total_cuatro_por_mil - total_gastos
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+"""
+================================
+=== END GASTOS TOTALES DEL PERIODO ===
 ================================
 """

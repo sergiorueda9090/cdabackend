@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 from django.shortcuts           import get_object_or_404
 from cotizador.api.serializers  import CotizadorSerializer, LogCotizadorSerializer
 from cotizador.models           import Cotizador
+from django.db.models import ProtectedError
 
 # Obtener todos los clientes
 @api_view(['GET'])
@@ -252,6 +253,7 @@ def update_cliente(request, pk):
 
 
 # Eliminar un cliente específico
+
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 @check_role(1)
@@ -260,10 +262,28 @@ def delete_cliente(request, pk):
         try:
             cliente = Cliente.objects.get(pk=pk)
         except Cliente.DoesNotExist:
-            return JsonResponse({'error': 'Cliente no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+            return JsonResponse(
+                {'error': 'Cliente no encontrado'},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
-        cliente.delete()
-        return JsonResponse({'message': 'Cliente eliminado correctamente'}, status=status.HTTP_204_NO_CONTENT)
+        try:
+            cliente.delete()
+        except ProtectedError as e:
+            # Si hay relaciones protegidas
+            related_objects = [str(obj) for obj in e.protected_objects]
+            return JsonResponse(
+                {
+                    'error': 'No se puede eliminar el cliente porque tiene registros relacionados.',
+                    'detalles': related_objects  # opcional, para más info
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return JsonResponse(
+            {'message': 'Cliente eliminado correctamente'},
+            status=status.HTTP_200_OK
+        )
 
 
 @api_view(['POST'])

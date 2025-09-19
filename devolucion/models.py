@@ -14,6 +14,10 @@ class Devolucion(models.Model):
     def __str__(self):
         return f"{self.cliente.nombre} - {self.valor}"
 
+    #class Meta:
+    #    verbose_name = "Devolución"
+    #    verbose_name_plural = "Devoluciones"
     class Meta:
+        db_table = "devolucion_devolucion"
         verbose_name = "Devolución"
         verbose_name_plural = "Devoluciones"
