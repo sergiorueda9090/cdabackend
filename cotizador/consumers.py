@@ -168,8 +168,9 @@ class TableConsumer(WebsocketConsumer):
     def receive(self, text_data=None, bytes_data=None):
         data = json.loads(text_data)
         event_type = data.get("type")
-
+        print("📥 Evento recibido en backend:", event_type, data)
         if event_type == "cell_click":
+            print("📤 cell_click recibido en backend:", data)
             row_id = data.get("rowId")
             column = data.get("column")
             # Enviar evento a todos los clientes del grupo
