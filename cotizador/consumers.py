@@ -185,9 +185,9 @@ class TableConsumer(WebsocketConsumer):
             )
 
         if event_type == "update_etiqueta":
-            row_id = data.get("rowId")
-            new_value = data.get("value")
-            user = data.get("user")
+            row_id     = data.get("rowId")
+            new_value  = data.get("value")
+            user       = data.get("user")
 
             print("📤 update_etiqueta recibido en backend:", row_id, new_value)
 
@@ -247,7 +247,6 @@ class TableConsumer(WebsocketConsumer):
                     "rowId": row_id,
                 }
             )
-
 
         if event_type == "update_email":
             row_id = data.get("rowId")
