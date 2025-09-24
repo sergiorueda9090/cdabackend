@@ -603,6 +603,7 @@ def safe_sum(queryset, field_name):
 @permission_classes([IsAuthenticated])
 @check_role(1,2)
 def obtener_patrimonio_neto_endpoint(request):
+    print("==== obtener_patrimonio_neto_endpoint ====")
     try:
         fecha_inicio = request.GET.get("fechaInicio") 
         fecha_fin    = request.GET.get("fechaFin")
@@ -618,6 +619,7 @@ def obtener_patrimonio_neto_endpoint(request):
 
         # ---- Helper para aplicar filtro de fechas ----
         def apply_date_filter(qs, field_name):
+            print("==== field_name === ",field_name)
             if fecha_inicio and fecha_fin:
                 return qs.filter(**{f"{field_name}__range": [fecha_inicio, fecha_fin]})
             elif fecha_inicio:
@@ -1128,7 +1130,7 @@ def gasto_totales_del_periodo(request):
         )
 
         total_cuatro_por_mil = sum(
-            -abs(to_decimal(item.get("cuatro_por_mil")))
+            abs(to_decimal(item.get("cuatro_por_mil")))
             for item in union_result
             if str(item.get("cuatro_por_mil")).strip() not in ["", "0", "None", None]
         )
