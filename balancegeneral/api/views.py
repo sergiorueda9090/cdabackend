@@ -944,7 +944,7 @@ def total_utilidad_real(request):
         utilidad_nominal    = Decimal(calcular_total_utilidad_nominal(fecha_inicio, fecha_fin))
         
         total_utilidad_real = abs(utilidad_nominal)
-        total = total_utilidad_real + calcular_gastos
+        total = total_utilidad_real - calcular_gastos
        
         return Response({
             "calcular_gastos_totales"         : round(calcular_gastos),

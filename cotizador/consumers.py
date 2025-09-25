@@ -248,7 +248,6 @@ class TableConsumer(WebsocketConsumer):
                 }
             )
 
-
         if event_type == "update_email":
             row_id = data.get("rowId")
             new_value = data.get("value")
@@ -273,7 +272,189 @@ class TableConsumer(WebsocketConsumer):
                     "type": "refresh_order",
                 }
             )
-    
+
+        if event_type == "update_proveedores":
+            row_id = data.get("rowId")
+            new_value = data.get("value")
+            user = data.get("user")
+
+            print("📤 update_proveedores recibido en backend:", row_id, new_value)
+
+            async_to_sync(self.channel_layer.group_send)(
+                self.group_name,
+                {
+                    "type": "update_proveedores",  # 👈 debe coincidir con el handler abajo
+                    "user": user,
+                    "rowId": row_id,
+                    "value": new_value,
+                }
+            )
+
+        if event_type == "update_comision_proveedor":
+            print("📤 update_comision_proveedor recibido en backend:")
+            row_id = data.get("rowId")
+            new_value = data.get("value")
+            user = data.get("user")
+
+            #Reenviar a todos los clientes conectados
+            async_to_sync(self.channel_layer.group_send)(
+                self.group_name,
+                {
+                    "type": "update_comision_proveedor",  # 👈 debe coincidir con el handler abajo
+                    "user": user,
+                    "rowId": row_id,
+                    "value": new_value,
+                }
+            )
+
+        if event_type == "update_archivo":
+            print("📤 update_archivo recibido en backend:")
+            row_id = data.get("rowId")
+            new_value = data.get("value")
+            user = data.get("user")
+
+            #Reenviar a todos los clientes conectados
+            async_to_sync(self.channel_layer.group_send)(
+                self.group_name,
+                {
+                    "type": "update_archivo",  # 👈 debe coincidir con el handler abajo
+                    "user": user,
+                    "rowId": row_id,
+                    "value": new_value,
+                }
+            )
+        
+        if event_type == "delete_local_file":
+            row_id = data.get("rowId")
+            user = data.get("user")
+
+            async_to_sync(self.channel_layer.group_send)(
+                self.group_name,
+                {
+                    "type": "delete_local_file",  # 👈 coincide con el handler
+                    "rowId": row_id,
+                    "user": user,
+                }
+            )
+
+        if event_type == "refresh_request_confirmacion":
+            row_id = data.get("rowId")
+            user = data.get("user")
+
+            async_to_sync(self.channel_layer.group_send)(
+                self.group_name,
+                {
+                    "type": "refresh_request_confirmacion",  # 👈 coincide con el handler
+                    "rowId": row_id,
+                    "user": user,
+                }
+            )
+
+        if event_type == "update_tarjeta":
+            row_id = data.get("rowId")
+            value = data.get("value")
+            user = data.get("user")
+
+            async_to_sync(self.channel_layer.group_send)(
+                self.group_name,
+                {
+                    "type": "update_tarjeta",
+                    "rowId": row_id,
+                    "value": value,
+                    "user": user,
+                }
+            )
+
+        if event_type == "update_archivo_pdf":
+            print("📤 update_archivo_pdf recibido en backend:")
+            row_id = data.get("rowId")
+            new_value = data.get("value")
+            user = data.get("user")
+
+            #Reenviar a todos los clientes conectados
+            async_to_sync(self.channel_layer.group_send)(
+                self.group_name,
+                {
+                    "type": "update_archivo_pdf",  # 👈 debe coincidir con el handler abajo
+                    "user": user,
+                    "rowId": row_id,
+                    "value": new_value,
+                }
+            )
+
+        if event_type == "refresh_request_pdf":
+            row_id = data.get("rowId")
+            user = data.get("user")
+
+            async_to_sync(self.channel_layer.group_send)(
+                self.group_name,
+                {
+                    "type": "refresh_request_pdf",  # 👈 coincide con el handler
+                    "rowId": row_id,
+                    "user": user,
+                }
+            )
+    def refresh_request_pdf(self, event):
+        self.send(text_data=json.dumps({
+            "type": "refresh_request_pdf",
+            "rowId": event["rowId"],
+            "user": event["user"],
+        }))
+
+    def update_tarjeta(self, event):
+        self.send(text_data=json.dumps({
+            "type": "update_tarjeta",
+            "rowId": event["rowId"],
+            "value": event["value"],
+            "user": event["user"],
+        }))
+
+    def update_archivo_pdf(self, event):
+        self.send(text_data=json.dumps({
+            "type": "update_archivo_pdf",
+            "rowId": event["rowId"],
+            "value": event["value"],
+            "user": event["user"],
+        }))
+
+    def refresh_request_confirmacion(self, event):
+        self.send(text_data=json.dumps({
+            "type": "refresh_request_confirmacion",
+            "rowId": event["rowId"],
+            "user": event["user"],
+        }))
+
+    def delete_local_file(self, event):
+        self.send(text_data=json.dumps({
+            "type": "delete_local_file",
+            "rowId": event["rowId"],
+            "user": event["user"],
+        }))
+
+    def update_archivo(self, event):
+        self.send(text_data=json.dumps({
+            "type": "update_archivo",
+            "rowId": event["rowId"],
+            "value": event["value"],
+            "user": event["user"],
+        }))
+
+    def update_comision_proveedor(self, event):
+        self.send(text_data=json.dumps({
+            "type": "update_comision_proveedor",
+            "rowId": event["rowId"],
+            "value": event["value"],
+            "user": event["user"],
+        }))
+
+    def update_proveedores(self, event):
+        self.send(text_data=json.dumps({
+            "type": "update_proveedores",
+            "user": event["user"],
+            "rowId": event["rowId"],
+            "value": event["value"],
+        }))
+
     # Este método se llama para todos los clientes del grupo
     def cell_update(self, event):
         self.send(text_data=json.dumps({
