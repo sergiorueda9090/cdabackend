@@ -349,6 +349,19 @@ class TableConsumer(WebsocketConsumer):
                     "user": user,
                 }
             )
+        
+        if event_type == "refresh_request_cotizador":
+            row_id = data.get("rowId")
+            user   = data.get("user")
+
+            async_to_sync(self.channel_layer.group_send)(
+                self.group_name,
+                {
+                    "type": "refresh_request_cotizador",  # 👈 coincide con el handler
+                    "rowId": row_id,
+                    "user": user,
+                }
+            )
 
         if event_type == "update_tarjeta":
             row_id = data.get("rowId")
@@ -394,9 +407,40 @@ class TableConsumer(WebsocketConsumer):
                     "user": user,
                 }
             )
+
+        if event_type == "update_placa":
+            row_id = data.get("rowId")
+            value = data.get("value")
+            user = data.get("user")
+
+            async_to_sync(self.channel_layer.group_send)(
+                self.group_name,
+                {
+                    "type": "update_placa",
+                    "rowId": row_id,
+                    "value": value,
+                    "user": user,
+                }
+            )
+
+    def update_placa(self, event):
+        self.send(text_data=json.dumps({
+            "type": "update_placa",
+            "rowId": event["rowId"],
+            "value": event["value"],
+            "user": event["user"],
+        }))
+        
     def refresh_request_pdf(self, event):
         self.send(text_data=json.dumps({
             "type": "refresh_request_pdf",
+            "rowId": event["rowId"],
+            "user": event["user"],
+        }))
+
+    def refresh_request_cotizador(self, event):
+        self.send(text_data=json.dumps({
+            "type": "refresh_request_cotizador",
             "rowId": event["rowId"],
             "user": event["user"],
         }))
