@@ -140,7 +140,8 @@ class ChatConsumer(WebsocketConsumer):
         self.send(text_data=json.dumps(event))
 
 
-
+rowSelections = {}
+cellSelections = {}
 class TableConsumer(WebsocketConsumer):
     def connect(self):
         token = self.scope['query_string'].decode().split('=')[1]  # tu token JWT
@@ -162,18 +163,34 @@ class TableConsumer(WebsocketConsumer):
         async_to_sync(self.channel_layer.group_add)(self.group_name, self.channel_name)
         self.accept()
 
+        self.send(text_data=json.dumps({
+            "type": "initial_state",
+            "rowSelections": rowSelections,
+            "cellSelections": cellSelections,
+        }))
+
     def disconnect(self, close_code):
         async_to_sync(self.channel_layer.group_discard)(self.group_name, self.channel_name)
 
     def receive(self, text_data=None, bytes_data=None):
         data = json.loads(text_data)
         event_type = data.get("type")
-        print("📥 Evento recibido en backend:", event_type, data)
+
         if event_type == "cell_click":
-            print("📤 cell_click recibido en backend:", data)
             row_id = data.get("rowId")
             column = data.get("column")
-            # Enviar evento a todos los clientes del grupo
+
+            # Quitar selecciones previas de este usuario
+            for cid, users in list(cellSelections.items()):
+                cellSelections[cid] = [u for u in users if u["user"] != self.user.username]
+                if not cellSelections[cid]:
+                    del cellSelections[cid]
+
+            # Guardar solo la última selección del usuario
+            cell_id = f"{row_id}-{column}"
+            cellSelections[cell_id] = [{"user": self.user.username}]
+
+            # Notificar a todos
             async_to_sync(self.channel_layer.group_send)(
                 self.group_name,
                 {
@@ -181,6 +198,47 @@ class TableConsumer(WebsocketConsumer):
                     "user": self.user.username,
                     "rowId": row_id,
                     "column": column,
+                }
+            )
+
+
+        if event_type == "row_select":
+            row_id = data.get("rowId")
+
+            # Quitar selecciones previas de este usuario
+            for rid, users in list(rowSelections.items()):
+                rowSelections[rid] = [u for u in users if u["user"] != self.user.username]
+                if not rowSelections[rid]:
+                    del rowSelections[rid]
+
+            # Guardar solo la última fila seleccionada
+            rowSelections[row_id] = [{"user": self.user.username}]
+
+            async_to_sync(self.channel_layer.group_send)(
+                self.group_name,
+                {
+                    "type": "row_update",
+                    "action": "select",
+                    "user": self.user.username,
+                    "rowId": row_id,
+                }
+            )
+
+        if event_type == "row_unselect":
+            row_id = data.get("rowId")
+
+            if row_id in rowSelections:
+                rowSelections[row_id] = [u for u in rowSelections[row_id] if u["user"] != self.user.username]
+                if not rowSelections[row_id]:
+                    del rowSelections[row_id]
+
+            async_to_sync(self.channel_layer.group_send)(
+                self.group_name,
+                {
+                    "type": "row_update",
+                    "action": "unselect",
+                    "user": self.user.username,
+                    "rowId": row_id,
                 }
             )
 
@@ -422,6 +480,13 @@ class TableConsumer(WebsocketConsumer):
                     "user": user,
                 }
             )
+
+    def row_update(self, event):
+        self.send(text_data=json.dumps({
+            "type": "row_" + event["action"],  # devuelve "row_select" o "row_unselect"
+            "user": event["user"],
+            "rowId": event["rowId"],
+        }))
 
     def update_placa(self, event):
         self.send(text_data=json.dumps({
