@@ -324,6 +324,7 @@ class TableConsumer(WebsocketConsumer):
             )
 
         if event_type == "refresh_request":
+            print("📤 refresh_request recibido en backend:")
             async_to_sync(self.channel_layer.group_send)(
                 self.group_name,
                 {
@@ -409,6 +410,7 @@ class TableConsumer(WebsocketConsumer):
             )
         
         if event_type == "refresh_request_cotizador":
+            print("📤 refresh_request_cotizador recibido en backend:")
             row_id = data.get("rowId")
             user   = data.get("user")
 

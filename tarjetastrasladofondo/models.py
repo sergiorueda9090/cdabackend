@@ -17,9 +17,9 @@ class Tarjetastrasladofondo(models.Model):
     )
     fecha_ingreso     = models.DateTimeField(default=now, editable=False, verbose_name="Fecha de Ingreso")
     fecha_transaccion = models.DateTimeField(default=now, editable=False, verbose_name="Fecha de Transacción")
-    valor = models.TextField(verbose_name="Valor")
-    cuatro_por_mil = models.TextField(null=True, blank=True)
-    observacion = models.TextField(blank=True, null=True, verbose_name="Observación")
+    valor             = models.TextField(verbose_name="Valor")
+    cuatro_por_mil    = models.TextField(null=True, blank=True)
+    observacion       = models.TextField(blank=True, null=True, verbose_name="Observación")
 
     def __str__(self):
         return f"Traslado {self.valor} el {self.fecha_transaccion} de {self.id_tarjeta_bancaria_envia} → {self.id_tarjeta_bancaria_recibe}"

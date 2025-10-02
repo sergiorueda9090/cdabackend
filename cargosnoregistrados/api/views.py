@@ -88,7 +88,7 @@ def crear_cargosnoregistrados(request):
     if tarjeta.is_daviplata:
         cuatro_por_mil = 0
     else:
-        cuatro_por_mil = int(abs(valor) * 0.004)
+        cuatro_por_mil = 0 #int(abs(valor) * 0.004)
 
     devolucionCreate = Cargosnodesados.objects.create(
         id_cliente=cliente,  # 👉 si no hay cliente, va como None
@@ -163,7 +163,7 @@ def actualizar_cargosnoregistrados(request, pk):
     if tarjeta.is_daviplata:
         cargoNoDeseadoGet.cuatro_por_mil = 0
     else:
-        cargoNoDeseadoGet.cuatro_por_mil = int(abs(valor) * 0.004)
+        cargoNoDeseadoGet.cuatro_por_mil = 0 #int(abs(valor) * 0.004)
                                        
     cargoNoDeseadoGet.save()
     print(" cargoNoDeseadoGet ",cargoNoDeseadoGet)
