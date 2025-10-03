@@ -156,7 +156,7 @@ def actualizar_cargosnoregistrados(request, pk):
     valor = request.data.get("valor", cargoNoDeseadoGet.valor)  # Obtener el valor del request o mantener el actual
     if isinstance(valor, str):  # Si el valor es una cadena, limpiarlo
         valor = int(valor.replace(".", ""))  # Eliminar separadores de miles y convertir a número
-    cargoNoDeseadoGet.valor =  -abs(valor)  # Asegurar que siempre sea negativo
+    cargoNoDeseadoGet.valor = abs(valor) #-abs(valor)  # Asegurar que siempre sea negativo
     
     cargoNoDeseadoGet.observacion = request.data.get("observacion", cargoNoDeseadoGet.observacion)
 
@@ -227,3 +227,51 @@ def listar_cargosnoregistrados_filtro(request):
         cargonodeseado_pago_data.append(cargonodeseado_data)
 
     return Response(cargonodeseado_pago_data, status=status.HTTP_200_OK)
+
+
+
+@api_view(['GET'])
+def listar_cargosnoregistrados_cliente_filtro(request):
+    from datetime import datetime, time
+    fecha_inicio_str = request.GET.get('fechaInicio')
+    fecha_fin_str    = request.GET.get('fechaFin')
+    id_cliente       = request.GET.get('id_cliente')
+
+    filtros = {}
+
+    # Si vienen las fechas en los parámetros
+    if fecha_inicio_str and fecha_fin_str:
+        try:
+            fecha_inicio_date = parse_date(fecha_inicio_str)
+            fecha_fin_date = parse_date(fecha_fin_str)
+
+            fecha_inicio = datetime.combine(fecha_inicio_date, time.min)  
+            fecha_fin = datetime.combine(fecha_fin_date, time.max)        
+
+            filtros['fecha_transaccion__range'] = [fecha_inicio, fecha_fin]
+
+        except (ValueError, TypeError):
+            return Response(
+                {'error': 'Formato de fecha inválido. Use YYYY-MM-DD.'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+    # Si viene id_cliente
+    if id_cliente:
+        filtros['id_cliente_id'] = id_cliente
+
+    # Consulta con filtros dinámicos
+    cargos = Cargosnodesados.objects.filter(**filtros)
+    resultado = []
+
+    for cargo in cargos:
+        cliente = get_object_or_404(Cliente, id=cargo.id_cliente_id)
+
+        resultado.append({
+            "fecha_transaccion": cargo.fecha_transaccion,
+            "fecha_ingreso": cargo.fecha_ingreso,
+            "valor": abs(int(cargo.valor)),
+            "color_cliente": cliente.color
+        })
+
+    return Response(resultado, status=status.HTTP_200_OK)

@@ -10,7 +10,8 @@ from cotizador.models           import Cotizador
 from ajustesaldos.models        import Ajustesaldo
 from devoluciones.models        import Devoluciones
 from django.db.models           import Sum
-
+from cargosnoregistrados.models import Cargosnodesados
+from cargosnoregistrados.api.serializers import CargosNoRegistradosSerializer
 from rest_framework.permissions import IsAuthenticated
 
 
@@ -154,37 +155,44 @@ def obtener_recepcion_pago(request, pk):
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 @api_view(['GET'])
-#@permission_classes([IsAuthenticated])
 def obtener_recepcion_pago_cliente(request, pk):
     recepciones = RecepcionPago.objects.filter(cliente_id=pk)
+    cargosnodeseado = Cargosnodesados.objects.filter(id_cliente=pk)
 
     # Sumas con fallback a 0 si no existen
     cotizadores_total  = Cotizador.objects.filter(idCliente=pk).aggregate(total_sum=Sum("total"))["total_sum"] or 0
     recepciones_total  = RecepcionPago.objects.filter(cliente_id=pk).aggregate(total_sum=Sum("valor"))["total_sum"] or 0
     ajuste_total       = Ajustesaldo.objects.filter(id_cliente=pk).aggregate(total_sum=Sum("valor"))["total_sum"] or 0
     devoluciones_total = Devoluciones.objects.filter(id_cliente=pk).aggregate(total_sum=Sum("valor"))["total_sum"] or 0
+    cargos_total       = Cargosnodesados.objects.filter(id_cliente=pk).aggregate(total_sum=Sum("valor"))["total_sum"] or 0
 
-    # Asegurar devoluciones como valor positivo
     devoluciones_total = abs(devoluciones_total)
 
-    # Cálculo total
-    total_total = cotizadores_total - recepciones_total + ajuste_total + devoluciones_total
+    total_total = cotizadores_total - recepciones_total + ajuste_total + devoluciones_total + cargos_total
 
-    # 🚩 Si no hay recepciones → devolver data vacía y el total
-    if not recepciones.exists():
-        return Response({
-            "data": [],
-            "total": total_total
-        }, status=status.HTTP_200_OK)
+    # Serializar recepciones
+    serializer_recepciones = RecepcionPagoSerializer(recepciones, many=True)
+    data_recepciones = serializer_recepciones.data
 
-    # Serializar datos
-    serializer = RecepcionPagoSerializer(recepciones, many=True)
-    data = serializer.data
-
-    # Formatear el campo valor
-    for item in data:
+    # Agregar tipo e id único
+    for item in data_recepciones:
         valor = int(item.get('valor') or 0)
         item['valor'] = f"{abs(valor):,}".replace(",", ".")
+        item['tipo'] = "recepcion"
+        item['uid'] = f"recepcion_{item['id']}"
+
+    # Serializar cargos
+    serializer_cargos = CargosNoRegistradosSerializer(cargosnodeseado, many=True)
+    data_cargos       = serializer_cargos.data
+
+    for item in data_cargos:
+        valor = int(item.get('valor') or 0)
+        item['valor'] = f"{abs(valor):,}".replace(",", ".")
+        item['tipo'] = "cargo"
+        item['uid'] = f"cargo_{item['id']}"
+
+    # Unir ambos
+    data = list(data_recepciones) + list(data_cargos)
 
     return Response({
         "data": data,
