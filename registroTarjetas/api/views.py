@@ -12,6 +12,7 @@ from gastosgenerales.models   import Gastogenerales
 from utilidadocacional.models import Utilidadocacional
 from cotizador.models         import Cotizador
 from tarjetastrasladofondo.models import Tarjetastrasladofondo
+from cargosnoregistrados.models     import Cargosnodesados
 
 from django.db import models
 from django.db.models import Sum, F, Value
@@ -109,6 +110,86 @@ def eliminar_tarjeta(request, id):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@check_role(1, 2)
+def obtener_tarjetas_total(request):
+    # Verificar si todas las tablas existen antes de ejecutar consultas
+    required_models = {
+        "RegistroTarjetas": RegistroTarjetas,
+        "RecepcionPago": RecepcionPago,
+        "Devoluciones": Devoluciones,
+        "Gastogenerales": Gastogenerales,
+        "Utilidadocacional": Utilidadocacional,
+        "Tarjetastrasladofondo": Tarjetastrasladofondo,
+        "Cargosnodesados": Cargosnodesados
+    }
+
+    missing_tables = [
+        name for name, model in required_models.items() if not model._meta.db_table
+    ]
+
+    if missing_tables:
+        return Response(
+            {
+                "error": "Algunas tablas no existen en la base de datos",
+                "tablas_faltantes": missing_tables,
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    cuentas = RegistroTarjetas.objects.all()
+    serializer = RegistroTarjetasSerializer(cuentas, many=True)
+
+    for i in range(len(serializer.data)):
+        tarjeta_id = serializer.data[i]['id']
+
+        # Función para sumar valores numéricos
+        def sumar_valores(queryset):
+            return queryset.aggregate(
+                total_suma=Sum(
+                    Cast(Replace(F('valor'), Value('.'), Value('')), output_field=models.IntegerField())
+                )
+            )['total_suma'] or 0
+
+        # Consultas por tarjeta
+        rtaCuentaBancaria = sumar_valores(CuentaBancaria.objects.filter(idBanco=tarjeta_id))
+        rtaRecepcionPago = sumar_valores(RecepcionPago.objects.filter(id_tarjeta_bancaria=tarjeta_id))
+        rtaDevoluciones = sumar_valores(Devoluciones.objects.filter(id_tarjeta_bancaria=tarjeta_id))
+        rtaGastogenerales = sumar_valores(Gastogenerales.objects.filter(id_tarjeta_bancaria=tarjeta_id))
+        rtaUtilidadocacional = sumar_valores(Utilidadocacional.objects.filter(id_tarjeta_bancaria=tarjeta_id))
+        rtaTarjetastrasladofondoResta = sumar_valores(Tarjetastrasladofondo.objects.filter(id_tarjeta_bancaria_envia=tarjeta_id))
+        rtaTarjetastrasladofondoSuma = sumar_valores(Tarjetastrasladofondo.objects.filter(id_tarjeta_bancaria_recibe=tarjeta_id))
+        rtaCargosnodesados = sumar_valores(Cargosnodesados.objects.filter(id_tarjeta_bancaria=tarjeta_id))
+
+        # 🔹 Sumar Cargosnodeseados al total general
+        total_general = (
+            rtaCuentaBancaria +
+            rtaRecepcionPago +
+            rtaDevoluciones +
+            rtaGastogenerales +
+            rtaUtilidadocacional -
+            rtaTarjetastrasladofondoResta +
+            rtaTarjetastrasladofondoSuma +
+            rtaCargosnodesados
+        )
+
+        print(
+            f"""
+            rtaRecepcionPago: {rtaRecepcionPago}
+            rtaDevoluciones: {rtaDevoluciones}
+            rtaGastogenerales: {rtaGastogenerales}
+            rtaUtilidadocacional: {rtaUtilidadocacional}
+            rtaCargosnodesados: {rtaCargosnodesados}
+            total_general: {total_general}
+            """
+        )
+
+        serializer.data[i]['valor'] = total_general
+
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+"""
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 @check_role(1,2)
 def obtener_tarjetas_total(request):
     # Verificar si todas las tablas existen antes de ejecutar consultas
@@ -119,6 +200,7 @@ def obtener_tarjetas_total(request):
         "Gastogenerales"   : Gastogenerales,
         "Utilidadocacional": Utilidadocacional,
         "Tarjetastrasladofondo":Tarjetastrasladofondo,
+        "Cargosnodesados"  : Cargosnodesados
     }
 
     missing_tables = [name for name, model in required_models.items() if not model._meta.db_table]
@@ -220,7 +302,7 @@ def obtener_tarjetas_total(request):
         serializer.data[i]['valor'] = total_general
 
     return Response(serializer.data, status=status.HTTP_200_OK)
-
+"""
 
 
 @api_view(['PUT'])

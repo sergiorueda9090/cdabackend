@@ -511,7 +511,11 @@ def obtener_datos_cuenta(request, id):
         desc_alias=F('observacion'),
         valor_alias=ExpressionWrapper(F('valor') * -1, output_field=DecimalField()),
         id_tarjeta=F('id_tarjeta_bancaria_envia'),
-        origen=Value('Tarjeta Cuenta origen', output_field=CharField()),
+        origen=Concat(
+            Value('Tarjeta Cuenta origen - '),
+            F('id_tarjeta_bancaria_envia__nombre_cuenta'),
+            output_field=CharField()
+        ),
         id_cotizador=Value(None, output_field=IntegerField()),
         placa=Value(None, output_field=IntegerField()),
         cliente_nombre=Value('', output_field=CharField()),
@@ -524,7 +528,11 @@ def obtener_datos_cuenta(request, id):
         desc_alias=F('observacion'),
         valor_alias=F('valor'),
         id_tarjeta=F('id_tarjeta_bancaria_recibe'),
-        origen=Value('Tarjeta Cuenta destino', output_field=CharField()),
+        origen=Concat(
+            Value('Tarjeta Cuenta destino - '),
+            F('id_tarjeta_bancaria_recibe__nombre_cuenta'),
+            output_field=CharField()
+        ),
         id_cotizador=Value(None, output_field=IntegerField()),
         placa=Value(None, output_field=IntegerField()),
         cliente_nombre=Value('', output_field=CharField()),

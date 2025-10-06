@@ -78,10 +78,6 @@ def create_cotizador(request):
 @check_role(1, 2, 3)
 def create_cotizador_excel(request):
     registros = request.data.get("registros", [])
-    print("📌 Request recibido en el backend")
-    print("📩 Raw data:", request.data)
-    print("📩 registros:", registros)
-    print(f"✅ Total de registros recibidos: {len(registros)}")
 
     if not registros or not isinstance(registros, list):
         return Response(
@@ -93,13 +89,25 @@ def create_cotizador_excel(request):
     errores = []
 
     for idx, registro in enumerate(registros, start=1):
+
         print(f"➡️ Procesando registro {idx}: {registro.get('nombre_cliente')}")
+        
         if not registro.get('nombre_cliente'):
             errores.append({"fila": idx, "error": "El campo 'nombre_cliente' es obligatorio."})
             continue
+
         if not registro.get('nombre_cliente', '').strip():
             errores.append({"fila": idx, "error": "El campo 'nombre_cliente' no puede estar vacío."})
             continue
+
+        if not registro.get('nombre_completo'):
+            errores.append({"fila": idx, "error": "El campo 'nombre_completo' es obligatorio."})
+            continue
+
+        if not registro.get('nombre_completo', '').strip():
+            errores.append({"fila": idx, "error": "El campo 'nombre_completo' no puede estar vacío."})
+            continue
+
         # Buscar cliente por nombre
         cliente = Cliente.objects.filter(nombre=registro.get('nombre_cliente'))
         if cliente.exists():
@@ -124,8 +132,8 @@ def create_cotizador_excel(request):
             if 'etiqueta' in data:
                 data['etiquetaDos'] = data.pop('etiqueta')
 
-            if 'nombre_cliente' in data:
-                data['nombreCompleto'] = data.pop('nombre_cliente')
+            if 'nombre_completo' in data:
+                data['nombreCompleto'] = data.pop('nombre_completo')
 
             if 'numero_documento' in data:
                 data['numeroDocumento'] = data.pop('numero_documento')
@@ -133,8 +141,6 @@ def create_cotizador_excel(request):
             if 'tipo_documento' in data:
                 data['tipoDocumento'] = data.pop('tipo_documento')
             
-            print("📩 Datos procesados:", data)
-
             placa = data.get('placa')
             if not placa:
                 errores.append({"fila": idx, "error": "El campo 'placa' es obligatorio."})
@@ -184,43 +190,6 @@ def create_cotizador_excel(request):
         status=status.HTTP_201_CREATED
     )
 
-"""
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-@check_role(1,2,3)
-def create_cotizador(request):
-    data = request.data.copy()
-    data['idUsuario'] = request.user.id
-    data['cotizadorModulo'] = 1
-
-    current_year = datetime.now().year
-    start_of_year = datetime(current_year, 1, 1)
-    end_of_year = datetime(current_year, 12, 31, 23, 59, 59)
-
-    placa = data.get('placa')
-    if Cotizador.objects.filter(placa=placa, fechaCreacion__range=(start_of_year, end_of_year)).exists():
-        return Response(
-            {"error": f"La placa '{placa}' ya ha sido registrada este año.", "status": 500},
-            status=status.HTTP_200_OK
-        )
-
-    serializer = CotizadorSerializer(data=data)
-    if serializer.is_valid():
-        cotizador = serializer.save()
-        LogCotizador.objects.create(
-            idUsuario=request.user.id,
-            idCliente=data.get('idCliente'),
-            accion='crear',
-            antiguoValor='',
-            nuevoValor=str(serializer.data),
-            idCotizador=cotizador.id
-        )
-        response_data = serializer.data
-        response_data['idCotizador'] = cotizador.id
-
-        return Response(response_data, status=status.HTTP_201_CREATED)
-
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)"""
 
 
 @api_view(['GET'])
