@@ -370,13 +370,15 @@ def obtener_balancegeneral(request):
         rtaDevoluciones['total_suma']        = rtaDevoluciones['total_suma']      if rtaDevoluciones['total_suma']       is not None else 0
         rtaGastogenerales['total_suma']      = rtaGastogenerales['total_suma']    if rtaGastogenerales['total_suma']     is not None else 0
         rtaUtilidadocacional['total_suma']   = rtaUtilidadocacional['total_suma'] if rtaUtilidadocacional['total_suma']  is not None else 0
+        rtaCargosNoDeseados['total_suma']    = rtaCargosNoDeseados['total_suma']  if rtaCargosNoDeseados['total_suma']   is not None else 0
 
         total_general = (
             rtaCuentaBancaria['total_suma'] +
             rtaRecepcionPago['total_suma'] +
             rtaDevoluciones['total_suma'] +
             rtaGastogenerales['total_suma'] +
-            rtaUtilidadocacional['total_suma']
+            rtaUtilidadocacional['total_suma'] +
+            rtaCargosNoDeseados['total_suma']
         )
         print("rtaRecepcionPago : {}\nrtaDevoluciones: {}\nrtaGastogenerales: {}\nrtaUtilidadocacional: {}\ntotal_general: {}"
             .format(rtaRecepcionPago, rtaDevoluciones, rtaGastogenerales, rtaUtilidadocacional, total_general))
@@ -388,14 +390,14 @@ def obtener_balancegeneral(request):
         serializer.data[i]['valor'] = total_general
         serializer.data[i]['origen'] = 'tarjetas'
 
-    # ✅ Llamar a la función que devuelve valores de clientes
+    #Llamar a la función que devuelve valores de clientes
     valores_clientes = get_all_ficha_cliente(fecha_inicio, fecha_fin)
     valores_gastos   = listar_gastos_generales(fecha_inicio, fecha_fin)
     fichas_proveedor = get_all_fecha_proveedores(fecha_inicio, fecha_fin)
     utilidades       = get_ficha_utilidades(fecha_inicio, fecha_fin)
   
-    total_saldo_clientes = sum(safe_to_float(item['valor']) for item in valores_clientes)
-    total_gastos_generales = sum(safe_to_float(item['valor']) for item in valores_gastos)
+    total_saldo_clientes    = sum(safe_to_float(item['valor']) for item in valores_clientes)
+    total_gastos_generales  = sum(safe_to_float(item['valor']) for item in valores_gastos)
     total_comisiones_proveedores = sum(safe_to_float(item['valor']) for item in fichas_proveedor)
     total_tarjetas = sum(item['valor'] for item in serializer.data if isinstance(item['valor'], (int, float)))
     
