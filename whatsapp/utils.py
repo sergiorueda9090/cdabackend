@@ -2,6 +2,7 @@ import requests
 from decouple import config
 from django.core.mail import send_mail, BadHeaderError, EmailMultiAlternatives
 from django.template.loader import render_to_string
+from datetime import datetime
 
 def enviar_mensaje_whatsapp(telefono, mensaje):
     """
@@ -35,8 +36,7 @@ def enviar_mensaje_whatsapp(telefono, mensaje):
         # Envío de la solicitud
         response = requests.post(url, headers=headers, json=payload)
         # Imprimir respuesta completa
-        print("Código de estado:", response.status_code)
-        print("Cuerpo de la respuesta:", response.json())
+
         # Verificar la respuesta
         if response.status_code == 200:
             return {"success": True, "message": "Mensaje enviado correctamente."}
@@ -103,26 +103,68 @@ def enviar_documento_whatsapp(telefono, link_documento, caption=None):
         return {"success": False, "error": f"Excepción ocurrida: {str(e)}"}
     
 
-def send_email(email, pdf):
-    """
-    Envía un correo HTML con link al PDF usando WorkMail SMTP
-    """
-    subject = 'CDA Movilidad 2 A'
-    from_email = 'tramites@movilidad2a.com'
-    to = [email]
+# def send_email(email, pdf):
+#     """
+#     Envía un correo HTML con link al PDF usando WorkMail SMTP
+#     """
+#     subject = 'CDA Movilidad 2 A'
+#     from_email = 'tramites@movilidad2a.com'
+#     to = [email]
 
-    # Renderiza plantilla HTML (puedes crear tu archivo email_template.html)
-    html_content = render_to_string('email_template.html', {'pdf_url': pdf})
+#     # Renderiza plantilla HTML (puedes crear tu archivo email_template.html)
+#     html_content = render_to_string('email_template.html', {'pdf_url': pdf})
+
+#     try:
+#         # Crear correo con HTML
+#         msg = EmailMultiAlternatives(subject, 'Si no puedes ver el correo, revisa en HTML', from_email, to)
+#         msg.attach_alternative(html_content, "text/html")
+#         msg.send(fail_silently=False)
+#         print("Correo enviado correctamente")
+#         return True
+#     except BadHeaderError:
+#         print("Error: encabezado inválido en el correo")
+#         return False
+#     except Exception as e:
+#         print(f"Error al enviar correo: {e}")
+#         return False
+
+
+def send_email(email, pdf_url, placa_te):
+    """
+    Envía un correo HTML con el PDF adjunto descargado desde una URL
+    """
+    subject     = f'Placa {placa_te} - SOAT emitido con éxito'
+    from_email  = 'tramites@movilidad2a.com'
+    to          = [email]
+
+    # Renderizar la plantilla HTML
+    html_content = render_to_string('email_template.html', {
+        'placa': placa_te,
+        'year': datetime.now().year,
+    })
 
     try:
-        # Crear correo con HTML
-        msg = EmailMultiAlternatives(subject, 'Si no puedes ver el correo, revisa en HTML', from_email, to)
+        # Descargar el PDF desde la URL
+        response = requests.get(pdf_url)
+        response.raise_for_status()  # lanza excepción si no se descarga correctamente
+        pdf_content = response.content
+
+        # Crear correo
+        msg = EmailMultiAlternatives(subject, 'SOAT emitido con éxito', from_email, to)
         msg.attach_alternative(html_content, "text/html")
+
+        # Adjuntar el PDF descargado
+        msg.attach(f"SOAT_{placa_te}.pdf", pdf_content, 'application/pdf')
+
         msg.send(fail_silently=False)
-        print("Correo enviado correctamente")
+        print("Correo enviado correctamente ✅")
         return True
+
     except BadHeaderError:
-        print("Error: encabezado inválido en el correo")
+        print("Error: encabezado inválido en el correo ❌")
+        return False
+    except requests.exceptions.RequestException as e:
+        print(f"Error al descargar el PDF: {e}")
         return False
     except Exception as e:
         print(f"Error al enviar correo: {e}")

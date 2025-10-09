@@ -14,6 +14,7 @@ from django.shortcuts           import get_object_or_404
 from cotizador.api.serializers  import CotizadorSerializer, LogCotizadorSerializer
 from cotizador.models           import Cotizador
 from django.db.models import ProtectedError
+from django.db.models import Q
 
 # Obtener todos los clientes
 @api_view(['GET'])
@@ -24,6 +25,28 @@ def get_clientes(request):
         clientes   = Cliente.objects.all()
         serializer = ClienteSerializer(clientes, many=True)
         return JsonResponse(serializer.data, safe=False, status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+@check_role(1)
+def get_clientes_search(request):
+    """
+    Retorna todos los clientes o filtra por parámetro 'q' (nombre, apellidos, email o teléfono)
+    """
+    search_query = request.GET.get('q', '').strip()
+
+    if search_query:
+        clientes = Cliente.objects.filter(
+            Q(nombre__icontains=search_query) |
+            Q(apellidos__icontains=search_query) |
+            Q(email__icontains=search_query) |
+            Q(telefono__icontains=search_query)
+        ).order_by('-fecha_creacion')
+    else:
+        clientes = Cliente.objects.all().order_by('-fecha_creacion')
+
+    serializer = ClienteSerializer(clientes, many=True)
+    return JsonResponse(serializer.data, safe=False, status=status.HTTP_200_OK)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])

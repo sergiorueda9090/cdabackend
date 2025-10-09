@@ -1,13 +1,128 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-    <meta charset="utf-8">
-    <title>Documento PDF</title>
+    <meta charset="UTF-8">
+    <title>SOAT Emitido con Éxito</title>
+    <style>
+        /* Estilos básicos */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', sans-serif;
+            background-color: #f5f7fa;
+        }
+
+        /* Contenedor general con imagen de fondo */
+        .background {
+            background-image: url('https://cda.movilidad2a.com/static/media/fondoMovilidad.a3237000b0b464bb9746.jpg');
+            background-size: cover;
+            background-repeat: no-repeat;
+            background-position: center;
+            padding: 40px 0;
+            width: 100%;
+        }
+
+        /* Tarjeta central */
+        .container {
+            max-width: 650px;
+            background-color: rgba(255, 255, 255, 0.95);
+            margin: auto;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .header {
+            background-color: #0b5ed7;
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 22px;
+            letter-spacing: 0.5px;
+        }
+
+        .content {
+            padding: 25px 30px;
+            color: #444;
+            line-height: 1.6;
+            background-color: transparent;
+        }
+
+        .content p {
+            margin-bottom: 15px;
+        }
+
+        .highlight {
+            color: #0b5ed7;
+            font-weight: bold;
+        }
+
+        .footer {
+            background-color: #f1f3f6;
+            text-align: center;
+            font-size: 13px;
+            color: #777;
+            padding: 15px;
+        }
+
+        .contact-info {
+            margin-top: 20px;
+            font-size: 14px;
+            line-height: 1.5;
+            color: #333;
+        }
+
+        a {
+            color: #0b5ed7;
+            text-decoration: none;
+        }
+
+        @media screen and (max-width: 600px) {
+            .container {
+                width: 90%;
+            }
+        }
+    </style>
 </head>
 <body>
-    <p>Hola,</p>
-    <p>Se ha generado un nuevo documento para ti. Puedes descargarlo haciendo clic en el siguiente enlace:</p>
-    <p><a href="{{ pdf_url }}" target="_blank">Descargar documento PDF</a></p>
-    <p>Gracias por usar nuestro servicio.</p>
+    <div class="background">
+        <div class="container">
+            <div class="header">
+                <h1>SOAT Emitido con Éxito</h1>
+            </div>
+
+            <div class="content">
+                <p>Estimado cliente,</p>
+
+                <p>Nos complace informarle que el SOAT correspondiente a la placa 
+                    <span class="highlight">{{ placa }}</span> ha sido emitido con éxito.</p>
+
+                <p>En este correo encontrará adjunto el archivo en formato <strong>PDF</strong>, 
+                disponible para su descarga y posterior entrega al usuario final.</p>
+
+                <p>Agradecemos la confianza depositada en <strong>Movilidad 2A</strong> para la gestión de este trámite. 
+                Continuaremos trabajando para brindarle procesos seguros, ágiles y confiables, 
+                respaldando la operación de su empresa y facilitando la atención a sus clientes.</p>
+
+                <p><em>¡En Movilidad, te la ponemos fácil!</em></p>
+
+                <div class="contact-info">
+                    <p><strong>Atentamente,</strong><br>
+                    Equipo Movilidad 2A<br>
+                    <a href="mailto:tramites@movilidad2a.com">tramites@movilidad2a.com</a><br>
+                    +57 310 4131542<br>
+                    +57 304 4841122</p>
+                </div>
+            </div>
+
+            <div class="footer">
+                © {{ year }} Movilidad 2A. Todos los derechos reservados.
+            </div>
+        </div>
+    </div>
 </body>
 </html>

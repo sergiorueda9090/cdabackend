@@ -73,6 +73,123 @@ def create_cotizador(request):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+# @api_view(['POST'])
+# @permission_classes([IsAuthenticated])
+# @check_role(1, 2, 3)
+# def create_cotizador_excel(request):
+#     registros = request.data.get("registros", [])
+
+#     if not registros or not isinstance(registros, list):
+#         return Response(
+#             {"error": "Se esperaba un array de registros"},
+#             status=status.HTTP_400_BAD_REQUEST
+#         )
+
+#     resultados = []
+#     errores = []
+
+#     for idx, registro in enumerate(registros, start=1):
+
+#         print(f"➡️ Procesando registro {idx}: {registro.get('nombre_cliente')}")
+        
+#         if not registro.get('nombre_cliente'):
+#             errores.append({"fila": idx, "error": "El campo 'nombre_cliente' es obligatorio."})
+#             continue
+
+#         if not registro.get('nombre_cliente', '').strip():
+#             errores.append({"fila": idx, "error": "El campo 'nombre_cliente' no puede estar vacío."})
+#             continue
+
+#         if not registro.get('nombre_completo'):
+#             errores.append({"fila": idx, "error": "El campo 'nombre_completo' es obligatorio."})
+#             continue
+
+#         if not registro.get('nombre_completo', '').strip():
+#             errores.append({"fila": idx, "error": "El campo 'nombre_completo' no puede estar vacío."})
+#             continue
+
+#         # Buscar cliente por nombre
+#         cliente = Cliente.objects.filter(nombre=registro.get('nombre_cliente'))
+#         if cliente.exists():
+#             registro['idCliente'] = cliente.first().id
+#         else:
+#             errores.append({"fila": idx, "error": f"Cliente '{registro.get('nombre_cliente')}' no encontrado."})
+#             continue
+
+#         # Buscar etiqueta por nombre
+#         etiqueta = Etiqueta.objects.filter(nombre=registro.get('etiqueta'))
+#         if etiqueta.exists():
+#             registro['idEtiqueta'] = etiqueta.first().id
+#         else:
+#             errores.append({"fila": idx, "error": f"Etiqueta '{registro.get('etiqueta')}' no encontrada."})
+#             continue
+
+#         try:
+#             data = registro.copy()
+#             data['idUsuario'] = request.user.id
+#             data['cotizadorModulo'] = 1
+
+#             if 'etiqueta' in data:
+#                 data['etiquetaDos'] = data.pop('etiqueta')
+
+#             if 'nombre_completo' in data:
+#                 data['nombreCompleto'] = data.pop('nombre_completo')
+
+#             if 'numero_documento' in data:
+#                 data['numeroDocumento'] = data.pop('numero_documento')
+
+#             if 'tipo_documento' in data:
+#                 data['tipoDocumento'] = data.pop('tipo_documento')
+            
+#             placa = data.get('placa')
+#             if not placa:
+#                 errores.append({"fila": idx, "error": "El campo 'placa' es obligatorio."})
+#                 continue
+
+#             # ✅ Validación: 10 meses desde el último registro
+#             ultimo_registro = Cotizador.objects.filter(placa=placa).order_by('-fechaCreacion').first()
+#             if ultimo_registro:
+#                 fecha_limite = agregar_meses(ultimo_registro.fechaCreacion, 10)
+#                 if datetime.now() < fecha_limite:
+#                     errores.append({
+#                         "fila": idx,
+#                         "error": f"La placa '{placa}' ya fue registrada. Deben pasar al menos 10 meses para volver a registrarla."
+#                     })
+#                     continue
+
+#             # ✅ Guardar cotizador
+#             serializer = CotizadorSerializer(data=data)
+#             if serializer.is_valid():
+#                 cotizador = serializer.save()
+#                 LogCotizador.objects.create(
+#                     idUsuario=request.user.id,
+#                     idCliente=data.get('idCliente'),
+#                     accion='crear',
+#                     antiguoValor='',
+#                     nuevoValor=str(serializer.data),
+#                     idCotizador=cotizador.id
+#                 )
+#                 resultado = serializer.data
+#                 resultado['idCotizador'] = cotizador.id
+#                 resultados.append(resultado)
+#             else:
+#                 errores.append({"fila": idx, "error": serializer.errors})
+
+#         except Exception as e:
+#             print("❌ Error en el backend:", str(e))
+#             errores.append({"fila": idx, "error": str(e)})
+
+#     if errores:
+#         return Response(
+#             {"success": False, "guardados": resultados, "errores": errores},
+#             status=status.HTTP_207_MULTI_STATUS  # ⚡ respuesta mixta
+#         )
+
+#     return Response(
+#         {"success": True, "guardados": resultados},
+#         status=status.HTTP_201_CREATED
+#     )
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 @check_role(1, 2, 3)
@@ -91,7 +208,8 @@ def create_cotizador_excel(request):
     for idx, registro in enumerate(registros, start=1):
 
         print(f"➡️ Procesando registro {idx}: {registro.get('nombre_cliente')}")
-        
+
+        # Validaciones básicas
         if not registro.get('nombre_cliente'):
             errores.append({"fila": idx, "error": "El campo 'nombre_cliente' es obligatorio."})
             continue
@@ -108,7 +226,7 @@ def create_cotizador_excel(request):
             errores.append({"fila": idx, "error": "El campo 'nombre_completo' no puede estar vacío."})
             continue
 
-        # Buscar cliente por nombre
+        # 🔍 Buscar cliente por nombre
         cliente = Cliente.objects.filter(nombre=registro.get('nombre_cliente'))
         if cliente.exists():
             registro['idCliente'] = cliente.first().id
@@ -116,7 +234,7 @@ def create_cotizador_excel(request):
             errores.append({"fila": idx, "error": f"Cliente '{registro.get('nombre_cliente')}' no encontrado."})
             continue
 
-        # Buscar etiqueta por nombre
+        # 🔍 Buscar etiqueta por nombre
         etiqueta = Etiqueta.objects.filter(nombre=registro.get('etiqueta'))
         if etiqueta.exists():
             registro['idEtiqueta'] = etiqueta.first().id
@@ -140,13 +258,19 @@ def create_cotizador_excel(request):
 
             if 'tipo_documento' in data:
                 data['tipoDocumento'] = data.pop('tipo_documento')
-            
+
+            # ✅ Nuevo: incluir teléfono si existe
+            if 'telefono' in data:
+                telefono = str(data.pop('telefono')).strip()
+                if telefono:
+                    data['telefono'] = telefono
+
             placa = data.get('placa')
             if not placa:
                 errores.append({"fila": idx, "error": "El campo 'placa' es obligatorio."})
                 continue
 
-            # ✅ Validación: 10 meses desde el último registro
+            # ✅ Validar antigüedad de la placa (mínimo 10 meses)
             ultimo_registro = Cotizador.objects.filter(placa=placa).order_by('-fechaCreacion').first()
             if ultimo_registro:
                 fecha_limite = agregar_meses(ultimo_registro.fechaCreacion, 10)
@@ -157,7 +281,7 @@ def create_cotizador_excel(request):
                     })
                     continue
 
-            # ✅ Guardar cotizador
+            # ✅ Guardar el cotizador
             serializer = CotizadorSerializer(data=data)
             if serializer.is_valid():
                 cotizador = serializer.save()
@@ -182,15 +306,13 @@ def create_cotizador_excel(request):
     if errores:
         return Response(
             {"success": False, "guardados": resultados, "errores": errores},
-            status=status.HTTP_207_MULTI_STATUS  # ⚡ respuesta mixta
+            status=status.HTTP_207_MULTI_STATUS
         )
 
     return Response(
         {"success": True, "guardados": resultados},
         status=status.HTTP_201_CREATED
     )
-
-
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -461,13 +583,15 @@ def update_cotizador_pdf(request, pk):
             {'error': 'El cliente no tiene un número telefónico para enviar el WhatsApp'},
             status=status.HTTP_404_NOT_FOUND
         )
-    
+    print(" ==== cliente === ",cotizador)
+    print(" cotizador ", cotizador.placa)
+    placa = cotizador.placa
     telefono, email, medio_contacto = cliente
 
     old_archivo = cotizador.archivo  # guarda el valor anterior
 
     # Solo permitimos actualizar el campo 'archivo'
-    serializer = CotizadorSerializer(cotizador, data={'pdf': request.data.get('pdf')}, partial=True)
+    serializer = CotizadorSerializer(cotizador, data={'pdf': request.data.get('pdf'), 'pdfsModulo':0}, partial=True)
     if serializer.is_valid():
         serializer.save()
         new_archivo = serializer.validated_data.get('archivo')
@@ -486,7 +610,7 @@ def update_cotizador_pdf(request, pk):
             )
 
         #Envío del WhatsApp con el nuevo documento
-        if medio_contacto == "whatsapp":
+        if medio_contacto == "whatsapp   ssss":
             if telefono and new_pdf:
                 link_documento = 'https://backend.movilidad2a.com/media/'+new_pdf
                 print("Link del documento:", link_documento)
@@ -495,9 +619,10 @@ def update_cotizador_pdf(request, pk):
                 print("Resultado WhatsApp:", resultado)
         else:
             link_documento = 'https://backend.movilidad2a.com/media/'+new_pdf
+            #link_documento = 'http://127.0.0.1:8000/media/'+new_pdf
             print("email ",email)
             print("link_documento ",link_documento)
-            send_email(email, pdf=link_documento)
+            send_email(email, pdf_url=link_documento, placa_te=placa)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
