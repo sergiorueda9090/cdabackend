@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'channels',
     'drf_yasg',
+    'storages',
     'users',
     'clientes',
     'tramites',
@@ -143,6 +144,22 @@ SIMPLE_JWT = {
     'TOKEN_TYPE_CLAIM': 'token_type',
     'JTI_CLAIM': 'jti',
 }
+
+
+AWS_ACCESS_KEY_ID       = config('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY   = config('AWS_SECRET_ACCESS_KEY')
+AWS_STORAGE_BUCKET_NAME = config('AWS_STORAGE_BUCKET_NAME')
+AWS_S3_REGION_NAME      = config('AWS_S3_REGION_NAME')  # o la región donde creaste el bucket
+AWS_QUERYSTRING_AUTH    = False  # no genera tokens firmados en las URLs
+
+# Dominio del bucket (público)
+AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
+
+# Este es el almacenamiento por defecto para archivos e imágenes
+DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+
+# Opcional: si quieres definir carpetas base dentro del bucket
+MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/"
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases

@@ -41,7 +41,7 @@ def create_cotizador(request):
     if not placa:
         return Response({"error": "El campo 'placa' es obligatorio."}, status=status.HTTP_400_BAD_REQUEST)
 
-    # ✅ Validación: 10 meses desde el último registro
+    #Validación: 10 meses desde el último registro
     ultimo_registro = Cotizador.objects.filter(placa=placa).order_by('-fechaCreacion').first()
     if ultimo_registro:
         fecha_limite = agregar_meses(ultimo_registro.fechaCreacion, 10)
@@ -54,7 +54,7 @@ def create_cotizador(request):
                 status=status.HTTP_200_OK
             )
 
-    # ✅ Guardar cotizador
+    #Guardar cotizador
     serializer = CotizadorSerializer(data=data)
     if serializer.is_valid():
         cotizador = serializer.save()
@@ -226,7 +226,7 @@ def create_cotizador_excel(request):
             errores.append({"fila": idx, "error": "El campo 'nombre_completo' no puede estar vacío."})
             continue
 
-        # 🔍 Buscar cliente por nombre
+        #Buscar cliente por nombre
         cliente = Cliente.objects.filter(nombre=registro.get('nombre_cliente'))
         if cliente.exists():
             registro['idCliente'] = cliente.first().id
@@ -234,7 +234,7 @@ def create_cotizador_excel(request):
             errores.append({"fila": idx, "error": f"Cliente '{registro.get('nombre_cliente')}' no encontrado."})
             continue
 
-        # 🔍 Buscar etiqueta por nombre
+        #Buscar etiqueta por nombre
         etiqueta = Etiqueta.objects.filter(nombre=registro.get('etiqueta'))
         if etiqueta.exists():
             registro['idEtiqueta'] = etiqueta.first().id
@@ -246,6 +246,133 @@ def create_cotizador_excel(request):
             data = registro.copy()
             data['idUsuario'] = request.user.id
             data['cotizadorModulo'] = 1
+
+            if 'etiqueta' in data:
+                data['etiquetaDos'] = data.pop('etiqueta')
+
+            if 'nombre_completo' in data:
+                data['nombreCompleto'] = data.pop('nombre_completo')
+
+            if 'numero_documento' in data:
+                data['numeroDocumento'] = data.pop('numero_documento')
+
+            if 'tipo_documento' in data:
+                data['tipoDocumento'] = data.pop('tipo_documento')
+
+            # ✅ Nuevo: incluir teléfono si existe
+            if 'telefono' in data:
+                telefono = str(data.pop('telefono')).strip()
+                if telefono:
+                    data['telefono'] = telefono
+
+            placa = data.get('placa')
+            if not placa:
+                errores.append({"fila": idx, "error": "El campo 'placa' es obligatorio."})
+                continue
+
+            # ✅ Validar antigüedad de la placa (mínimo 10 meses)
+            ultimo_registro = Cotizador.objects.filter(placa=placa).order_by('-fechaCreacion').first()
+            if ultimo_registro:
+                fecha_limite = agregar_meses(ultimo_registro.fechaCreacion, 10)
+                if datetime.now() < fecha_limite:
+                    errores.append({
+                        "fila": idx,
+                        "error": f"La placa '{placa}' ya fue registrada. Deben pasar al menos 10 meses para volver a registrarla."
+                    })
+                    continue
+
+            # ✅ Guardar el cotizador
+            serializer = CotizadorSerializer(data=data)
+            if serializer.is_valid():
+                cotizador = serializer.save()
+                LogCotizador.objects.create(
+                    idUsuario=request.user.id,
+                    idCliente=data.get('idCliente'),
+                    accion='crear',
+                    antiguoValor='',
+                    nuevoValor=str(serializer.data),
+                    idCotizador=cotizador.id
+                )
+                resultado = serializer.data
+                resultado['idCotizador'] = cotizador.id
+                resultados.append(resultado)
+            else:
+                errores.append({"fila": idx, "error": serializer.errors})
+
+        except Exception as e:
+            print("❌ Error en el backend:", str(e))
+            errores.append({"fila": idx, "error": str(e)})
+
+    if errores:
+        return Response(
+            {"success": False, "guardados": resultados, "errores": errores},
+            status=status.HTTP_207_MULTI_STATUS
+        )
+
+    return Response(
+        {"success": True, "guardados": resultados},
+        status=status.HTTP_201_CREATED
+    )
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@check_role(1, 2, 3)
+def create_cotizador_tramites_excel(request):
+    registros = request.data.get("registros", [])
+
+    if not registros or not isinstance(registros, list):
+        return Response(
+            {"error": "Se esperaba un array de registros"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    resultados = []
+    errores = []
+
+    for idx, registro in enumerate(registros, start=1):
+
+        print(f"➡️ Procesando registro {idx}: {registro.get('nombre_cliente')}")
+
+        # Validaciones básicas
+        if not registro.get('nombre_cliente'):
+            errores.append({"fila": idx, "error": "El campo 'nombre_cliente' es obligatorio."})
+            continue
+
+        if not registro.get('nombre_cliente', '').strip():
+            errores.append({"fila": idx, "error": "El campo 'nombre_cliente' no puede estar vacío."})
+            continue
+
+        if not registro.get('nombre_completo'):
+            errores.append({"fila": idx, "error": "El campo 'nombre_completo' es obligatorio."})
+            continue
+
+        if not registro.get('nombre_completo', '').strip():
+            errores.append({"fila": idx, "error": "El campo 'nombre_completo' no puede estar vacío."})
+            continue
+
+        #Buscar cliente por nombre
+        cliente = Cliente.objects.filter(nombre=registro.get('nombre_cliente'))
+        if cliente.exists():
+            registro['idCliente'] = cliente.first().id
+        else:
+            errores.append({"fila": idx, "error": f"Cliente '{registro.get('nombre_cliente')}' no encontrado."})
+            continue
+
+        #Buscar etiqueta por nombre
+        etiqueta = Etiqueta.objects.filter(nombre=registro.get('etiqueta'))
+        if etiqueta.exists():
+            registro['idEtiqueta'] = etiqueta.first().id
+        else:
+            errores.append({"fila": idx, "error": f"Etiqueta '{registro.get('etiqueta')}' no encontrada."})
+            continue
+
+        try:
+            data = registro.copy()
+            data['idUsuario'] = request.user.id
+            data['tramiteModulo'] = 1
+            data['confirmacionPreciosModulo'] = 0
+            data['cotizadorModulo'] = 0
+            data['pdfsModulo'] = 0
 
             if 'etiqueta' in data:
                 data['etiquetaDos'] = data.pop('etiqueta')
@@ -449,6 +576,7 @@ def search_cotizadores(request):
 @permission_classes([IsAuthenticated])
 @check_role(1,2,3)
 def update_cotizador(request, pk):
+    print(" =================== INGRESA =================")
     try:
         cotizador = Cotizador.objects.get(pk=pk)
     except Cotizador.DoesNotExist:
@@ -595,7 +723,7 @@ def update_cotizador_pdf(request, pk):
     if serializer.is_valid():
         serializer.save()
         new_archivo = serializer.validated_data.get('archivo')
-        new_pdf     = Cotizador.objects.filter(pk=pk).values_list('pdf', flat=True).first()
+        new_pdf     = Cotizador.objects.get(pk=pk).pdf.url if Cotizador.objects.get(pk=pk).pdf else Non
    
         if old_archivo != new_archivo:
             LogCotizador.objects.create(
@@ -612,14 +740,16 @@ def update_cotizador_pdf(request, pk):
         #Envío del WhatsApp con el nuevo documento
         if medio_contacto == "whatsapp   ssss":
             if telefono and new_pdf:
-                link_documento = 'https://backend.movilidad2a.com/media/'+new_pdf
+                #link_documento = 'https://backend.movilidad2a.com/media/'+new_pdf
+                link_documento = new_pdf
                 print("Link del documento:", link_documento)
                 telefono = telefono #"573143801560"#"573104131542"
                 resultado = enviar_documento_whatsapp(telefono=telefono, link_documento=link_documento)
                 print("Resultado WhatsApp:", resultado)
         else:
-            link_documento = 'https://backend.movilidad2a.com/media/'+new_pdf
+            #link_documento = 'https://backend.movilidad2a.com/media/'+new_pdf
             #link_documento = 'http://127.0.0.1:8000/media/'+new_pdf
+            link_documento = new_pdf
             print("email ",email)
             print("link_documento ",link_documento)
             send_email(email, pdf_url=link_documento, placa_te=placa)

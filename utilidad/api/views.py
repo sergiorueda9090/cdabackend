@@ -86,6 +86,7 @@ def get_ficha_utilidades(request):
             "cilindraje"        : ficha.idcotizador.cilindraje,
             "modelo"            : ficha.idcotizador.modelo,
             "chasis"            : ficha.idcotizador.chasis,
+            "fecha"             : ficha.fechaCreacion,
             "precioDeLey"       : safe_abs(ficha.idcotizador.precioDeLey),
             "comisionPrecioLey" : safe_abs(ficha.idcotizador.comisionPrecioLey),
             "total"             : total_val,

@@ -130,42 +130,44 @@ def enviar_documento_whatsapp(telefono, link_documento, caption=None):
 
 
 def send_email(email, pdf_url, placa_te):
-    """
-    Envía un correo HTML con el PDF adjunto descargado desde una URL
-    """
-    subject     = f'Placa {placa_te} - SOAT emitido con éxito'
-    from_email  = 'tramites@movilidad2a.com'
-    to          = [email]
+    subject = f'Placa {placa_te} - SOAT emitido con éxito'
+    from_email = 'tramites@movilidad2a.com'
+    to = [email]
 
-    # Renderizar la plantilla HTML
     html_content = render_to_string('email_template.html', {
         'placa': placa_te,
         'year': datetime.now().year,
     })
 
     try:
-        # Descargar el PDF desde la URL
-        response = requests.get(pdf_url)
-        response.raise_for_status()  # lanza excepción si no se descarga correctamente
+        headers = {'Accept-Encoding': 'identity'}  # evita compresión
+        response = requests.get(pdf_url, stream=True, headers=headers)
+        response.raise_for_status()
+
+        # Validar tipo de contenido
+        content_type = response.headers.get("Content-Type", "")
+        if "pdf" not in content_type.lower():
+            print("⚠️ El archivo no parece un PDF válido. Tipo:", content_type)
+
         pdf_content = response.content
+        print("✅ Tamaño del PDF descargado:", len(pdf_content), "bytes")
 
         # Crear correo
         msg = EmailMultiAlternatives(subject, 'SOAT emitido con éxito', from_email, to)
         msg.attach_alternative(html_content, "text/html")
 
-        # Adjuntar el PDF descargado
-        msg.attach(f"SOAT_{placa_te}.pdf", pdf_content, 'application/pdf')
+        # Adjuntar el PDF correctamente como binario
+        msg.attach(f"SOAT_{placa_te}.pdf", pdf_content, "application/pdf")
 
         msg.send(fail_silently=False)
-        print("Correo enviado correctamente ✅")
+        print("✅ Correo enviado correctamente")
         return True
 
     except BadHeaderError:
-        print("Error: encabezado inválido en el correo ❌")
-        return False
+        print("❌ Error: encabezado inválido en el correo")
     except requests.exceptions.RequestException as e:
-        print(f"Error al descargar el PDF: {e}")
-        return False
+        print(f"❌ Error al descargar el PDF: {e}")
     except Exception as e:
-        print(f"Error al enviar correo: {e}")
-        return False
+        print(f"❌ Error al enviar correo: {e}")
+
+    return False

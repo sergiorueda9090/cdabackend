@@ -1,5 +1,17 @@
 from django.db import models
 from django.utils.timezone import localtime, now
+import os
+import uuid
+
+def upload_to_unique(instance, filename):
+    ext = filename.split('.')[-1]
+    filename = f"{uuid.uuid4()}.{ext}"
+    return os.path.join('cotizador_confirm_price', filename)
+
+def upload_pdf_unique(instance, filename):
+    ext = filename.split('.')[-1]
+    filename = f"{uuid.uuid4()}.{ext}"
+    return os.path.join('media/pdfs', filename)
 
 class Cotizador(models.Model):
     idUsuario       = models.IntegerField()
@@ -21,8 +33,10 @@ class Cotizador(models.Model):
     precioDeLey     = models.CharField(max_length=255, default="")  # Por defecto vacío
     comisionPrecioLey = models.CharField(max_length=255, default="")  # Por defecto vacío
     total            = models.CharField(max_length=255, default="")  # Por defecto vacío
-    pdf              = models.FileField(upload_to='media/pdfs/', null=True, blank=True)
-    archivo          = models.ImageField(upload_to='cotizador_confirm_price/', null=True, blank=True)  # Imagen opcional
+    #pdf              = models.FileField(upload_to='media/pdfs/', null=True, blank=True)
+    #archivo          = models.ImageField(upload_to='cotizador_confirm_price/', null=True, blank=True)  # Imagen opcional
+    archivo          = models.ImageField(upload_to=upload_to_unique, null=True, blank=True)
+    pdf              = models.FileField(upload_to=upload_pdf_unique, null=True, blank=True)
     fechaCreacion    = models.DateTimeField(default=now)  # Almacena la fecha de creación automáticamente
     cotizadorModulo             = models.CharField(max_length=1, default="1")  # Por defecto 1
     tramiteModulo               = models.CharField(max_length=1, default="0")  # Por defecto 0
