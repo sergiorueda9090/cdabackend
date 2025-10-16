@@ -13,6 +13,52 @@ from datetime           import datetime
 from django.db.models   import Q
 from users.decorators   import check_role
 #Listar todas las recepciones de pago
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+# @check_role(1)
+# def listar_utilidad_general(request):
+#     try:
+#         utilidades = Utilidadocacional.objects.all()
+#         total_utilidades_data = []
+
+#         for utilidad in utilidades:
+#             try:
+#                 # Ensure we are getting the correct ID
+#                 tarjeta_id = utilidad.id_tarjeta_bancaria.pk  # Get the numeric ID
+
+#                 # Fetch related objects
+#                 tarjeta = get_object_or_404(RegistroTarjetas, id=tarjeta_id)
+
+#                 # Serialize gasto
+#                 utilidad_serializer = UtilidadocacionalSerializer(utilidad)
+#                 utilidad_data       = utilidad_serializer.data
+
+#                 # Add extra data
+#                 utilidad_data['nombre_tarjeta'] = tarjeta.nombre_cuenta
+#                 utilidad_data['valor']          = abs(int(utilidad.valor))
+
+#                 cuatro_por_mil = utilidad.cuatro_por_mil
+#                 if not cuatro_por_mil:
+#                     cuatro_por_mil = 0
+
+#                 utilidad_data['total'] = utilidad_data['valor'] - abs(int(cuatro_por_mil))
+
+#                 # Append to result
+#                 total_utilidades_data.append(utilidad_data)
+#             except Exception as e:
+#                 return Response(
+#                     {"error": f"Error procesando recepción ID {tarjeta.id}: {str(e)}"},
+#                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
+#                 )
+
+#         return Response(total_utilidades_data, status=status.HTTP_200_OK)
+
+#     except Exception as e:
+#         return Response(
+#             {"error": f"Error en la función total_utilidades_data: {str(e)}"},
+#             status=status.HTTP_500_INTERNAL_SERVER_ERROR
+#         )
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 @check_role(1)
@@ -23,31 +69,35 @@ def listar_utilidad_general(request):
 
         for utilidad in utilidades:
             try:
-                # Ensure we are getting the correct ID
-                tarjeta_id = utilidad.id_tarjeta_bancaria.pk  # Get the numeric ID
+                # Obtener la tarjeta asociada
+                tarjeta = get_object_or_404(RegistroTarjetas, id=utilidad.id_tarjeta_bancaria.pk)
 
-                # Fetch related objects
-                tarjeta = get_object_or_404(RegistroTarjetas, id=tarjeta_id)
-
-                # Serialize gasto
+                # Serializar utilidad
                 utilidad_serializer = UtilidadocacionalSerializer(utilidad)
-                utilidad_data       = utilidad_serializer.data
+                utilidad_data = utilidad_serializer.data
 
-                # Add extra data
+                # Agregar datos adicionales
                 utilidad_data['nombre_tarjeta'] = tarjeta.nombre_cuenta
-                utilidad_data['valor']          = abs(int(utilidad.valor))
 
-                cuatro_por_mil = utilidad.cuatro_por_mil
-                if not cuatro_por_mil:
-                    cuatro_por_mil = 0
+                # Convertir valor y cuatro_por_mil a enteros
+                valor = int(utilidad.valor)
+                cuatro_por_mil = int(utilidad.cuatro_por_mil or 0)
 
-                utilidad_data['total'] = utilidad_data['valor'] - abs(int(cuatro_por_mil))
+                # Calcular total manteniendo el signo correcto
+                if valor >= 0:
+                    total = valor - cuatro_por_mil
+                else:
+                    total = valor + cuatro_por_mil
 
-                # Append to result
+                utilidad_data['valor'] = valor
+                utilidad_data['cuatro_por_mil'] = cuatro_por_mil
+                utilidad_data['total'] = total
+
                 total_utilidades_data.append(utilidad_data)
+
             except Exception as e:
                 return Response(
-                    {"error": f"Error procesando recepción ID {tarjeta.id}: {str(e)}"},
+                    {"error": f"Error procesando utilidad ID {utilidad.id}: {str(e)}"},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
 
@@ -55,49 +105,101 @@ def listar_utilidad_general(request):
 
     except Exception as e:
         return Response(
-            {"error": f"Error en la función total_utilidades_data: {str(e)}"},
+            {"error": f"Error al listar utilidades: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
+
 # Crear una nueva recepción de pago
+# @api_view(['POST'])
+# @permission_classes([IsAuthenticated])
+# @check_role(1)
+# def crear_utilidad_general(request):
+#     required_fields = ["id_tarjeta_bancaria", "fecha_transaccion", "valor"]
+
+#     # Validar que los campos requeridos estén en la petición
+#     for field in required_fields:
+#         if field not in request.data or not request.data[field]:
+#             return Response({"error": f"El campo '{field}' es obligatorio."}, status=status.HTTP_400_BAD_REQUEST)
+
+#     # Validar que la tarjeta bancaria exista
+#     try:
+#         tarjeta = RegistroTarjetas.objects.get(pk=request.data["id_tarjeta_bancaria"])
+#     except RegistroTarjetas.DoesNotExist:
+#         return Response({"error": "La tarjeta bancaria proporcionada no existe."}, status=status.HTTP_400_BAD_REQUEST)
+
+#     # Validar que la fecha de transacción no sea futura
+#     from datetime import date
+#     fecha_transaccion = request.data.get("fecha_transaccion")
+#     if date.fromisoformat(fecha_transaccion) > date.today():
+#         return Response({"error": "La fecha de transacción no puede ser en el futuro."}, status=status.HTTP_400_BAD_REQUEST)
+
+#     # Crear la recepción de pago
+#     # Crear la devolución
+#     valor = request.data["valor"]
+#     valor = int(valor.replace(".", ""))
+#     valor = abs(valor)
+
+#     if tarjeta.is_daviplata:
+#         cuatro_por_mil = 0
+#     else:
+#         cuatro_por_mil = int(abs(valor) * 0.004)
+    
+#     recepcion_gasto_general = Utilidadocacional.objects.create(
+#         id_tarjeta_bancaria = tarjeta,
+#         fecha_transaccion   = request.data["fecha_transaccion"],
+#         valor               = valor,
+#         cuatro_por_mil      = cuatro_por_mil,
+#         observacion         = request.data.get("observacion", "")
+#     )
+
+#     serializer = UtilidadocacionalSerializer(recepcion_gasto_general)
+#     return Response(serializer.data, status=status.HTTP_201_CREATED)
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 @check_role(1)
 def crear_utilidad_general(request):
     required_fields = ["id_tarjeta_bancaria", "fecha_transaccion", "valor"]
 
-    # Validar que los campos requeridos estén en la petición
+    # Validar campos requeridos
     for field in required_fields:
         if field not in request.data or not request.data[field]:
             return Response({"error": f"El campo '{field}' es obligatorio."}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Validar que la tarjeta bancaria exista
+    # Validar existencia de la tarjeta bancaria
     try:
         tarjeta = RegistroTarjetas.objects.get(pk=request.data["id_tarjeta_bancaria"])
     except RegistroTarjetas.DoesNotExist:
         return Response({"error": "La tarjeta bancaria proporcionada no existe."}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Validar que la fecha de transacción no sea futura
+    # Validar que la fecha no sea futura
     from datetime import date
     fecha_transaccion = request.data.get("fecha_transaccion")
     if date.fromisoformat(fecha_transaccion) > date.today():
         return Response({"error": "La fecha de transacción no puede ser en el futuro."}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Crear la recepción de pago
-    # Crear la devolución
-    valor = request.data["valor"]
-    valor = int(valor.replace(".", ""))
-    valor = abs(valor)
+    # --- Procesar valor ---
+    valor_str = request.data["valor"]
 
+    # Permitir el signo negativo y eliminar puntos
+    valor_str = valor_str.replace(".", "")
+    try:
+        valor = int(valor_str)
+    except ValueError:
+        return Response({"error": "El valor debe ser un número válido."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Calcular 4x1000 sólo sobre el valor absoluto
     if tarjeta.is_daviplata:
         cuatro_por_mil = 0
     else:
-        cuatro_por_mil = int(abs(valor) * 0.004)
-    
+        cuatro_por_mil = 0 #int(abs(valor) * 0.004)
+
+    # Crear registro
     recepcion_gasto_general = Utilidadocacional.objects.create(
         id_tarjeta_bancaria = tarjeta,
-        fecha_transaccion   = request.data["fecha_transaccion"],
-        valor               = valor,
+        fecha_transaccion   = fecha_transaccion,
+        valor               = valor,  # aquí se guarda el valor negativo o positivo
         cuatro_por_mil      = cuatro_por_mil,
         observacion         = request.data.get("observacion", "")
     )

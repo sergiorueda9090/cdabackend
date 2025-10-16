@@ -156,7 +156,7 @@ def obtener_recepcion_pago(request, pk):
 
 @api_view(['GET'])
 def obtener_recepcion_pago_cliente(request, pk):
-    recepciones = RecepcionPago.objects.filter(cliente_id=pk)
+    recepciones     = RecepcionPago.objects.filter(cliente_id=pk)
     cargosnodeseado = Cargosnodesados.objects.filter(id_cliente=pk)
 
     # Sumas con fallback a 0 si no existen
