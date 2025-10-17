@@ -17,6 +17,7 @@ from rest_framework.permissions import IsAuthenticated
 
 from django.db.models   import Q
 from datetime import date, datetime
+import uuid
 
 #Listar todas las recepciones de pago
 @api_view(['GET'])
@@ -154,50 +155,128 @@ def obtener_recepcion_pago(request, pk):
     serializer = RecepcionPagoSerializer(recepcion)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
+# @api_view(['GET'])
+# def obtener_recepcion_pago_cliente(request, pk):
+#     recepciones     = RecepcionPago.objects.filter(cliente_id=pk)
+#     cargosnodeseado = Cargosnodesados.objects.filter(id_cliente=pk)
+
+#     # Sumas con fallback a 0 si no existen
+#     cotizadores_total  = Cotizador.objects.filter(idCliente=pk).aggregate(total_sum=Sum("total"))["total_sum"] or 0
+#     recepciones_total  = RecepcionPago.objects.filter(cliente_id=pk).aggregate(total_sum=Sum("valor"))["total_sum"] or 0
+#     ajuste_total       = Ajustesaldo.objects.filter(id_cliente=pk).aggregate(total_sum=Sum("valor"))["total_sum"] or 0
+#     devoluciones_total = Devoluciones.objects.filter(id_cliente=pk).aggregate(total_sum=Sum("valor"))["total_sum"] or 0
+#     cargos_total       = Cargosnodesados.objects.filter(id_cliente=pk).aggregate(total_sum=Sum("valor"))["total_sum"] or 0
+
+#     devoluciones_total = abs(devoluciones_total)
+
+#     total_total = cotizadores_total - recepciones_total + ajuste_total + devoluciones_total + cargos_total
+
+#     # Serializar recepciones
+#     serializer_recepciones = RecepcionPagoSerializer(recepciones, many=True)
+#     data_recepciones = serializer_recepciones.data
+
+#     # Agregar tipo e id único
+#     for item in data_recepciones:
+#         valor = int(item.get('valor') or 0)
+#         item['valor'] = f"{abs(valor):,}".replace(",", ".")
+#         item['tipo'] = "recepcion"
+#         item['uid'] = f"recepcion_{item['id']}"
+
+#     # Serializar cargos
+#     serializer_cargos = CargosNoRegistradosSerializer(cargosnodeseado, many=True)
+#     data_cargos       = serializer_cargos.data
+
+#     for item in data_cargos:
+#         valor = int(item.get('valor') or 0)
+#         item['valor'] = f"{abs(valor):,}".replace(",", ".")
+#         item['tipo'] = "cargo"
+#         item['uid'] = f"cargo_{item['id']}"
+
+#     # Unir ambos
+#     data = list(data_recepciones) + list(data_cargos)
+
+#     return Response({
+#         "data": data,
+#         "total": total_total
+#     }, status=status.HTTP_200_OK)
+
+
 @api_view(['GET'])
 def obtener_recepcion_pago_cliente(request, pk):
-    recepciones     = RecepcionPago.objects.filter(cliente_id=pk)
-    cargosnodeseado = Cargosnodesados.objects.filter(id_cliente=pk)
+    # --- Consultas ---
+    cotizadores  = Cotizador.objects.filter(idCliente=pk).values('id', 'precioDeLey', 'total', 'fechaCreacion')
+    recepciones  = RecepcionPago.objects.filter(cliente_id=pk).values('id', 'valor', 'observacion', 'fecha_ingreso', 'fecha_transaccion')
+    ajustes      = Ajustesaldo.objects.filter(id_cliente=pk).values('id', 'valor', 'observacion', 'fecha_ingreso', 'fecha_transaccion')
+    devoluciones = Devoluciones.objects.filter(id_cliente=pk).values('id', 'valor', 'observacion', 'fecha_ingreso', 'fecha_transaccion')
+    cargos       = Cargosnodesados.objects.filter(id_cliente=pk).values('id', 'valor', 'observacion', 'fecha_ingreso', 'fecha_transaccion')
 
-    # Sumas con fallback a 0 si no existen
-    cotizadores_total  = Cotizador.objects.filter(idCliente=pk).aggregate(total_sum=Sum("total"))["total_sum"] or 0
-    recepciones_total  = RecepcionPago.objects.filter(cliente_id=pk).aggregate(total_sum=Sum("valor"))["total_sum"] or 0
-    ajuste_total       = Ajustesaldo.objects.filter(id_cliente=pk).aggregate(total_sum=Sum("valor"))["total_sum"] or 0
-    devoluciones_total = Devoluciones.objects.filter(id_cliente=pk).aggregate(total_sum=Sum("valor"))["total_sum"] or 0
-    cargos_total       = Cargosnodesados.objects.filter(id_cliente=pk).aggregate(total_sum=Sum("valor"))["total_sum"] or 0
+    # --- Función segura para convertir a float ---
+    def safe_float(value):
+        try:
+            if value is None:
+                return 0
+            # Quitar separadores de miles y convertir
+            return float(str(value).replace(".", "").replace(",", ".").strip())
+        except:
+            return 0
 
-    devoluciones_total = abs(devoluciones_total)
+    # --- Calcular totales ---
+    cotizadores_total  = sum(safe_float(c.get('precioDeLey', 0)) for c in cotizadores)
+    recepciones_total  = sum(safe_float(r.get('valor', 0)) for r in recepciones)
+    ajustes_total      = sum(safe_float(a.get('valor', 0)) for a in ajustes)
+    devoluciones_total = sum(safe_float(d.get('valor', 0)) for d in devoluciones)
+    cargos_total       = sum(safe_float(c.get('valor', 0)) for c in cargos)
 
-    total_total = cotizadores_total - recepciones_total + ajuste_total + devoluciones_total + cargos_total
+    # 🔹 El cotizador ahora siempre resta del total
+    total_total = -cotizadores_total + recepciones_total + ajustes_total + devoluciones_total + cargos_total
 
-    # Serializar recepciones
-    serializer_recepciones = RecepcionPagoSerializer(recepciones, many=True)
-    data_recepciones = serializer_recepciones.data
+    # --- Función para formatear valores ---
+    def format_value(value):
+        try:
+            valor = safe_float(value)
+            signo = "-" if valor < 0 else ""
+            return f"{signo}{abs(valor):,.0f}".replace(",", ".")
+        except:
+            return value
 
-    # Agregar tipo e id único
-    for item in data_recepciones:
-        valor = int(item.get('valor') or 0)
-        item['valor'] = f"{abs(valor):,}".replace(",", ".")
-        item['tipo'] = "recepcion"
-        item['uid'] = f"recepcion_{item['id']}"
+    # --- Función para mapear datos ---
+    def map_data(lista, tipo, origen, field_valor='valor', field_obs='observacion', negativo=False):
+        data = []
+        for item in lista:
+            valor = safe_float(item.get(field_valor))
+            if negativo:
+                valor *= -1  # 🔹 convertir en negativo si corresponde
+            fecha = item.get('fecha_ingreso') or item.get('fechaCreacion') or ""
+            data.append({
+                "id": str(uuid.uuid4()),
+                "valor": format_value(valor),
+                "tipo": tipo,
+                "uid": f"{tipo}_{uuid.uuid4()}",
+                "origen": f"Cliente - {origen}",
+                "observacion": item.get(field_obs, "") or "",
+                "fecha_ingreso": item.get('fecha_ingreso'),
+                "fecha_transaccion": item.get('fecha_transaccion'),
+                "fecha": fecha
+            })
+        return data
 
-    # Serializar cargos
-    serializer_cargos = CargosNoRegistradosSerializer(cargosnodeseado, many=True)
-    data_cargos       = serializer_cargos.data
+    # --- Construir datos ---
+    data_cotizadores  = map_data(cotizadores,  "cotizador",  "Trámites",          field_valor="precioDeLey", field_obs="", negativo=True)
+    data_recepciones  = map_data(recepciones,  "recepcion",  "Recepción de Pago")
+    data_ajustes      = map_data(ajustes,      "ajuste",     "Ajustes de Saldos")
+    data_devoluciones = map_data(devoluciones, "devolucion", "Devoluciones")
+    data_cargos       = map_data(cargos,       "cargo",      "Cargos no deseados")
 
-    for item in data_cargos:
-        valor = int(item.get('valor') or 0)
-        item['valor'] = f"{abs(valor):,}".replace(",", ".")
-        item['tipo'] = "cargo"
-        item['uid'] = f"cargo_{item['id']}"
+    # --- Unir y ordenar por fecha ---
+    data = data_cotizadores + data_recepciones + data_ajustes + data_devoluciones + data_cargos
+    data.sort(key=lambda x: x.get('fecha') or "", reverse=True)
 
-    # Unir ambos
-    data = list(data_recepciones) + list(data_cargos)
-
+    # --- Respuesta final ---
     return Response({
         "data": data,
-        "total": total_total
+        "total": round(total_total, 2)
     }, status=status.HTTP_200_OK)
+
 
 #Actualizar una recepción de pago
 @api_view(['PUT'])

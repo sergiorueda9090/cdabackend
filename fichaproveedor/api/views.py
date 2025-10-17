@@ -374,7 +374,10 @@ def get_ficha_proveedor_por_id(request):
             Q(idcotizador__comisionPrecioLey__icontains=search) |
             Q(idcotizador__total__icontains=search)
         )
-
+    
+    #Ordenar del más reciente al más antiguo
+    proveedores_qs = proveedores_qs.order_by('-fechaCreacion')
+    
     def to_number(value):
         """Convierte un string como '50.000' o '-10.000' a int, manejando None."""
         if value is None:
@@ -444,6 +447,9 @@ def get_ficha_proveedor_por_id(request):
     totalGeneralConComision = -abs(total_general) + total_pagos
 
     data.extend(datacuentas)
+    
+    # ✅ Ordenar todos los registros del más reciente al más antiguo
+    data = sorted(data, key=lambda x: x["fechaCreacion"], reverse=True)
 
     return Response({
         "registros": data,

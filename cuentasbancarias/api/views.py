@@ -1103,7 +1103,7 @@ def crear_cuenta_bancaria(request):
 
         if is_daviplata:
             precioDeLey = -abs(valor)  # siempre negativo
-            cuatro_por_mil = int(abs(precioDeLey) * 0.004)
+            cuatro_por_mil = 0 #int(abs(precioDeLey) * 0.004)
         else:
             precioDeLey = valor
             cuatro_por_mil = 0

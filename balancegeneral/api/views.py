@@ -171,15 +171,30 @@ def get_all_ficha_cliente(fechaInicio=None, fechaFin=None):
             archivo=Value("", output_field=CharField()),
         ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'cliente_nombre', 'origen', 'placa', 'archivo'))
 
+    cargosNoDeseados = list(
+        Cargosnodesados.objects.select_related('id_cliente')
+        .filter(**filtros_fecha)
+        .annotate(
+            fi=F('fecha_ingreso'),
+            ft=F('fecha_transaccion'),
+            valor_alias=F('valor'),
+            desc_alias=F('observacion'),
+            cliente_nombre=F('id_cliente__nombre'),
+            origen=Value("Cargos no deseados", output_field=CharField()),
+            placa=Value("", output_field=CharField()),
+            archivo=Value("", output_field=CharField()),
+        ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'cliente_nombre', 'origen', 'placa', 'archivo')
+    )
+
     # Unir todos los resultados
-    union_result = cotizadores_list + recepcionDePagos + devoluciones + ajuestesSaldos
+    union_result = cotizadores_list + recepcionDePagos + devoluciones + ajuestesSaldos + cargosNoDeseados
 
     # Filtrar solo los campos necesarios
     resultado_filtrado = [
         {   
             'nombre_cuenta' : item['cliente_nombre'],
             'valor'         : item['valor_alias'],
-            'origen'        : 'Clientes'
+            'origen'        : f"Cliente - {item['origen']}"
         }
         for item in union_result
     ]
@@ -401,12 +416,28 @@ def obtener_balancegeneral(request):
     total_comisiones_proveedores = sum(safe_to_float(item['valor']) for item in fichas_proveedor)
     total_tarjetas = sum(item['valor'] for item in serializer.data if isinstance(item['valor'], (int, float)))
     
+    
+    #Nuevo total global de cargos no deseados
+    total_cargo_no_deseados = Cargosnodesados.objects.aggregate(
+        total_suma=Sum(
+            Cast(Replace(F('valor'), Value('.'), Value('')), output_field=models.IntegerField())
+        )
+    )['total_suma'] or 0
+
+    total_recepcion_pago =  RecepcionPago.objects.aggregate(
+        total_suma=Sum(
+            Cast(Replace(F('valor'), Value('.'), Value('')), output_field=models.IntegerField())
+        )
+    )['total_suma'] or 0
+
     # 🔢 Suma total de todos los valores
     suma_total = (
         total_saldo_clientes +
         total_gastos_generales +
         total_comisiones_proveedores +
-        total_tarjetas
+        total_tarjetas + 
+        total_cargo_no_deseados +
+        total_recepcion_pago
     )
     print(valores_clientes)
     # Construir arreglo estilo tarjetas
@@ -441,6 +472,8 @@ def obtener_balancegeneral(request):
         "total_gastos_generales": total_gastos_generales,
         "total_comisiones_proveedores": total_comisiones_proveedores,
         'totalTarjetas': total_tarjetas,
+        "total_cargo_no_deseados": total_cargo_no_deseados,
+        "total_recepcion_pago": total_recepcion_pago,
         "sumaTotal": suma_total,
         "utilidades":utilidades[0]['valor']
     }, status=status.HTTP_200_OK)

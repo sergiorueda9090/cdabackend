@@ -30,13 +30,52 @@ def listar_ajustessaldos(request):
         # Agregar datos personalizados
         devolucion_data['nombre_cliente'] = cliente.nombre
         devolucion_data['color_cliente']  = cliente.color
-        devolucion_data['valor']          = abs(int(devolucion.valor))
+        devolucion_data['valor']          = int(devolucion.valor) #abs(int(devolucion.valor))
         # Agregar la recepción modificada a la lista
         devoluciones_pago_data.append(devolucion_data)
 
     return Response(devoluciones_pago_data, status=status.HTTP_200_OK)
 
-# 🔹 Crear una nueva devolución
+#Crear una nueva devolución
+# @api_view(['POST'])
+# @permission_classes([IsAuthenticated])
+# @check_role(1)
+# def crear_ajustessaldo(request):
+#     required_fields = ["id_cliente", "fecha_transaccion", "valor"]
+
+#     # Validar que los campos requeridos estén en la petición
+#     for field in required_fields:
+#         if field not in request.data or not request.data[field]:
+#             return Response({"error": f"El campo '{field}' es obligatorio."}, status=status.HTTP_400_BAD_REQUEST)
+
+#     # Validar que el cliente exista
+#     try:
+#         cliente = Cliente.objects.get(pk=request.data["id_cliente"])
+#     except Cliente.DoesNotExist:
+#         return Response({"error": "El cliente proporcionado no existe."}, status=status.HTTP_400_BAD_REQUEST)
+
+
+#     # Validar que la fecha de transacción no sea futura
+#     from datetime import date
+#     fecha_transaccion = request.data.get("fecha_transaccion")
+#     if date.fromisoformat(fecha_transaccion) > date.today():
+#         return Response({"error": "La fecha de transacción no puede ser en el futuro."}, status=status.HTTP_400_BAD_REQUEST)
+
+#     # Crear la devolución
+#     # Crear la devolución
+#     valor = request.data["valor"]
+#     valor = int(valor.replace(".", ""))
+#     valor = abs(valor)
+#     devolucionCreate = Ajustesaldo.objects.create(
+#         id_cliente          = cliente,
+#         fecha_transaccion   = fecha_transaccion,
+#         valor               = valor,
+#         observacion         = request.data.get("observacion", "")
+#     )
+
+#     serializer = AjustesaldoSerializer(devolucionCreate)
+#     return Response(serializer.data, status=status.HTTP_201_CREATED)
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 @check_role(1)
@@ -54,29 +93,31 @@ def crear_ajustessaldo(request):
     except Cliente.DoesNotExist:
         return Response({"error": "El cliente proporcionado no existe."}, status=status.HTTP_400_BAD_REQUEST)
 
-
     # Validar que la fecha de transacción no sea futura
     from datetime import date
     fecha_transaccion = request.data.get("fecha_transaccion")
     if date.fromisoformat(fecha_transaccion) > date.today():
         return Response({"error": "La fecha de transacción no puede ser en el futuro."}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Crear la devolución
-    # Crear la devolución
-    valor = request.data["valor"]
-    valor = int(valor.replace(".", ""))
-    valor = abs(valor)
+    # Obtener y limpiar el valor, permitiendo negativos
+    valor_str = request.data["valor"]
+    try:
+        valor = int(valor_str.replace(".", "").replace(",", ""))  # mantiene el signo si existe
+    except ValueError:
+        return Response({"error": "El valor debe ser un número válido."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Crear el ajuste
     devolucionCreate = Ajustesaldo.objects.create(
-        id_cliente          = cliente,
-        fecha_transaccion   = fecha_transaccion,
-        valor               = valor,
-        observacion         = request.data.get("observacion", "")
+        id_cliente=cliente,
+        fecha_transaccion=fecha_transaccion,
+        valor=valor,
+        observacion=request.data.get("observacion", "")
     )
 
     serializer = AjustesaldoSerializer(devolucionCreate)
     return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-# 🔹 Obtener una devolución por ID
+#Obtener una devolución por ID
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 @check_role(1)
@@ -90,7 +131,46 @@ def obtener_ajustessaldo(request, pk):
     serializer = AjustesaldoSerializer(ajuesteSaldoGet)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
-# 🔹 Actualizar una devolución
+#Actualizar una devolución
+# @api_view(['PUT'])
+# @permission_classes([IsAuthenticated])
+# @check_role(1)
+# def actualizar_ajustessaldo(request, pk):
+#     try:
+#         AjustesaldoGet = Ajustesaldo.objects.get(pk=pk)
+#     except Ajustesaldo.DoesNotExist:
+#         return Response({"error": "Ajuste de saldo no encontrada."}, status=status.HTTP_404_NOT_FOUND)
+
+#     cliente_id = request.data.get("cliente_id")
+#     if cliente_id:
+#         try:
+#             cliente = Cliente.objects.get(pk=cliente_id)
+#             AjustesaldoGet.cliente = cliente
+#         except Cliente.DoesNotExist:
+#             return Response({"error": "El cliente proporcionado no existe."}, status=status.HTTP_400_BAD_REQUEST)
+
+    
+#     # Validar que la fecha de transacción no sea futura
+#     from datetime import date
+#     fecha_transaccion = request.data.get("fecha_transaccion")
+#     if date.fromisoformat(fecha_transaccion) > date.today():
+#         return Response({"error": "La fecha de transacción no puede ser en el futuro."}, status=status.HTTP_400_BAD_REQUEST)
+
+#     AjustesaldoGet.fecha_transaccion = request.data.get("fecha_transaccion", AjustesaldoGet.fecha_transaccion)
+   
+
+#     valor = request.data.get("valor", AjustesaldoGet.valor)  # Obtener el valor del request o mantener el actual
+#     if isinstance(valor, str):                          # Si el valor es una cadena, limpiarlo
+#         valor = int(valor.replace(".", ""))             # Eliminar separadores de miles y convertir a número
+#     AjustesaldoGet.valor =  abs(valor)                      # Asegurar que siempre sea negativo
+
+#     AjustesaldoGet.observacion = request.data.get("observacion", AjustesaldoGet.observacion)
+
+#     AjustesaldoGet.save()
+
+#     serializer = AjustesaldoSerializer(AjustesaldoGet)
+#     return Response(serializer.data, status=status.HTTP_200_OK)
+
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
 @check_role(1)
@@ -98,7 +178,7 @@ def actualizar_ajustessaldo(request, pk):
     try:
         AjustesaldoGet = Ajustesaldo.objects.get(pk=pk)
     except Ajustesaldo.DoesNotExist:
-        return Response({"error": "Ajuste de saldo no encontrada."}, status=status.HTTP_404_NOT_FOUND)
+        return Response({"error": "Ajuste de saldo no encontrado."}, status=status.HTTP_404_NOT_FOUND)
 
     cliente_id = request.data.get("cliente_id")
     if cliente_id:
@@ -108,29 +188,32 @@ def actualizar_ajustessaldo(request, pk):
         except Cliente.DoesNotExist:
             return Response({"error": "El cliente proporcionado no existe."}, status=status.HTTP_400_BAD_REQUEST)
 
-    
     # Validar que la fecha de transacción no sea futura
     from datetime import date
     fecha_transaccion = request.data.get("fecha_transaccion")
     if date.fromisoformat(fecha_transaccion) > date.today():
         return Response({"error": "La fecha de transacción no puede ser en el futuro."}, status=status.HTTP_400_BAD_REQUEST)
 
-    AjustesaldoGet.fecha_transaccion = request.data.get("fecha_transaccion", AjustesaldoGet.fecha_transaccion)
-   
+    AjustesaldoGet.fecha_transaccion = fecha_transaccion or AjustesaldoGet.fecha_transaccion
 
-    valor = request.data.get("valor", AjustesaldoGet.valor)  # Obtener el valor del request o mantener el actual
-    if isinstance(valor, str):                          # Si el valor es una cadena, limpiarlo
-        valor = int(valor.replace(".", ""))             # Eliminar separadores de miles y convertir a número
-    AjustesaldoGet.valor =  abs(valor)                      # Asegurar que siempre sea negativo
+    # ✅ Permitir valores negativos y positivos
+    valor = request.data.get("valor", AjustesaldoGet.valor)
+    try:
+        if isinstance(valor, str):
+            # Quitar puntos o comas de miles, mantener signo negativo si lo hay
+            valor = int(valor.replace(".", "").replace(",", ""))
+    except ValueError:
+        return Response({"error": "El valor debe ser un número válido."}, status=status.HTTP_400_BAD_REQUEST)
+
+    AjustesaldoGet.valor = valor  # ✅ Mantiene signo (positivo o negativo)
 
     AjustesaldoGet.observacion = request.data.get("observacion", AjustesaldoGet.observacion)
-
     AjustesaldoGet.save()
 
     serializer = AjustesaldoSerializer(AjustesaldoGet)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
-# 🔹 Eliminar una devolución
+#Eliminar una devolución
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 @check_role(1)
