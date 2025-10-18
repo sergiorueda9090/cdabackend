@@ -122,6 +122,7 @@ def get_all_ficha_cliente(fechaInicio=None, fechaFin=None):
             'origen': "Tramites",
             'placa': cotizador['placa'],
             'archivo': cotizador['archivo'],
+            'total': -abs(safe_to_float(cotizador['total']))
         }
         for cotizador in cotizadores_qs
         if cuentasbancarias_qs.get(cotizador['id']) is not None and clientes_dict.get(cotizador['idCliente']) is not None
@@ -143,7 +144,8 @@ def get_all_ficha_cliente(fechaInicio=None, fechaFin=None):
             origen=Value("Recepcion de Pago", output_field=CharField()),
             placa=Value("", output_field=CharField()),
             archivo=Value("", output_field=CharField()),
-        ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'cliente_nombre', 'origen', 'placa', 'archivo'))
+            total=F('valor'),
+        ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'cliente_nombre', 'origen', 'placa', 'archivo', 'total'))
 
     devoluciones = list(Devoluciones.objects.select_related('id_cliente')
         .filter(**filtros_fecha)
@@ -156,7 +158,8 @@ def get_all_ficha_cliente(fechaInicio=None, fechaFin=None):
             origen=Value("Devoluciones", output_field=CharField()),
             placa=Value("", output_field=CharField()),
             archivo=Value("", output_field=CharField()),
-        ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'cliente_nombre', 'origen', 'placa', 'archivo'))
+            total=F('valor'),
+        ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'cliente_nombre', 'origen', 'placa', 'archivo', 'total'))
 
     ajuestesSaldos = list(Ajustesaldo.objects.select_related('id_cliente')
         .filter(**filtros_fecha)
@@ -169,7 +172,8 @@ def get_all_ficha_cliente(fechaInicio=None, fechaFin=None):
             origen=Value("Ajustes de Saldos", output_field=CharField()),
             placa=Value("", output_field=CharField()),
             archivo=Value("", output_field=CharField()),
-        ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'cliente_nombre', 'origen', 'placa', 'archivo'))
+            total=F('valor'),
+        ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'cliente_nombre', 'origen', 'placa', 'archivo', 'total'))
 
     cargosNoDeseados = list(
         Cargosnodesados.objects.select_related('id_cliente')
@@ -183,7 +187,8 @@ def get_all_ficha_cliente(fechaInicio=None, fechaFin=None):
             origen=Value("Cargos no deseados", output_field=CharField()),
             placa=Value("", output_field=CharField()),
             archivo=Value("", output_field=CharField()),
-        ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'cliente_nombre', 'origen', 'placa', 'archivo')
+            total=F('valor'),
+        ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'cliente_nombre', 'origen', 'placa', 'archivo', 'total')
     )
 
     # Unir todos los resultados
@@ -194,7 +199,8 @@ def get_all_ficha_cliente(fechaInicio=None, fechaFin=None):
         {   
             'nombre_cuenta' : item['cliente_nombre'],
             'valor'         : item['valor_alias'],
-            'origen'        : f"Cliente - {item['origen']}"
+            'origen'        : f"Cliente - {item['origen']}",
+            'total'         : item['total'] if 'total' in item else 0
         }
         for item in union_result
     ]
@@ -411,8 +417,9 @@ def obtener_balancegeneral(request):
     fichas_proveedor = get_all_fecha_proveedores(fecha_inicio, fecha_fin)
     utilidades       = get_ficha_utilidades(fecha_inicio, fecha_fin)
   
-    total_saldo_clientes    = sum(safe_to_float(item['valor']) for item in valores_clientes)
-    total_gastos_generales  = sum(safe_to_float(item['valor']) for item in valores_gastos)
+    total_saldo_clientes  = sum(safe_to_float(item['total']) for item in valores_clientes)
+    total_saldo_clientes_valor        = sum(safe_to_float(item['valor']) for item in valores_clientes)
+    total_gastos_generales      = sum(safe_to_float(item['valor']) for item in valores_gastos)
     total_comisiones_proveedores = sum(safe_to_float(item['valor']) for item in fichas_proveedor)
     total_tarjetas = sum(item['valor'] for item in serializer.data if isinstance(item['valor'], (int, float)))
     
@@ -444,7 +451,7 @@ def obtener_balancegeneral(request):
     clientes_info = {}
     for cliente in valores_clientes:
         nombre = cliente.get("nombre_cuenta") or f"Cliente {cliente.get('id', '')}"
-        valor  = safe_to_float(cliente.get("valor"))
+        valor  = safe_to_float(cliente.get("total"))
         
         if nombre in clientes_info:
             clientes_info[nombre] += valor
@@ -541,8 +548,8 @@ def obtener_patrimonio_bruto(request):
         total_tarjetas += total_general
 
     # ---- Totales clientes ----
-    valores_clientes = get_all_ficha_cliente(fecha_inicio, fecha_fin)
-    total_saldo_clientes = sum(safe_to_float(item['valor']) for item in valores_clientes)
+    valores_clientes     = get_all_ficha_cliente(fecha_inicio, fecha_fin)
+    total_saldo_clientes = sum(safe_to_float(item['total']) for item in valores_clientes)
 
     # ---- Suma total ----
     suma_total = total_saldo_clientes + total_tarjetas
@@ -603,7 +610,7 @@ def obtener_patrimonio_bruto_function():
 
     # ---- Totales clientes ----
     valores_clientes     = get_all_ficha_cliente(None, None)
-    total_saldo_clientes = sum(safe_to_float(item['valor']) for item in valores_clientes)
+    total_saldo_clientes = sum(safe_to_float(item['total']) for item in valores_clientes)
 
     # ---- Suma total ----
     suma_total = total_saldo_clientes + total_tarjetas

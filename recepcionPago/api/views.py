@@ -18,7 +18,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.db.models   import Q
 from datetime import date, datetime
 import uuid
-
+from django.db.models import F
 #Listar todas las recepciones de pago
 @api_view(['GET'])
 def listar_recepciones_pago(request):
@@ -204,24 +204,45 @@ def obtener_recepcion_pago(request, pk):
 @api_view(['GET'])
 def obtener_recepcion_pago_cliente(request, pk):
     # --- Consultas ---
-    cotizadores  = Cotizador.objects.filter(idCliente=pk).values('id', 'precioDeLey', 'total', 'fechaCreacion')
-    recepciones  = RecepcionPago.objects.filter(cliente_id=pk).values('id', 'valor', 'observacion', 'fecha_ingreso', 'fecha_transaccion')
-    ajustes      = Ajustesaldo.objects.filter(id_cliente=pk).values('id', 'valor', 'observacion', 'fecha_ingreso', 'fecha_transaccion')
-    devoluciones = Devoluciones.objects.filter(id_cliente=pk).values('id', 'valor', 'observacion', 'fecha_ingreso', 'fecha_transaccion')
-    cargos       = Cargosnodesados.objects.filter(id_cliente=pk).values('id', 'valor', 'observacion', 'fecha_ingreso', 'fecha_transaccion')
+    cotizadores = Cotizador.objects.filter(idCliente=pk).annotate(
+        fecha_ingreso=F('fechaCreacion'),
+        fecha_transaccion=F('fechaTramite')
+    ).values('id', 'precioDeLey', 'total', 'fecha_ingreso', 'fecha_transaccion')
+
+    recepciones  = RecepcionPago.objects.filter(cliente_id=pk).values(
+        'id', 'valor', 'observacion', 'fecha_ingreso', 'fecha_transaccion'
+    )
+    ajustes = Ajustesaldo.objects.filter(id_cliente=pk).values(
+        'id', 'valor', 'observacion', 'fecha_ingreso', 'fecha_transaccion'
+    )
+    devoluciones = Devoluciones.objects.filter(id_cliente=pk).values(
+        'id', 'valor', 'observacion', 'fecha_ingreso', 'fecha_transaccion'
+    )
+    cargos = Cargosnodesados.objects.filter(id_cliente=pk).values(
+        'id', 'valor', 'observacion', 'fecha_ingreso', 'fecha_transaccion'
+    )
 
     # --- Función segura para convertir a float ---
     def safe_float(value):
         try:
-            if value is None:
-                return 0
-            # Quitar separadores de miles y convertir
-            return float(str(value).replace(".", "").replace(",", ".").strip())
-        except:
-            return 0
+            if value is None or value == "":
+                return 0.0
+            s = str(value).strip()
+            if "." in s and "," in s:
+                if s.rfind(".") > s.rfind(","):
+                    s = s.replace(",", "")
+                else:
+                    s = s.replace(".", "").replace(",", ".")
+            elif "," in s:
+                s = s.replace(".", "").replace(",", ".")
+            else:
+                s = s.replace(",", "")
+            return float(s)
+        except Exception:
+            return 0.0
 
     # --- Calcular totales ---
-    cotizadores_total  = sum(safe_float(c.get('precioDeLey', 0)) for c in cotizadores)
+    cotizadores_total  = sum(safe_float(c.get('total', 0)) for c in cotizadores)
     recepciones_total  = sum(safe_float(r.get('valor', 0)) for r in recepciones)
     ajustes_total      = sum(safe_float(a.get('valor', 0)) for a in ajustes)
     devoluciones_total = sum(safe_float(d.get('valor', 0)) for d in devoluciones)
@@ -235,9 +256,24 @@ def obtener_recepcion_pago_cliente(request, pk):
         try:
             valor = safe_float(value)
             signo = "-" if valor < 0 else ""
-            return f"{signo}{abs(valor):,.0f}".replace(",", ".")
-        except:
+            valor_str = f"{int(abs(valor)):,}".replace(",", ".")
+            return f"{signo}{valor_str}"
+        except Exception:
             return value
+
+    # --- Función para convertir fechas en datetime ---
+    def parse_fecha(fecha_str):
+        if not fecha_str:
+            return datetime.min
+        if isinstance(fecha_str, datetime):
+            return fecha_str
+        try:
+            return datetime.strptime(str(fecha_str)[:19], "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            try:
+                return datetime.strptime(str(fecha_str)[:10], "%Y-%m-%d")
+            except ValueError:
+                return datetime.min
 
     # --- Función para mapear datos ---
     def map_data(lista, tipo, origen, field_valor='valor', field_obs='observacion', negativo=False):
@@ -246,7 +282,8 @@ def obtener_recepcion_pago_cliente(request, pk):
             valor = safe_float(item.get(field_valor))
             if negativo:
                 valor *= -1  # 🔹 convertir en negativo si corresponde
-            fecha = item.get('fecha_ingreso') or item.get('fechaCreacion') or ""
+            fecha_ingreso = item.get('fecha_ingreso')
+            fecha_transaccion = item.get('fecha_transaccion')
             data.append({
                 "id": str(uuid.uuid4()),
                 "valor": format_value(valor),
@@ -254,29 +291,28 @@ def obtener_recepcion_pago_cliente(request, pk):
                 "uid": f"{tipo}_{uuid.uuid4()}",
                 "origen": f"Cliente - {origen}",
                 "observacion": item.get(field_obs, "") or "",
-                "fecha_ingreso": item.get('fecha_ingreso'),
-                "fecha_transaccion": item.get('fecha_transaccion'),
-                "fecha": fecha
+                "fecha_ingreso": fecha_ingreso,
+                "fecha_transaccion": fecha_transaccion,
+                "fecha": fecha_ingreso or fecha_transaccion
             })
         return data
 
     # --- Construir datos ---
-    data_cotizadores  = map_data(cotizadores,  "cotizador",  "Trámites",          field_valor="precioDeLey", field_obs="", negativo=True)
-    data_recepciones  = map_data(recepciones,  "recepcion",  "Recepción de Pago")
-    data_ajustes      = map_data(ajustes,      "ajuste",     "Ajustes de Saldos")
-    data_devoluciones = map_data(devoluciones, "devolucion", "Devoluciones")
-    data_cargos       = map_data(cargos,       "cargo",      "Cargos no deseados")
+    data_cotizadores  = map_data(cotizadores,  "SOAT",  "Trámites",  field_valor="total", field_obs="", negativo=True)
+    data_recepciones  = map_data(recepciones,  "Recepción de pago", "Recepción de Pago")
+    data_ajustes      = map_data(ajustes,      "Ajuste de saldo",   "Ajustes de Saldos")
+    data_devoluciones = map_data(devoluciones, "Devolución",        "Devoluciones")
+    data_cargos       = map_data(cargos,       "Cargo no registrado", "Cargos no deseados")
 
     # --- Unir y ordenar por fecha ---
     data = data_cotizadores + data_recepciones + data_ajustes + data_devoluciones + data_cargos
-    data.sort(key=lambda x: x.get('fecha') or "", reverse=True)
+    data.sort(key=lambda x: parse_fecha(x.get('fecha') or ""), reverse=True)
 
     # --- Respuesta final ---
     return Response({
         "data": data,
-        "total": round(total_total, 2)
+        "total": total_total
     }, status=status.HTTP_200_OK)
-
 
 #Actualizar una recepción de pago
 @api_view(['PUT'])
