@@ -294,7 +294,69 @@ def safe_to_float(value):
         return float(value)
     except (ValueError, TypeError):
         return 0.0
+
+def obtener_datos_cuenta():  # Se elimina 'request' e 'id' de los argumentos si no se usan
+    # -----------------------------------------------------------
+    # 1. Optimización y Unión de Consultas para obtener el 4xmil
+    #    (SIN FILTRO DE ID)
+    # -----------------------------------------------------------
     
+    # Campos base para la union
+    base_fields = ('id', 'cuatro_por_mil')
+
+    # Consulta para Cuentas Bancarias (Todas las tarjetas)
+    # Se elimina .filter(idBanco=id)
+    cuentas = CuentaBancaria.objects.all().values(*base_fields)
+
+    # Consulta para Recepcion de Pagos (Todas las tarjetas)
+    # Se elimina .filter(id_tarjeta_bancaria=id)
+    recepcionDePagos = RecepcionPago.objects.all().values(*base_fields)
+
+    # Consulta para Devoluciones (Todas las tarjetas)
+    # Se elimina .filter(id_tarjeta_bancaria=id)
+    devoluciones = Devoluciones.objects.all().values(*base_fields)
+
+    # Cargos no registrados (Todas las tarjetas)
+    # Se elimina .filter(id_tarjeta_bancaria=id)
+    cargosNoRegistrados = Cargosnodesados.objects.all().values(*base_fields)
+
+    # Consulta para Gastos Generales (Todas las tarjetas)
+    # Se elimina .filter(id_tarjeta_bancaria=id)
+    gastos = Gastogenerales.objects.all().values(*base_fields)
+
+    # Consulta para Utilidad Ocasional (Todas las tarjetas)
+    # Se elimina .filter(id_tarjeta_bancaria=id)
+    utilidadocacional = Utilidadocacional.objects.all().values(*base_fields)
+
+    # Unir todas las consultas
+    union_result = list(cuentas) + list(devoluciones) + list(gastos) + list(utilidadocacional) + list(recepcionDePagos) + list(cargosNoRegistrados)
+
+    # -----------------------------------------------------------
+    # 2. Cálculo Rápido del Total del 4 por mil
+    # -----------------------------------------------------------
+
+    # La función to_number_4xmil se mantiene para limpiar y convertir los valores
+    def to_number_4xmil(value):
+        """Convierte el valor del 4xmil (que puede ser string con puntos/comas) a entero."""
+        if value in [None, "", "0", "None"]:
+            return 0
+        return int(str(value).replace(".", "").replace(",", "").strip())
+
+    total_cuatro_por_mil_raw = sum(
+        to_number_4xmil(item.get("cuatro_por_mil"))
+        for item in union_result
+    )
+
+    # Como el 4xmil es un cargo, se retorna con el signo negativo y se asegura el valor absoluto
+    total_cuatro_por_mil_final = -abs(total_cuatro_por_mil_raw)
+    
+    # -----------------------------------------------------------
+    # 3. Retorno Únicamente del Total del 4 por mil
+    # -----------------------------------------------------------
+
+    # Se mantiene la estructura de retorno de Django REST Framework (DRF)
+    return total_cuatro_por_mil_final or 0
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 @check_role(1,2)
@@ -446,11 +508,11 @@ def obtener_balancegeneral(request):
         total_cargo_no_deseados +
         total_recepcion_pago
     )
-    print(valores_clientes)
+
     # Construir arreglo estilo tarjetas
     clientes_info = {}
     for cliente in valores_clientes:
-        nombre = cliente.get("nombre_cuenta") or f"Cliente {cliente.get('id', '')}"
+        nombre = cliente.get("nombre_cuenta") or f"Cargo no deseados {cliente.get('id', '')}"
         valor  = safe_to_float(cliente.get("total"))
         
         if nombre in clientes_info:
@@ -462,7 +524,7 @@ def obtener_balancegeneral(request):
     clientes_info = [
         {"nombre": nombre, "valor": valor}
         for nombre, valor in clientes_info.items()
-        if valor > 0
+        if valor != 0
     ]
 
     """
@@ -482,7 +544,8 @@ def obtener_balancegeneral(request):
         "total_cargo_no_deseados": total_cargo_no_deseados,
         "total_recepcion_pago": total_recepcion_pago,
         "sumaTotal": suma_total,
-        "utilidades":utilidades[0]['valor']
+        "utilidades":utilidades[0]['valor'],
+        "total_cuatro_por_mil": obtener_datos_cuenta()
     }, status=status.HTTP_200_OK)
 
 
@@ -980,9 +1043,9 @@ def total_utilidad_real(request):
             fecha_fin    = datetime.strptime(fecha_fin, "%Y-%m-%d")
     except ValueError:
         return Response({"error": "Formato de fecha inválido. Use YYYY-MM-DD."}, status=400)
-
+ 
     try:
-        calcular_gastos  = calcular_gastos_totales(fecha_inicio, fecha_fin) #calcular_patrimonio_neto()
+        calcular_gastos     = gasto_totales_del_periodo_real(fecha_inicio, fecha_fin) #calcular_gastos_totales(fecha_inicio, fecha_fin) #calcular_patrimonio_neto()
         utilidad_nominal    = Decimal(calcular_total_utilidad_nominal(fecha_inicio, fecha_fin))
         
         total_utilidad_real = abs(utilidad_nominal)
@@ -1151,7 +1214,7 @@ def gasto_totales_del_periodo(request):
             return qs
 
         # ---- Gastos Generales ----
-        gastos_qs = apply_date_filter(Gastogenerales.objects.all(), "fecha_transaccion")
+        gastos_qs    = apply_date_filter(Gastogenerales.objects.all(), "fecha_transaccion")
         total_gastos = safe_sum(gastos_qs, "valor") or Decimal("0")
 
         # ---- Reunir todos los cuatro_por_mil ----
@@ -1179,9 +1242,9 @@ def gasto_totales_del_periodo(request):
 
         # ---- Response ----
         response_data = {
-            "total_gastos"         : total_gastos,
-            "total_cuatro_por_mil" : total_cuatro_por_mil,
-            "gastos_totales_de_periodo": total_cuatro_por_mil - total_gastos
+            "total_gastos"              : total_gastos,
+            "total_cuatro_por_mil"      : total_cuatro_por_mil,
+            "gastos_totales_de_periodo" : total_cuatro_por_mil - total_gastos
         }
 
         return Response(response_data, status=status.HTTP_200_OK)
@@ -1189,6 +1252,69 @@ def gasto_totales_del_periodo(request):
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
+
+def gasto_totales_del_periodo_real(fecha_inicio, fecha_fin):
+    try:
+        fecha_inicio = fecha_inicio 
+        fecha_fin    = fecha_fin
+
+        # ---- Helper para convertir a Decimal ----
+        def to_decimal(value):
+            if value in [None, "", "None"]:
+                return Decimal("0")
+            try:
+                return Decimal(str(value).replace(".", "").replace(",", ""))
+            except:
+                return Decimal("0")
+
+        # ---- Helper para aplicar filtro de fechas ----
+        def apply_date_filter(qs, field_name):
+            if fecha_inicio and fecha_fin:
+                return qs.filter(**{f"{field_name}__range": [fecha_inicio, fecha_fin]})
+            elif fecha_inicio:
+                return qs.filter(**{f"{field_name}__gte": fecha_inicio})
+            elif fecha_fin:
+                return qs.filter(**{f"{field_name}__lte": fecha_fin})
+            return qs
+
+        # ---- Gastos Generales ----
+        gastos_qs    = apply_date_filter(Gastogenerales.objects.all(), "fecha_transaccion")
+        total_gastos = safe_sum(gastos_qs, "valor") or Decimal("0")
+
+        # ---- Reunir todos los cuatro_por_mil ----
+        cuentas           = apply_date_filter(CuentaBancaria.objects.all(),    "fechaTransaccion").values("cuatro_por_mil")
+        recepcion         = apply_date_filter(RecepcionPago.objects.all(),     "fecha_transaccion").values("cuatro_por_mil")
+        devoluciones      = apply_date_filter(Devoluciones.objects.all(),      "fecha_transaccion").values("cuatro_por_mil")
+        cargosnodesados   = apply_date_filter(Cargosnodesados.objects.all(),   "fecha_transaccion").values("cuatro_por_mil")
+        gastos            = apply_date_filter(Gastogenerales.objects.all(),    "fecha_transaccion").values("cuatro_por_mil")
+        utilidadocacional = apply_date_filter(Utilidadocacional.objects.all(), "fecha_transaccion").values("cuatro_por_mil")
+
+        union_result = (
+            list(cuentas) +
+            list(recepcion) +
+            list(devoluciones) +
+            list(cargosnodesados) +
+            list(gastos) +
+            list(utilidadocacional)
+        )
+
+        total_cuatro_por_mil = sum(
+            abs(to_decimal(item.get("cuatro_por_mil")))
+            for item in union_result
+            if str(item.get("cuatro_por_mil")).strip() not in ["", "0", "None", None]
+        )
+
+        # ---- Response ----
+        response_data = {
+            "total_gastos"              : total_gastos,
+            "total_cuatro_por_mil"      : total_cuatro_por_mil,
+            "gastos_totales_de_periodo" : total_cuatro_por_mil - total_gastos
+        }
+
+        return total_cuatro_por_mil - total_gastos
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 """
 ================================
 === END GASTOS TOTALES DEL PERIODO ===

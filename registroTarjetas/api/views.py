@@ -136,8 +136,8 @@ def obtener_tarjetas_total(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
-    cuentas = RegistroTarjetas.objects.all()
-    serializer = RegistroTarjetasSerializer(cuentas, many=True)
+    cuentas     = RegistroTarjetas.objects.all()
+    serializer  = RegistroTarjetasSerializer(cuentas, many=True)
 
     for i in range(len(serializer.data)):
         tarjeta_id = serializer.data[i]['id']
@@ -151,11 +151,11 @@ def obtener_tarjetas_total(request):
             )['total_suma'] or 0
 
         # Consultas por tarjeta
-        rtaCuentaBancaria = sumar_valores(CuentaBancaria.objects.filter(idBanco=tarjeta_id))
-        rtaRecepcionPago = sumar_valores(RecepcionPago.objects.filter(id_tarjeta_bancaria=tarjeta_id))
-        rtaDevoluciones = sumar_valores(Devoluciones.objects.filter(id_tarjeta_bancaria=tarjeta_id))
-        rtaGastogenerales = sumar_valores(Gastogenerales.objects.filter(id_tarjeta_bancaria=tarjeta_id))
-        rtaUtilidadocacional = sumar_valores(Utilidadocacional.objects.filter(id_tarjeta_bancaria=tarjeta_id))
+        rtaCuentaBancaria       = sumar_valores(CuentaBancaria.objects.filter(idBanco=tarjeta_id))
+        rtaRecepcionPago        = sumar_valores(RecepcionPago.objects.filter(id_tarjeta_bancaria=tarjeta_id))
+        rtaDevoluciones         = sumar_valores(Devoluciones.objects.filter(id_tarjeta_bancaria=tarjeta_id))
+        rtaGastogenerales       = sumar_valores(Gastogenerales.objects.filter(id_tarjeta_bancaria=tarjeta_id))
+        rtaUtilidadocacional    = sumar_valores(Utilidadocacional.objects.filter(id_tarjeta_bancaria=tarjeta_id))
         rtaTarjetastrasladofondoResta = sumar_valores(Tarjetastrasladofondo.objects.filter(id_tarjeta_bancaria_envia=tarjeta_id))
         rtaTarjetastrasladofondoSuma = sumar_valores(Tarjetastrasladofondo.objects.filter(id_tarjeta_bancaria_recibe=tarjeta_id))
         rtaCargosnodesados = sumar_valores(Cargosnodesados.objects.filter(id_tarjeta_bancaria=tarjeta_id))

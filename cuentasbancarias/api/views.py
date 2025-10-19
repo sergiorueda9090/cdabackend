@@ -627,7 +627,7 @@ def obtener_datos_cuenta(request, id):
             "total_recepcionDePagos"    : total_recepcionDePagos or 0,
             "total_cargosNoDeseados"    : total_cargosNoDeseados or 0,
             "total_cuatro_por_mil"      : -abs(total_cuatro_por_mil or 0),
-            "total"                     : total_general + -abs(total_cuatro_por_mil or 0) or 0
+            "total"                     : total_general or 0 #+ -abs(total_cuatro_por_mil or 0) or 0
         },
         "tarjeta":{
             "nombre_cuenta"     : nombre_cuenta,
