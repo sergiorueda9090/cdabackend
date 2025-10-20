@@ -19,7 +19,7 @@ from django.db.models import Q
 # Obtener todos los clientes
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-@check_role(1)
+@check_role(1,3)
 def get_clientes(request):
     if request.method == 'GET':
         clientes   = Cliente.objects.all()
@@ -50,7 +50,7 @@ def get_clientes_search(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-@check_role(1,2)
+@check_role(1,2,3)
 def get_clientes_tramites(request):
     clientes = Cliente.objects.all()
     response_data = [
@@ -161,7 +161,7 @@ def create_cliente(request):
 # Obtener detalles de un cliente específico
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-@check_role(1,2)
+@check_role(1,2,3)
 def get_cliente_detail(request, pk):
     if request.method == 'GET':
         try:

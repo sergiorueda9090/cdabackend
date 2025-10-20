@@ -9,7 +9,7 @@ from users.decorators           import check_role
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-@check_role(1)
+@check_role(1,2)
 def get_proveedores(request):
     proveedores = Proveedor.objects.all()
     if not proveedores.exists():

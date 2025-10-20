@@ -9,7 +9,7 @@ from users.decorators  import check_role
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-@check_role(1,2)
+@check_role(1,2,3)
 def get_etiquetas(request):
     etiquetas  = Etiqueta.objects.all()
     serializer = EtiquetaSerializer(etiquetas, many=True)

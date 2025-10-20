@@ -13,7 +13,8 @@ from users.decorators           import check_role
 
 # 🔹 Listar todas las devoluciones
 @api_view(['GET'])
-@check_role(1)
+@check_role(1,2)
+#@permission_classes([IsAuthenticated])
 def listar_devoluciones(request):
     devolucionAll= Devoluciones.objects.all()
     devoluciones_pago_data = []
@@ -44,7 +45,8 @@ def listar_devoluciones(request):
 
 # 🔹 Crear una nueva devolución
 @api_view(['POST'])
-@check_role(1)
+@check_role(1,2)
+#@permission_classes([IsAuthenticated])
 def crear_devolucion(request):
     required_fields = ["id_cliente", "id_tarjeta_bancaria", "fecha_transaccion", "valor"]
 
@@ -95,7 +97,8 @@ def crear_devolucion(request):
 
 # 🔹 Obtener una devolución por ID
 @api_view(['GET'])
-@check_role(1)
+@check_role(1,2)
+#@permission_classes([IsAuthenticated])
 def obtener_devolucion(request, pk):
     try:
         devolucionGet = Devoluciones.objects.get(pk=pk)
@@ -108,7 +111,8 @@ def obtener_devolucion(request, pk):
 
 # 🔹 Actualizar una devolución
 @api_view(['PUT'])
-@check_role(1)
+@check_role(1,2)
+#@permission_classes([IsAuthenticated])
 def actualizar_devolucion(request, pk):
     try:
         devolucionGet = Devoluciones.objects.get(pk=pk)
@@ -159,7 +163,8 @@ def actualizar_devolucion(request, pk):
 
 # 🔹 Eliminar una devolución
 @api_view(['DELETE'])
-@check_role(1)
+@check_role(1,2)
+#@permission_classes([IsAuthenticated])
 def eliminar_devolucion(request, pk):
     try:
         devolucionDelete = Devoluciones.objects.get(pk=pk)
@@ -170,7 +175,8 @@ def eliminar_devolucion(request, pk):
 
 
 @api_view(['GET'])
-@check_role(1)
+@check_role(1,2)
+#@permission_classes([IsAuthenticated])
 def listar_devoluciones_filtro(request):
     from datetime import datetime, time
     fecha_inicio_str = request.GET.get('fechaInicio')

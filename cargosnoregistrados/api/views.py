@@ -13,7 +13,8 @@ from users.decorators           import check_role
 
 #Listar todas las cargo no registrado
 @api_view(['GET'])
-@check_role(1)
+@check_role(1,2)
+#@permission_classes([IsAuthenticated])
 def listar_cargosnoregistrados(request):
     cargosnoregistradosAll = Cargosnodesados.objects.all()
     cargosnoregistradosAll_pago_data = []
@@ -50,7 +51,8 @@ def listar_cargosnoregistrados(request):
 
 #Crear una nuevo cargo no registrado
 @api_view(['POST'])
-@check_role(1)
+@check_role(1,2)
+#@permission_classes([IsAuthenticated])
 def crear_cargosnoregistrados(request):
     required_fields = ["id_tarjeta_bancaria", "fecha_transaccion", "valor"]
 
@@ -105,7 +107,8 @@ def crear_cargosnoregistrados(request):
 
 #Obtener una devolución por ID
 @api_view(['GET'])
-@check_role(1)
+@check_role(1,2)
+#@permission_classes([IsAuthenticated])
 def obtener_cargosnoregistrados(request, pk):
     try:
         cargosNoDeseadosGet = Cargosnodesados.objects.get(pk=pk)
@@ -118,7 +121,8 @@ def obtener_cargosnoregistrados(request, pk):
 
 #Actualizar una devolución
 @api_view(['PUT'])
-@check_role(1)
+@check_role(1,2)
+#@permission_classes([IsAuthenticated])
 def actualizar_cargosnoregistrados(request, pk):
     try:
         cargoNoDeseadoGet = Cargosnodesados.objects.get(pk=pk)
@@ -172,7 +176,8 @@ def actualizar_cargosnoregistrados(request, pk):
 
 #Eliminar una devolución
 @api_view(['DELETE'])
-@check_role(1)
+@check_role(1,2)
+#@permission_classes([IsAuthenticated])
 def eliminar_cargosnoregistrados(request, pk):
     try:
         cargoNoDeseadoDelete = Cargosnodesados.objects.get(pk=pk)
@@ -183,7 +188,8 @@ def eliminar_cargosnoregistrados(request, pk):
 
 
 @api_view(['GET'])
-@check_role(1)
+@check_role(1,2)
+#@permission_classes([IsAuthenticated])
 def listar_cargosnoregistrados_filtro(request):
     from datetime import datetime, time
     fecha_inicio_str = request.GET.get('fechaInicio')
@@ -231,6 +237,8 @@ def listar_cargosnoregistrados_filtro(request):
 
 
 @api_view(['GET'])
+@check_role(1,2)
+#@permission_classes([IsAuthenticated])
 def listar_cargosnoregistrados_cliente_filtro(request):
     from datetime import datetime, time
     fecha_inicio_str = request.GET.get('fechaInicio')
