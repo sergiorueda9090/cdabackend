@@ -282,6 +282,7 @@ def obtener_tarjetas_total(request):
         )
 
         serializer.data[i]['valor'] = total_general
+        serializer.data[i]['total_cuatro_por_mil'] = -total_cuatro_por_mil
 
     return Response(serializer.data, status=status.HTTP_200_OK)
 
