@@ -108,6 +108,86 @@ def eliminar_tarjeta(request, id):
     except RegistroTarjetas.DoesNotExist:
         return Response({"error": "Cuenta bancaria no encontrada"}, status=status.HTTP_404_NOT_FOUND)
 
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+# @check_role(1, 2)
+# def obtener_tarjetas_total(request):
+#     # Verificar si todas las tablas existen antes de ejecutar consultas
+#     required_models = {
+#         "RegistroTarjetas": RegistroTarjetas,
+#         "RecepcionPago": RecepcionPago,
+#         "Devoluciones": Devoluciones,
+#         "Gastogenerales": Gastogenerales,
+#         "Utilidadocacional": Utilidadocacional,
+#         "Tarjetastrasladofondo": Tarjetastrasladofondo,
+#         "Cargosnodesados": Cargosnodesados
+#     }
+
+#     missing_tables = [
+#         name for name, model in required_models.items() if not model._meta.db_table
+#     ]
+
+#     if missing_tables:
+#         return Response(
+#             {
+#                 "error": "Algunas tablas no existen en la base de datos",
+#                 "tablas_faltantes": missing_tables,
+#             },
+#             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+#         )
+
+#     cuentas     = RegistroTarjetas.objects.all()
+#     serializer  = RegistroTarjetasSerializer(cuentas, many=True)
+
+#     for i in range(len(serializer.data)):
+#         tarjeta_id = serializer.data[i]['id']
+
+#         # Función para sumar valores numéricos
+#         def sumar_valores(queryset):
+#             return queryset.aggregate(
+#                 total_suma=Sum(
+#                     Cast(Replace(F('valor'), Value('.'), Value('')), output_field=models.IntegerField())
+#                 )
+#             )['total_suma'] or 0
+
+#         # Consultas por tarjeta
+#         rtaCuentaBancaria       = sumar_valores(CuentaBancaria.objects.filter(idBanco=tarjeta_id))
+#         rtaRecepcionPago        = sumar_valores(RecepcionPago.objects.filter(id_tarjeta_bancaria=tarjeta_id))
+#         rtaDevoluciones         = sumar_valores(Devoluciones.objects.filter(id_tarjeta_bancaria=tarjeta_id))
+#         rtaGastogenerales       = sumar_valores(Gastogenerales.objects.filter(id_tarjeta_bancaria=tarjeta_id))
+#         rtaUtilidadocacional    = sumar_valores(Utilidadocacional.objects.filter(id_tarjeta_bancaria=tarjeta_id))
+#         rtaTarjetastrasladofondoResta = sumar_valores(Tarjetastrasladofondo.objects.filter(id_tarjeta_bancaria_envia=tarjeta_id))
+#         rtaTarjetastrasladofondoSuma = sumar_valores(Tarjetastrasladofondo.objects.filter(id_tarjeta_bancaria_recibe=tarjeta_id))
+#         rtaCargosnodesados = sumar_valores(Cargosnodesados.objects.filter(id_tarjeta_bancaria=tarjeta_id))
+        
+#         # 🔹 Sumar Cargosnodeseados al total general
+#         total_general = (
+#             rtaCuentaBancaria +
+#             rtaRecepcionPago +
+#             rtaDevoluciones +
+#             rtaGastogenerales +
+#             rtaUtilidadocacional -
+#             rtaTarjetastrasladofondoResta +
+#             rtaTarjetastrasladofondoSuma +
+#             rtaCargosnodesados
+#         )
+
+#         print(
+#             f"""
+#             rtaRecepcionPago: {rtaRecepcionPago}
+#             rtaDevoluciones: {rtaDevoluciones}
+#             rtaGastogenerales: {rtaGastogenerales}
+#             rtaUtilidadocacional: {rtaUtilidadocacional}
+#             rtaCargosnodesados: {rtaCargosnodesados}
+#             total_general: {total_general}
+#             """
+#         )
+
+#         serializer.data[i]['valor'] = total_general
+
+#     return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 @check_role(1, 2)
@@ -120,11 +200,12 @@ def obtener_tarjetas_total(request):
         "Gastogenerales": Gastogenerales,
         "Utilidadocacional": Utilidadocacional,
         "Tarjetastrasladofondo": Tarjetastrasladofondo,
-        "Cargosnodesados": Cargosnodesados
+        "Cargosnodesados": Cargosnodesados,
+        "CuentaBancaria": CuentaBancaria,
     }
 
     missing_tables = [
-        name for name, model in required_models.items() if not model._meta.db_table
+        name for name, model in required_models.items() if not getattr(model._meta, "db_table", None)
     ]
 
     if missing_tables:
@@ -136,31 +217,46 @@ def obtener_tarjetas_total(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
-    cuentas     = RegistroTarjetas.objects.all()
-    serializer  = RegistroTarjetasSerializer(cuentas, many=True)
+    cuentas = RegistroTarjetas.objects.all()
+    serializer = RegistroTarjetasSerializer(cuentas, many=True)
+
+    # >>> función corregida: ahora acepta queryset y nombre de campo
+    def sumar_valores(queryset, campo="valor"):
+        # Usa F(campo) para permitir campo dinámico
+        return queryset.aggregate(
+            total_suma=Sum(
+                Cast(
+                    Replace(F(campo), Value('.'), Value('')),
+                    output_field=models.BigIntegerField()
+                )
+            )
+        )['total_suma'] or 0
+    # <<<
 
     for i in range(len(serializer.data)):
         tarjeta_id = serializer.data[i]['id']
 
-        # Función para sumar valores numéricos
-        def sumar_valores(queryset):
-            return queryset.aggregate(
-                total_suma=Sum(
-                    Cast(Replace(F('valor'), Value('.'), Value('')), output_field=models.IntegerField())
-                )
-            )['total_suma'] or 0
-
-        # Consultas por tarjeta
-        rtaCuentaBancaria       = sumar_valores(CuentaBancaria.objects.filter(idBanco=tarjeta_id))
-        rtaRecepcionPago        = sumar_valores(RecepcionPago.objects.filter(id_tarjeta_bancaria=tarjeta_id))
-        rtaDevoluciones         = sumar_valores(Devoluciones.objects.filter(id_tarjeta_bancaria=tarjeta_id))
-        rtaGastogenerales       = sumar_valores(Gastogenerales.objects.filter(id_tarjeta_bancaria=tarjeta_id))
-        rtaUtilidadocacional    = sumar_valores(Utilidadocacional.objects.filter(id_tarjeta_bancaria=tarjeta_id))
+        # Consultas por tarjeta (campo por defecto "valor")
+        rtaCuentaBancaria = sumar_valores(CuentaBancaria.objects.filter(idBanco=tarjeta_id))
+        rtaRecepcionPago = sumar_valores(RecepcionPago.objects.filter(id_tarjeta_bancaria=tarjeta_id))
+        rtaDevoluciones = sumar_valores(Devoluciones.objects.filter(id_tarjeta_bancaria=tarjeta_id))
+        rtaGastogenerales = sumar_valores(Gastogenerales.objects.filter(id_tarjeta_bancaria=tarjeta_id))
+        rtaUtilidadocacional = sumar_valores(Utilidadocacional.objects.filter(id_tarjeta_bancaria=tarjeta_id))
         rtaTarjetastrasladofondoResta = sumar_valores(Tarjetastrasladofondo.objects.filter(id_tarjeta_bancaria_envia=tarjeta_id))
         rtaTarjetastrasladofondoSuma = sumar_valores(Tarjetastrasladofondo.objects.filter(id_tarjeta_bancaria_recibe=tarjeta_id))
         rtaCargosnodesados = sumar_valores(Cargosnodesados.objects.filter(id_tarjeta_bancaria=tarjeta_id))
 
-        # 🔹 Sumar Cargosnodeseados al total general
+        # Sumar el campo cuatro_por_mil desde las tablas donde exista (ejemplo: CuentaBancaria y RecepcionPago).
+        # Si tienes cuatro_por_mil en más modelos, añádelos aquí.
+        cuatro_por_mil_cuentas = sumar_valores(CuentaBancaria.objects.filter(idBanco=tarjeta_id), "cuatro_por_mil")
+        cuatro_por_mil_recepciones = sumar_valores(RecepcionPago.objects.filter(id_tarjeta_bancaria=tarjeta_id), "cuatro_por_mil")
+        cuatro_por_mil_devoluciones = sumar_valores(Devoluciones.objects.filter(id_tarjeta_bancaria=tarjeta_id), "cuatro_por_mil")
+        # total cuatro x mil (se resta siempre como valor positivo)
+        total_cuatro_por_mil = abs(
+            cuatro_por_mil_cuentas + cuatro_por_mil_recepciones + cuatro_por_mil_devoluciones
+        )
+
+        # Calculo total general aplicando el -4xmil
         total_general = (
             rtaCuentaBancaria +
             rtaRecepcionPago +
@@ -170,6 +266,7 @@ def obtener_tarjetas_total(request):
             rtaTarjetastrasladofondoResta +
             rtaTarjetastrasladofondoSuma +
             rtaCargosnodesados
+            - total_cuatro_por_mil  # <-- aplicamos la resta del 4xmil
         )
 
         print(
@@ -179,6 +276,7 @@ def obtener_tarjetas_total(request):
             rtaGastogenerales: {rtaGastogenerales}
             rtaUtilidadocacional: {rtaUtilidadocacional}
             rtaCargosnodesados: {rtaCargosnodesados}
+            total_cuatro_por_mil: {-total_cuatro_por_mil}
             total_general: {total_general}
             """
         )

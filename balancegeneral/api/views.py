@@ -615,7 +615,7 @@ def obtener_patrimonio_bruto(request):
     total_saldo_clientes = sum(safe_to_float(item['total']) for item in valores_clientes)
 
     # ---- Suma total ----
-    suma_total = total_saldo_clientes + total_tarjetas
+    suma_total = (total_saldo_clientes * -1) + total_tarjetas
 
     # ---- Respuesta ----
     return Response({
