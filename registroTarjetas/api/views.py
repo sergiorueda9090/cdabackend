@@ -251,9 +251,13 @@ def obtener_tarjetas_total(request):
         cuatro_por_mil_cuentas = sumar_valores(CuentaBancaria.objects.filter(idBanco=tarjeta_id), "cuatro_por_mil")
         cuatro_por_mil_recepciones = sumar_valores(RecepcionPago.objects.filter(id_tarjeta_bancaria=tarjeta_id), "cuatro_por_mil")
         cuatro_por_mil_devoluciones = sumar_valores(Devoluciones.objects.filter(id_tarjeta_bancaria=tarjeta_id), "cuatro_por_mil")
+        cuatro_por_mil_gastos = sumar_valores(Gastogenerales.objects.filter(id_tarjeta_bancaria=tarjeta_id), "cuatro_por_mil")
+        cuatro_por_mil_utilidad = sumar_valores(Utilidadocacional.objects.filter(id_tarjeta_bancaria=tarjeta_id), "cuatro_por_mil")
+
         # total cuatro x mil (se resta siempre como valor positivo)
         total_cuatro_por_mil = abs(
-            cuatro_por_mil_cuentas + cuatro_por_mil_recepciones + cuatro_por_mil_devoluciones
+            cuatro_por_mil_cuentas + cuatro_por_mil_recepciones + cuatro_por_mil_devoluciones +
+            cuatro_por_mil_gastos + cuatro_por_mil_utilidad
         )
 
         # Calculo total general aplicando el -4xmil
