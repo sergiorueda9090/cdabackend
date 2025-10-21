@@ -31,6 +31,7 @@ from rest_framework.permissions import IsAuthenticated
 from users.decorators           import check_role
 from django.db import transaction
 
+from tarjetastrasladofondo.models import Tarjetastrasladofondo
 
 def listar_gastos_generales(fecha_inicio=None, fecha_fin=None):
     try:
@@ -434,16 +435,6 @@ def obtener_balancegeneral(request):
                 Cast(Replace(F('valor'), Value('.'), Value('')), output_field=models.IntegerField())
             )
         )
-        # Nuevo agregado para Cargos no registrados
-        rtaCargosNoDeseados = Cargosnodesados.objects.filter(
-            id_tarjeta_bancaria=serializer.data[i]['id']
-        ).aggregate(
-            total_suma=Sum(
-                Cast(Replace(F('valor'), Value('.'), Value('')), output_field=models.IntegerField())
-            )
-        )
-        # Fin nuevo agregado
-    
 
         rtaGastogenerales = Gastogenerales.objects.filter(
             id_tarjeta_bancaria=serializer.data[i]['id']
@@ -461,6 +452,32 @@ def obtener_balancegeneral(request):
             )
         )
 
+        rtaTarjetastrasladofondoResta = Tarjetastrasladofondo.objects.filter(
+            id_tarjeta_bancaria_envia=serializer.data[i]['id']
+        ).aggregate(
+            total_suma=Sum(
+                Cast(Replace(F('valor'), Value('.'), Value('')), output_field=models.IntegerField())
+            )
+        )
+
+        rtaTarjetastrasladofondoSuma = Tarjetastrasladofondo.objects.filter(
+            id_tarjeta_bancaria_recibe=serializer.data[i]['id']
+        ).aggregate(
+            total_suma=Sum(
+                Cast(Replace(F('valor'), Value('.'), Value('')), output_field=models.IntegerField())
+            )
+        )
+
+        # Nuevo agregado para Cargos no registrados
+        rtaCargosNoDeseados = Cargosnodesados.objects.filter(
+            id_tarjeta_bancaria=serializer.data[i]['id']
+        ).aggregate(
+            total_suma=Sum(
+                Cast(Replace(F('valor'), Value('.'), Value('')), output_field=models.IntegerField())
+            )
+        )
+        # Fin nuevo agregado
+    
         cuatro_por_mil_cuentas      = sumar_valores(CuentaBancaria.objects.filter(idBanco=serializer.data[i]['id']), "cuatro_por_mil")
         cuatro_por_mil_recepciones  = sumar_valores(RecepcionPago.objects.filter(id_tarjeta_bancaria=serializer.data[i]['id']), "cuatro_por_mil")
         cuatro_por_mil_devoluciones = sumar_valores(Devoluciones.objects.filter(id_tarjeta_bancaria=serializer.data[i]['id']), "cuatro_por_mil")
@@ -476,7 +493,9 @@ def obtener_balancegeneral(request):
         rtaRecepcionPago['total_suma']       = rtaRecepcionPago['total_suma']     if rtaRecepcionPago['total_suma']      is not None else 0
         rtaDevoluciones['total_suma']        = rtaDevoluciones['total_suma']      if rtaDevoluciones['total_suma']       is not None else 0
         rtaGastogenerales['total_suma']      = rtaGastogenerales['total_suma']    if rtaGastogenerales['total_suma']     is not None else 0
-        rtaUtilidadocacional['total_suma']   = rtaUtilidadocacional['total_suma'] if rtaUtilidadocacional['total_suma']  is not None else 0
+        rtaUtilidadocacional['total_suma']   = rtaUtilidadocacional['total_suma'] if rtaUtilidadocacional['total_suma']  is not None else 0  
+        rtaTarjetastrasladofondoResta['total_suma'] = rtaTarjetastrasladofondoResta['total_suma'] if rtaTarjetastrasladofondoResta['total_suma'] is not None else 0
+        rtaTarjetastrasladofondoSuma['total_suma'] = rtaTarjetastrasladofondoSuma['total_suma'] if rtaTarjetastrasladofondoSuma['total_suma'] is not None else 0
         rtaCargosNoDeseados['total_suma']    = rtaCargosNoDeseados['total_suma']  if rtaCargosNoDeseados['total_suma']   is not None else 0
 
         total_general = (
@@ -484,10 +503,13 @@ def obtener_balancegeneral(request):
             rtaRecepcionPago['total_suma'] +
             rtaDevoluciones['total_suma'] +
             rtaGastogenerales['total_suma'] +
-            rtaUtilidadocacional['total_suma'] +
-            rtaCargosNoDeseados['total_suma']
-            - total_cuatro_por_mil
+            rtaUtilidadocacional['total_suma'] -
+            rtaCargosNoDeseados['total_suma']   +
+            rtaTarjetastrasladofondoSuma['total_suma'] +
+            rtaTarjetastrasladofondoResta['total_suma'] -
+            total_cuatro_por_mil
         )
+
         print("rtaRecepcionPago : {}\nrtaDevoluciones: {}\nrtaGastogenerales: {}\nrtaUtilidadocacional: {}\ntotal_general: {}"
             .format(rtaRecepcionPago, rtaDevoluciones, rtaGastogenerales, rtaUtilidadocacional, total_general))
 
