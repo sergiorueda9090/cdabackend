@@ -393,6 +393,19 @@ def obtener_balancegeneral(request):
     serializer  = RegistroTarjetasSerializer(cuentas, many=True)
     tarjetas_info = []
 
+        # >>> función corregida: ahora acepta queryset y nombre de campo
+    def sumar_valores(queryset, campo="valor"):
+        # Usa F(campo) para permitir campo dinámico
+        return queryset.aggregate(
+            total_suma=Sum(
+                Cast(
+                    Replace(F(campo), Value('.'), Value('')),
+                    output_field=models.BigIntegerField()
+                )
+            )
+        )['total_suma'] or 0
+    # <<<
+
     for i in range(len(serializer.data)):
 
         tarjeta_nombre = serializer.data[i]['nombre_cuenta']
@@ -448,6 +461,17 @@ def obtener_balancegeneral(request):
             )
         )
 
+        cuatro_por_mil_cuentas      = sumar_valores(CuentaBancaria.objects.filter(idBanco=serializer.data[i]['id']), "cuatro_por_mil")
+        cuatro_por_mil_recepciones  = sumar_valores(RecepcionPago.objects.filter(id_tarjeta_bancaria=serializer.data[i]['id']), "cuatro_por_mil")
+        cuatro_por_mil_devoluciones = sumar_valores(Devoluciones.objects.filter(id_tarjeta_bancaria=serializer.data[i]['id']), "cuatro_por_mil")
+        cuatro_por_mil_gastos       = sumar_valores(Gastogenerales.objects.filter(id_tarjeta_bancaria=serializer.data[i]['id']), "cuatro_por_mil")
+        cuatro_por_mil_utilidad     = sumar_valores(Utilidadocacional.objects.filter(id_tarjeta_bancaria=serializer.data[i]['id']), "cuatro_por_mil")
+
+        total_cuatro_por_mil = abs(
+            cuatro_por_mil_cuentas + cuatro_por_mil_recepciones + cuatro_por_mil_devoluciones +
+            cuatro_por_mil_gastos + cuatro_por_mil_utilidad
+        )
+
         rtaCuentaBancaria['total_suma']      = rtaCuentaBancaria['total_suma']    if rtaCuentaBancaria['total_suma']     is not None else 0
         rtaRecepcionPago['total_suma']       = rtaRecepcionPago['total_suma']     if rtaRecepcionPago['total_suma']      is not None else 0
         rtaDevoluciones['total_suma']        = rtaDevoluciones['total_suma']      if rtaDevoluciones['total_suma']       is not None else 0
@@ -468,7 +492,7 @@ def obtener_balancegeneral(request):
 
 
         # Añadir a lista para respuesta
-        tarjetas_info.append({"nombre": tarjeta_nombre, "valor" :total_general})
+        tarjetas_info.append({"nombre": tarjeta_nombre, "valor" :total_general - total_cuatro_por_mil})
               
         serializer.data[i]['valor'] = total_general
         serializer.data[i]['origen'] = 'tarjetas'
@@ -479,8 +503,8 @@ def obtener_balancegeneral(request):
     fichas_proveedor = get_all_fecha_proveedores(fecha_inicio, fecha_fin)
     utilidades       = get_ficha_utilidades(fecha_inicio, fecha_fin)
   
-    total_saldo_clientes  = sum(safe_to_float(item['total']) for item in valores_clientes)
-    total_saldo_clientes_valor        = sum(safe_to_float(item['valor']) for item in valores_clientes)
+    total_saldo_clientes        = sum(safe_to_float(item['total']) for item in valores_clientes)
+    total_saldo_clientes_valor  = sum(safe_to_float(item['valor']) for item in valores_clientes)
     total_gastos_generales      = sum(safe_to_float(item['valor']) for item in valores_gastos)
     total_comisiones_proveedores = sum(safe_to_float(item['valor']) for item in fichas_proveedor)
     total_tarjetas = sum(item['valor'] for item in serializer.data if isinstance(item['valor'], (int, float)))
