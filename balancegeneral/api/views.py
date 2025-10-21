@@ -499,15 +499,17 @@ def obtener_balancegeneral(request):
         rtaCargosNoDeseados['total_suma']    = rtaCargosNoDeseados['total_suma']  if rtaCargosNoDeseados['total_suma']   is not None else 0
 
         total_general = (
-            rtaCuentaBancaria['total_suma'] +
-            rtaRecepcionPago['total_suma'] +
-            rtaDevoluciones['total_suma'] +
-            rtaGastogenerales['total_suma'] +
-            rtaUtilidadocacional['total_suma'] +
-            rtaCargosNoDeseados['total_suma']   +
-            rtaTarjetastrasladofondoSuma['total_suma'] +
-            rtaTarjetastrasladofondoResta['total_suma'] 
-            - total_cuatro_por_mil
+                rtaCuentaBancaria['total_suma']         +
+                rtaRecepcionPago['total_suma']          +
+                rtaDevoluciones['total_suma']           +
+                rtaGastogenerales['total_suma']         + # <-- SUMA
+                rtaUtilidadocacional['total_suma']      +
+                
+                - rtaTarjetastrasladofondoResta['total_suma'] + # <-- RESTA
+                rtaTarjetastrasladofondoSuma['total_suma']  + # <-- SUMA
+                rtaCargosNoDeseados['total_suma']           + # <-- SUMA
+
+                - total_cuatro_por_mil
         )
 
         print("rtaRecepcionPago : {}\nrtaDevoluciones: {}\nrtaGastogenerales: {}\nrtaUtilidadocacional: {}\ntotal_general: {}"
