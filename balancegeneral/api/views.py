@@ -492,7 +492,7 @@ def obtener_balancegeneral(request):
 
 
         # Añadir a lista para respuesta
-        tarjetas_info.append({"nombre": tarjeta_nombre, "valor" :total_cuatro_por_mil - total_cuatro_por_mil})
+        tarjetas_info.append({"nombre": tarjeta_nombre, "valor" :total_general - total_cuatro_por_mil, "cuatro_por_mil": -total_cuatro_por_mil})
               
         serializer.data[i]['valor'] = total_general
         serializer.data[i]['origen'] = 'tarjetas'
