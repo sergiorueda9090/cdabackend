@@ -412,77 +412,22 @@ def obtener_balancegeneral(request):
         tarjeta_nombre = serializer.data[i]['nombre_cuenta']
         tarjeta_id = serializer.data[i]['id']
 
-        rtaCuentaBancaria = CuentaBancaria.objects.filter(
-            idBanco=serializer.data[i]['id']
-        ).aggregate(
-            total_suma=Sum(
-                Cast(Replace(F('valor'), Value('.'), Value('')), output_field=models.IntegerField())
-            )
-        )
+        rtaCuentaBancaria = sumar_valores(CuentaBancaria.objects.filter(idBanco=tarjeta_id))
+        rtaRecepcionPago = sumar_valores(RecepcionPago.objects.filter(id_tarjeta_bancaria=tarjeta_id))
+        rtaDevoluciones = sumar_valores(Devoluciones.objects.filter(id_tarjeta_bancaria=tarjeta_id))
+        rtaGastogenerales = sumar_valores(Gastogenerales.objects.filter(id_tarjeta_bancaria=tarjeta_id))
+        rtaUtilidadocacional = sumar_valores(Utilidadocacional.objects.filter(id_tarjeta_bancaria=tarjeta_id))
+        rtaTarjetastrasladofondoResta = sumar_valores(Tarjetastrasladofondo.objects.filter(id_tarjeta_bancaria_envia=tarjeta_id))
+        rtaTarjetastrasladofondoSuma = sumar_valores(Tarjetastrasladofondo.objects.filter(id_tarjeta_bancaria_recibe=tarjeta_id))
+        rtaCargosnodesados = sumar_valores(Cargosnodesados.objects.filter(id_tarjeta_bancaria=tarjeta_id))
 
-        rtaRecepcionPago = RecepcionPago.objects.filter(
-            id_tarjeta_bancaria=serializer.data[i]['id']
-        ).aggregate(
-            total_suma=Sum(
-                Cast(Replace(F('valor'), Value('.'), Value('')), output_field=models.IntegerField())
-            )
-        )
-
-        rtaDevoluciones = Devoluciones.objects.filter(
-            id_tarjeta_bancaria=serializer.data[i]['id']
-        ).aggregate(
-            total_suma=Sum(
-                Cast(Replace(F('valor'), Value('.'), Value('')), output_field=models.IntegerField())
-            )
-        )
-
-        rtaGastogenerales = Gastogenerales.objects.filter(
-            id_tarjeta_bancaria=serializer.data[i]['id']
-        ).aggregate(
-            total_suma=Sum(
-                Cast(Replace(F('valor'), Value('.'), Value('')), output_field=models.IntegerField())
-            )
-        )
-
-        rtaUtilidadocacional = Utilidadocacional.objects.filter(
-            id_tarjeta_bancaria=serializer.data[i]['id']
-        ).aggregate(
-            total_suma=Sum(
-                Cast(Replace(F('valor'), Value('.'), Value('')), output_field=models.IntegerField())
-            )
-        )
-
-        rtaTarjetastrasladofondoResta = Tarjetastrasladofondo.objects.filter(
-            id_tarjeta_bancaria_envia=serializer.data[i]['id']
-        ).aggregate(
-            total_suma=Sum(
-                Cast(Replace(F('valor'), Value('.'), Value('')), output_field=models.IntegerField())
-            )
-        )
-
-        rtaTarjetastrasladofondoSuma = Tarjetastrasladofondo.objects.filter(
-            id_tarjeta_bancaria_recibe=serializer.data[i]['id']
-        ).aggregate(
-            total_suma=Sum(
-                Cast(Replace(F('valor'), Value('.'), Value('')), output_field=models.IntegerField())
-            )
-        )
-
-        # Nuevo agregado para Cargos no registrados
-        rtaCargosNoDeseados = Cargosnodesados.objects.filter(
-            id_tarjeta_bancaria=serializer.data[i]['id']
-        ).aggregate(
-            total_suma=Sum(
-                Cast(Replace(F('valor'), Value('.'), Value('')), output_field=models.IntegerField())
-            )
-        )
         # Fin nuevo agregado
     
-        cuatro_por_mil_cuentas      = sumar_valores(CuentaBancaria.objects.filter(idBanco=serializer.data[i]['id']), "cuatro_por_mil")
-        cuatro_por_mil_recepciones  = sumar_valores(RecepcionPago.objects.filter(id_tarjeta_bancaria=serializer.data[i]['id']), "cuatro_por_mil")
-        cuatro_por_mil_devoluciones = sumar_valores(Devoluciones.objects.filter(id_tarjeta_bancaria=serializer.data[i]['id']), "cuatro_por_mil")
-        cuatro_por_mil_gastos       = sumar_valores(Gastogenerales.objects.filter(id_tarjeta_bancaria=serializer.data[i]['id']), "cuatro_por_mil")
-        cuatro_por_mil_utilidad     = sumar_valores(Utilidadocacional.objects.filter(id_tarjeta_bancaria=serializer.data[i]['id']), "cuatro_por_mil")
+        cuatro_por_mil_cuentas = sumar_valores(CuentaBancaria.objects.filter(idBanco=tarjeta_id), "cuatro_por_mil")
+        cuatro_por_mil_recepciones = sumar_valores(RecepcionPago.objects.filter(id_tarjeta_bancaria=tarjeta_id), "cuatro_por_mil")
+        cuatro_por_mil_devoluciones = sumar_valores(Devoluciones.objects.filter(id_tarjeta_bancaria=tarjeta_id), "cuatro_por_mil")
+        cuatro_por_mil_gastos = sumar_valores(Gastogenerales.objects.filter(id_tarjeta_bancaria=tarjeta_id), "cuatro_por_mil")
+        cuatro_por_mil_utilidad = sumar_valores(Utilidadocacional.objects.filter(id_tarjeta_bancaria=tarjeta_id), "cuatro_por_mil")
 
         total_cuatro_por_mil = abs(
             cuatro_por_mil_cuentas + cuatro_por_mil_recepciones + cuatro_por_mil_devoluciones +
@@ -496,18 +441,18 @@ def obtener_balancegeneral(request):
         rtaUtilidadocacional['total_suma']   = rtaUtilidadocacional['total_suma'] if rtaUtilidadocacional['total_suma']  is not None else 0  
         rtaTarjetastrasladofondoResta['total_suma'] = rtaTarjetastrasladofondoResta['total_suma'] if rtaTarjetastrasladofondoResta['total_suma'] is not None else 0
         rtaTarjetastrasladofondoSuma['total_suma'] = rtaTarjetastrasladofondoSuma['total_suma'] if rtaTarjetastrasladofondoSuma['total_suma'] is not None else 0
-        rtaCargosNoDeseados['total_suma']    = rtaCargosNoDeseados['total_suma']  if rtaCargosNoDeseados['total_suma']   is not None else 0
+        #rtaCargosNoDeseados['total_suma']    = rtaCargosNoDeseados['total_suma']  if rtaCargosNoDeseados['total_suma']   is not None else 0
 
         total_general = (
-            rtaCuentaBancaria['total_suma'] +
-            rtaRecepcionPago['total_suma'] +
-            rtaDevoluciones['total_suma'] +
-            rtaGastogenerales['total_suma'] +
-            rtaUtilidadocacional['total_suma'] -
-            rtaCargosNoDeseados['total_suma']   +
-            rtaTarjetastrasladofondoSuma['total_suma'] +
-            rtaTarjetastrasladofondoResta['total_suma'] -
-            total_cuatro_por_mil
+            rtaCuentaBancaria +
+            rtaRecepcionPago +
+            rtaDevoluciones +
+            rtaGastogenerales +
+            rtaUtilidadocacional -
+            rtaTarjetastrasladofondoResta +
+            rtaTarjetastrasladofondoSuma +
+            rtaCargosnodesados
+            - total_cuatro_por_mil  # <-- aplicamos la resta del 4xmil
         )
 
         print("rtaRecepcionPago : {}\nrtaDevoluciones: {}\nrtaGastogenerales: {}\nrtaUtilidadocacional: {}\ntotal_general: {}"
