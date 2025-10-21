@@ -486,13 +486,14 @@ def obtener_balancegeneral(request):
             rtaGastogenerales['total_suma'] +
             rtaUtilidadocacional['total_suma'] +
             rtaCargosNoDeseados['total_suma']
+            - total_cuatro_por_mil
         )
         print("rtaRecepcionPago : {}\nrtaDevoluciones: {}\nrtaGastogenerales: {}\nrtaUtilidadocacional: {}\ntotal_general: {}"
             .format(rtaRecepcionPago, rtaDevoluciones, rtaGastogenerales, rtaUtilidadocacional, total_general))
 
 
         # Añadir a lista para respuesta
-        tarjetas_info.append({"nombre": tarjeta_nombre, "valor" :total_general - total_cuatro_por_mil, "cuatro_por_mil": -total_cuatro_por_mil})
+        tarjetas_info.append({"nombre": tarjeta_nombre, "valor" :total_general, "cuatro_por_mil": -total_cuatro_por_mil})
               
         serializer.data[i]['valor'] = total_general
         serializer.data[i]['origen'] = 'tarjetas'
