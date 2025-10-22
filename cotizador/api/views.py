@@ -719,11 +719,15 @@ def update_cotizador_pdf(request, pk):
     old_archivo = cotizador.archivo  # guarda el valor anterior
 
     # Solo permitimos actualizar el campo 'archivo'
-    serializer = CotizadorSerializer(cotizador, data={'pdf': request.data.get('pdf'), 'pdfsModulo':0}, partial=True)
+    data = {
+        'pdf': request.data.get('pdf'),
+        'pdfsModulo': '0'
+    }
+    serializer = CotizadorSerializer(cotizador, data=data, partial=True)
     if serializer.is_valid():
         serializer.save()
         new_archivo = serializer.validated_data.get('archivo')
-        new_pdf     = Cotizador.objects.get(pk=pk).pdf.url if Cotizador.objects.get(pk=pk).pdf else Non
+        new_pdf     = Cotizador.objects.get(pk=pk).pdf.url if Cotizador.objects.get(pk=pk).pdf else None
    
         if old_archivo != new_archivo:
             LogCotizador.objects.create(
@@ -920,7 +924,6 @@ def get_cotizadores_pdfs(request):
 
 @api_view(['GET'])
 #@permission_classes([IsAuthenticated])
-@check_role(1,2,3)
 def update_cotizador_to_send_archivo(request):
     print("se ejecuta la tarea programada")
     #return Response({"ok":"ok"})
