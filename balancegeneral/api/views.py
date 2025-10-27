@@ -224,7 +224,7 @@ def get_all_ficha_cliente(fechaInicio=None, fechaFin=None):
 
     # ✅ Traer todos los cotizadores (sin excluir por precioDeLey, ni idBanco)
     cotizadores_qs = Cotizador.objects.values(
-        'id', 'fechaCreacion', 'total', 'idCliente', 'placa', 'archivo', 'idBanco'
+        'id', 'fechaCreacion', 'total', 'idCliente', 'placa', 'archivo', 'idBanco', 'precioDeLey'
     )
 
     if fecha_inicio and fecha_fin:
@@ -244,11 +244,24 @@ def get_all_ficha_cliente(fechaInicio=None, fechaFin=None):
         if not isinstance(total_valor, (int, float)) or math.isnan(total_valor):
             total_valor = 0.0  # Valor por defecto si es NaN o inválido
 
+        valor_alias = cuentasbancarias_qs.get(cotizador['id'], None)
+
+        # Si no existe valor_alias o es None, usar precioDeLey
+        if valor_alias is None:
+            valor_alias = cotizador.get('precioDeLey', 0.0)
+            valor_alias = str(valor_alias).replace('.', '').replace(',', '')
+            try:
+                valor_alias = -abs(float(valor_alias))
+            except ValueError:
+                valor_alias = 0.0
+
+            print("  Usando precioDeLey para cotizador ID {}: {}".format(cotizador['id'], valor_alias))
+
         cotizadores_list.append({
             'id': cotizador['id'],
             'fi': cotizador['fechaCreacion'],
             'ft': None,
-            'valor_alias': cuentasbancarias_qs.get(cotizador['id'], "Desconocido"),
+            'valor_alias': valor_alias,
             'desc_alias': "",
             'cliente_nombre': clientes_dict.get(cotizador['idCliente'], "Desconocido"),
             'origen': "Tramites",
@@ -671,7 +684,7 @@ def obtener_balancegeneral(request):
     utilidades       = get_ficha_utilidades(fecha_inicio, fecha_fin)
   
     total_saldo_clientes        = sum(safe_to_float(item['total']) for item in valores_clientes)
-    total_saldo_clientes_valor  = sum(safe_to_float(item['valor']) for item in valores_clientes)
+    #total_saldo_clientes_valor  = sum(safe_to_float(item['valor']) for item in valores_clientes)
     total_gastos_generales      = sum(safe_to_float(item['valor']) for item in valores_gastos)
     total_comisiones_proveedores = sum(safe_to_float(item['valor']) for item in fichas_proveedor)
     total_tarjetas = sum(item['valor'] for item in serializer.data if isinstance(item['valor'], (int, float)))
