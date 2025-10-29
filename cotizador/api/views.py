@@ -711,8 +711,7 @@ def update_cotizador_pdf(request, pk):
             {'error': 'El cliente no tiene un número telefónico para enviar el WhatsApp'},
             status=status.HTTP_404_NOT_FOUND
         )
-    print(" ==== cliente === ",cotizador)
-    print(" cotizador ", cotizador.placa)
+
     placa = cotizador.placa
     telefono, email, medio_contacto = cliente
 
@@ -723,9 +722,13 @@ def update_cotizador_pdf(request, pk):
         'pdf': request.data.get('pdf'),
         'pdfsModulo': '0'
     }
+
     serializer = CotizadorSerializer(cotizador, data=data, partial=True)
     if serializer.is_valid():
         serializer.save()
+        
+        Cotizador.objects.filter(pk=pk).update(pdfsModulo='0')
+
         new_archivo = serializer.validated_data.get('archivo')
         new_pdf     = Cotizador.objects.get(pk=pk).pdf.url if Cotizador.objects.get(pk=pk).pdf else None
    

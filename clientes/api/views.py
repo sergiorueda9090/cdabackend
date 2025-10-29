@@ -354,14 +354,10 @@ def verificar_cliente_y_generar_token(request):
     
 @api_view(['POST'])
 def api_get_cotizador_cliente(request):
-    token          = request.data.get('token')
+    token = request.data.get('token')
     identificacion = request.data.get('telefono')
-    id_cliente     = request.data.get('id_cliente')
-    username     = request.data.get('username')
-    print("token: ", token)
-    print("identificacion: ", identificacion)
-    print("id_cliente: ", id_cliente)
-    print("username: ", username)
+    id_cliente = request.data.get('id_cliente')
+    username = request.data.get('username')
 
     if not token:
         return Response({"error": "Token e identificación requeridos."}, status=400)
@@ -374,8 +370,6 @@ def api_get_cotizador_cliente(request):
     except Cliente.DoesNotExist:
         return Response({"error": "Cliente no encontrado."}, status=404)
     
-    print(cliente)
-    # Validar token
     try:
         token_obj = GeneradorToken.objects.get(identificacion=username, token=token)
 
@@ -383,19 +377,20 @@ def api_get_cotizador_cliente(request):
         if token_obj.fecha_creacion + timedelta(minutes=10) < datetime.now():
             return Response({"error": "Token expirado."}, status=401)
         
-        # Obtener cotizadores del cliente
-        print(cliente.id)
-        cotizadores = Cotizador.objects.filter(idCliente=cliente.id)
-        print("COTIZADORES ",cotizadores)
-        cotizadores_data = []
+        # ✅ Obtener cotizadores ordenados del más reciente al más antiguo por fechaTramite
+        cotizadores = Cotizador.objects.filter(idCliente=cliente.id).order_by('-fechaTramite')
 
+        cotizadores_data = []
         for cotizador in cotizadores:
             cotizador_serializer = CotizadorSerializer(cotizador)
             cotizador_data = cotizador_serializer.data
             cotizador_data['nombre_cliente'] = cliente.nombre
             cotizadores_data.append(cotizador_data)
 
-        return Response({"message": "Token válido. Acceso concedido.", "data": cotizadores_data}, status=200)
+        return Response({
+            "message": "Token válido. Acceso concedido.",
+            "data": cotizadores_data
+        }, status=200)
 
     except GeneradorToken.DoesNotExist:
         return Response({"error": "Token inválido o no encontrado."}, status=401)
