@@ -142,7 +142,6 @@ class ChatConsumer(WebsocketConsumer):
 
 rowSelections = {}
 cellSelections = {}
-loadingStates = {}
 class TableConsumer(WebsocketConsumer):
     def connect(self):
         token = self.scope['query_string'].decode().split('=')[1]  # tu token JWT
@@ -168,7 +167,6 @@ class TableConsumer(WebsocketConsumer):
             "type": "initial_state",
             "rowSelections": rowSelections,
             "cellSelections": cellSelections,
-            "loadingStates": loadingStates,
         }))
 
     def disconnect(self, close_code):
@@ -281,9 +279,8 @@ class TableConsumer(WebsocketConsumer):
         if event_type == "copy_link":
             row_id = data.get("rowId")
             user = data.get("user")
-            loadingStates[row_id] = True
+
             print(f"📤 copy_link recibido en backend: fila {row_id} por {user}")
-            print("loadingStates:", loadingStates)
 
             async_to_sync(self.channel_layer.group_send)(
                 self.group_name,
@@ -297,9 +294,9 @@ class TableConsumer(WebsocketConsumer):
         if event_type == "stop_loading":
             row_id = data.get("rowId")
             user = data.get("user")
-            loadingStates[row_id] = False
+
             print(f"📤 stop_loading recibido en backend: fila {row_id} por {user}")
-            print("loadingStates:", loadingStates)
+
             async_to_sync(self.channel_layer.group_send)(
                 self.group_name,
                 {
