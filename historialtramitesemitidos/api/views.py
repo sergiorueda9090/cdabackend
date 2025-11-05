@@ -58,7 +58,7 @@ def get_all_cotizadores(request):
 
     cotizadores = Cotizador.objects.filter(filters).order_by('-fechaCreacion')
 
-    # 🔹 Aplicar paginación
+    #Aplicar paginación
     paginator = CotizadorPagination()
     paginated_cotizadores = paginator.paginate_queryset(cotizadores, request)
 
@@ -79,7 +79,7 @@ def get_all_cotizadores(request):
 
         cotizadores_data.append(cotizador_data)
 
-    # 🔹 Retornar respuesta paginada
+    #Retornar respuesta paginada
     return paginator.get_paginated_response(cotizadores_data)
 
 @api_view(['GET'])
