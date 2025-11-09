@@ -33,8 +33,10 @@ def get_ficha_utilidades(request):
     try:
         if fecha_inicio:
             fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
+            fecha_inicio = fecha_inicio.replace(hour=0, minute=0, second=0)
         if fecha_fin:
             fecha_fin = datetime.strptime(fecha_fin, "%Y-%m-%d")
+            fecha_fin = fecha_fin.replace(hour=23, minute=59, second=59)
     except ValueError:
         return Response({"error": "Formato de fecha inválido. Use YYYY-MM-DD."}, status=400)
 

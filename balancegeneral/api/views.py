@@ -523,8 +523,10 @@ def obtener_balancegeneral(request):
     try:
         if fecha_inicio:
             fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
+            fecha_inicio = fecha_inicio.replace(hour=0, minute=0, second=0)
         if fecha_fin:
-            fecha_fin    = datetime.strptime(fecha_fin, "%Y-%m-%d")
+            fecha_fin = datetime.strptime(fecha_fin, "%Y-%m-%d")
+            fecha_fin = fecha_fin.replace(hour=23, minute=59, second=59)
     except ValueError:
         return Response({"error": "Formato de fecha inválido. Use YYYY-MM-DD."}, status=400)
     # Verificar si todas las tablas existen antes de ejecutar consultas
@@ -917,6 +919,17 @@ def obtener_patrimonio_neto_endpoint(request):
         fecha_inicio = request.GET.get("fechaInicio") 
         fecha_fin    = request.GET.get("fechaFin")
 
+        try:
+            if fecha_inicio:
+                fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
+                fecha_inicio = fecha_inicio.replace(hour=0, minute=0, second=0)
+            if fecha_fin:
+                fecha_fin = datetime.strptime(fecha_fin, "%Y-%m-%d")
+                fecha_fin = fecha_fin.replace(hour=23, minute=59, second=59)
+        except ValueError:
+            return Response({"error": "Formato de fecha inválido. Use YYYY-MM-DD."}, status=400)
+
+
         # ---- Helper para convertir a Decimal ----
         def to_decimal(value):
             if value in [None, "", "None"]:
@@ -928,7 +941,6 @@ def obtener_patrimonio_neto_endpoint(request):
 
         # ---- Helper para aplicar filtro de fechas ----
         def apply_date_filter(qs, field_name):
-            print("==== field_name === ",field_name)
             if fecha_inicio and fecha_fin:
                 return qs.filter(**{f"{field_name}__range": [fecha_inicio, fecha_fin]})
             elif fecha_inicio:

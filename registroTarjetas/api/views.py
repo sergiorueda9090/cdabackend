@@ -38,11 +38,35 @@ def obtener_tarjeta(request, id):
         cuenta     = RegistroTarjetas.objects.get(id=id)
         serializer = RegistroTarjetasSerializer(cuenta)
 
-        # 🔥 Aquí llamamos a la función auxiliar
+        # Sumar el campo cuatro_por_mil desde las tablas donde exista (ejemplo: CuentaBancaria y RecepcionPago).
+        # Si tienes cuatro_por_mil en más modelos, añádelos aquí.
+        def sumar_valores(queryset, campo="valor"):
+            # Usa F(campo) para permitir campo dinámico
+            return queryset.aggregate(
+                total_suma=Sum(
+                    Cast(
+                        Replace(F(campo), Value('.'), Value('')),
+                        output_field=models.BigIntegerField()
+                    )
+                )
+            )['total_suma'] or 0
+        cuatro_por_mil_cuentas      = sumar_valores(CuentaBancaria.objects.filter(idBanco=id), "cuatro_por_mil")
+        cuatro_por_mil_recepciones  = sumar_valores(RecepcionPago.objects.filter(id_tarjeta_bancaria=id), "cuatro_por_mil")
+        cuatro_por_mil_devoluciones = sumar_valores(Devoluciones.objects.filter(id_tarjeta_bancaria=id), "cuatro_por_mil")
+        cuatro_por_mil_gastos       = sumar_valores(Gastogenerales.objects.filter(id_tarjeta_bancaria=id), "cuatro_por_mil")
+        cuatro_por_mil_utilidad     = sumar_valores(Utilidadocacional.objects.filter(id_tarjeta_bancaria=id), "cuatro_por_mil")
+
+        # total cuatro x mil (se resta siempre como valor positivo)
+        total_cuatro_por_mil = abs(
+            cuatro_por_mil_cuentas + cuatro_por_mil_recepciones + cuatro_por_mil_devoluciones +
+            cuatro_por_mil_gastos + cuatro_por_mil_utilidad
+        )
+
+        #Aquí llamamos a la función auxiliar
         total = calcular_total_tarjeta(id)
 
         data = serializer.data
-        data["saldo"] = total  # 👉 añadimos el total al response
+        data["saldo"] = total - total_cuatro_por_mil  # 👉 añadimos el total al response
 
         return Response(data, status=status.HTTP_200_OK)
 
@@ -217,7 +241,7 @@ def obtener_tarjetas_total(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
-    cuentas = RegistroTarjetas.objects.all()
+    cuentas    = RegistroTarjetas.objects.all()
     serializer = RegistroTarjetasSerializer(cuentas, many=True)
 
     # >>> función corregida: ahora acepta queryset y nombre de campo
@@ -248,11 +272,11 @@ def obtener_tarjetas_total(request):
 
         # Sumar el campo cuatro_por_mil desde las tablas donde exista (ejemplo: CuentaBancaria y RecepcionPago).
         # Si tienes cuatro_por_mil en más modelos, añádelos aquí.
-        cuatro_por_mil_cuentas = sumar_valores(CuentaBancaria.objects.filter(idBanco=tarjeta_id), "cuatro_por_mil")
-        cuatro_por_mil_recepciones = sumar_valores(RecepcionPago.objects.filter(id_tarjeta_bancaria=tarjeta_id), "cuatro_por_mil")
+        cuatro_por_mil_cuentas      = sumar_valores(CuentaBancaria.objects.filter(idBanco=tarjeta_id), "cuatro_por_mil")
+        cuatro_por_mil_recepciones  = sumar_valores(RecepcionPago.objects.filter(id_tarjeta_bancaria=tarjeta_id), "cuatro_por_mil")
         cuatro_por_mil_devoluciones = sumar_valores(Devoluciones.objects.filter(id_tarjeta_bancaria=tarjeta_id), "cuatro_por_mil")
-        cuatro_por_mil_gastos = sumar_valores(Gastogenerales.objects.filter(id_tarjeta_bancaria=tarjeta_id), "cuatro_por_mil")
-        cuatro_por_mil_utilidad = sumar_valores(Utilidadocacional.objects.filter(id_tarjeta_bancaria=tarjeta_id), "cuatro_por_mil")
+        cuatro_por_mil_gastos       = sumar_valores(Gastogenerales.objects.filter(id_tarjeta_bancaria=tarjeta_id), "cuatro_por_mil")
+        cuatro_por_mil_utilidad     = sumar_valores(Utilidadocacional.objects.filter(id_tarjeta_bancaria=tarjeta_id), "cuatro_por_mil")
 
         # total cuatro x mil (se resta siempre como valor positivo)
         total_cuatro_por_mil = abs(

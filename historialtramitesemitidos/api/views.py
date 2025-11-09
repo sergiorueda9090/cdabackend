@@ -11,12 +11,13 @@ from cotizador.models           import Cotizador
 from users.models               import User
 from clientes.models            import Cliente
 from etiquetas.models           import Etiqueta
+from registroTarjetas.models    import RegistroTarjetas
 from users.decorators           import check_role
 
 
 
 class CotizadorPagination(PageNumberPagination):
-    page_size = 30  #Número de registros por página (ajústalo si deseas)
+    page_size = 20  #Número de registros por página (ajústalo si deseas)
     page_size_query_param = 'page_size'
     max_page_size = 100
 
@@ -68,6 +69,13 @@ def get_all_cotizadores(request):
         imagen_url = usuario.image.url if usuario.image else None
         cliente = get_object_or_404(Cliente, id=cotizador.idCliente)
         etiqueta = get_object_or_404(Etiqueta, id=cotizador.idEtiqueta)
+        
+        tarjeta = None
+        nombre_tarjeta = None
+        if cotizador.idBanco:
+            tarjeta = RegistroTarjetas.objects.filter(id=cotizador.idBanco).first()
+            nombre_tarjeta = tarjeta.nombre_cuenta if tarjeta else None
+
 
         cotizador_serializer = CotizadorSerializer(cotizador)
         cotizador_data = cotizador_serializer.data
@@ -76,6 +84,7 @@ def get_all_cotizadores(request):
         cotizador_data['nombre_cliente'] = cliente.nombre
         cotizador_data['color_cliente'] = cliente.color
         cotizador_data['color_etiqueta'] = etiqueta.color
+        cotizador_data['nombre_tarjeta'] = nombre_tarjeta
 
         cotizadores_data.append(cotizador_data)
 

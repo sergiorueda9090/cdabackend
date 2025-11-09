@@ -204,10 +204,20 @@ def obtener_recepcion_pago(request, pk):
 @api_view(['GET'])
 def obtener_recepcion_pago_cliente(request, pk):
     # --- Consultas ---
-    cotizadores = Cotizador.objects.filter(idCliente=pk).annotate(
-        fecha_ingreso=F('fechaCreacion'),
-        fecha_transaccion=F('fechaTramite')
-    ).values('id', 'precioDeLey', 'total', 'fecha_ingreso', 'fecha_transaccion')
+    cotizadores = (
+        Cotizador.objects
+        .filter(
+            idCliente=pk,
+            cotizadorModulo=0,
+            tramiteModulo=0,
+            confirmacionPreciosModulo=0,
+        )
+        .annotate(
+            fecha_ingreso=F('fechaCreacion'),
+            fecha_transaccion=F('fechaTramite')
+        )
+        .values('id', 'precioDeLey', 'total', 'fecha_ingreso', 'fecha_transaccion')
+    )
 
     recepciones  = RecepcionPago.objects.filter(cliente_id=pk).values(
         'id', 'valor', 'observacion', 'fecha_ingreso', 'fecha_transaccion'
