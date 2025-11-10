@@ -16,7 +16,7 @@ from cargosnoregistrados.models     import Cargosnodesados
 
 from django.db import models
 from django.db.models import Sum, F, Value
-from django.db.models.functions import Replace, Cast
+from django.db.models.functions import Replace, Cast, Coalesce
 
 from rest_framework.permissions import IsAuthenticated
 from users.decorators           import check_role
@@ -30,43 +30,93 @@ def obtener_tarjetas(request):
     serializer  = RegistroTarjetasSerializer(cuentas, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
+def sumar_valores(queryset, campo="valor"):
+    """
+    Suma un campo que puede venir como string con puntos de miles.
+    1) Cast a CHAR -> 2) Replace '.' -> '' -> 3) Cast a BIGINT -> 4) Sum
+    También protege NULL con Coalesce(..., '0')
+    """
+    return (
+        queryset.aggregate(
+            total_suma=Sum(
+                Cast(
+                    Replace(
+                        Cast(Coalesce(F(campo), Value('0')), output_field=models.CharField()),
+                        Value('.'),
+                        Value('')
+                    ),
+                    output_field=models.BigIntegerField()
+                )
+            )
+        )["total_suma"] or 0
+    )
+
+# ==========================================
+# Cálculo del total de UNA tarjeta (alineado con el endpoint de "todas")
+# ==========================================
+def calcular_total_tarjeta_alineado(tarjeta_id: int) -> dict:
+    """
+    Devuelve un dict con:
+      - total_general (incluye Cargosnodesados)
+      - total_cuatro_por_mil (en positivo)
+    y aplica el mismo criterio que el endpoint de totales:
+      total = (sumas normales) - (traslado envía) + (traslado recibe) + (cargos no deseados) - (4x1000)
+    """
+    # Sumas base (campo por defecto "valor")
+    rtaCuentaBancaria          = sumar_valores(CuentaBancaria.objects.filter(idBanco=tarjeta_id))
+    rtaRecepcionPago           = sumar_valores(RecepcionPago.objects.filter(id_tarjeta_bancaria=tarjeta_id))
+    rtaDevoluciones            = sumar_valores(Devoluciones.objects.filter(id_tarjeta_bancaria=tarjeta_id))
+    rtaGastogenerales          = sumar_valores(Gastogenerales.objects.filter(id_tarjeta_bancaria=tarjeta_id))
+    rtaUtilidadocacional       = sumar_valores(Utilidadocacional.objects.filter(id_tarjeta_bancaria=tarjeta_id))
+    rtaTarjetastrasladoResta   = sumar_valores(Tarjetastrasladofondo.objects.filter(id_tarjeta_bancaria_envia=tarjeta_id))
+    rtaTarjetastrasladoSuma    = sumar_valores(Tarjetastrasladofondo.objects.filter(id_tarjeta_bancaria_recibe=tarjeta_id))
+    rtaCargosnodesados         = sumar_valores(Cargosnodesados.objects.filter(id_tarjeta_bancaria=tarjeta_id))
+
+    # 4 x 1000 (si el campo existe en estos modelos)
+    cuatro_por_mil_cuentas      = sumar_valores(CuentaBancaria.objects.filter(idBanco=tarjeta_id), "cuatro_por_mil")
+    cuatro_por_mil_recepciones  = sumar_valores(RecepcionPago.objects.filter(id_tarjeta_bancaria=tarjeta_id), "cuatro_por_mil")
+    cuatro_por_mil_devoluciones = sumar_valores(Devoluciones.objects.filter(id_tarjeta_bancaria=tarjeta_id), "cuatro_por_mil")
+    cuatro_por_mil_gastos       = sumar_valores(Gastogenerales.objects.filter(id_tarjeta_bancaria=tarjeta_id), "cuatro_por_mil")
+    cuatro_por_mil_utilidad     = sumar_valores(Utilidadocacional.objects.filter(id_tarjeta_bancaria=tarjeta_id), "cuatro_por_mil")
+
+    total_cuatro_por_mil = abs(
+        cuatro_por_mil_cuentas + cuatro_por_mil_recepciones + cuatro_por_mil_devoluciones +
+        cuatro_por_mil_gastos + cuatro_por_mil_utilidad
+    )
+
+    total_general = (
+        rtaCuentaBancaria +
+        rtaRecepcionPago +
+        rtaDevoluciones +
+        rtaGastogenerales +
+        rtaUtilidadocacional -
+        rtaTarjetastrasladoResta +
+        rtaTarjetastrasladoSuma +
+        rtaCargosnodesados
+        - total_cuatro_por_mil
+    )
+
+    return {
+        "total_general": total_general,
+        "total_cuatro_por_mil": total_cuatro_por_mil,  # valor positivo; en respuesta lo mostramos negativo si quieres
+    }
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-@check_role(1,2)
+@check_role(1, 2)
 def obtener_tarjeta(request, id):
     try:
-        cuenta     = RegistroTarjetas.objects.get(id=id)
+        cuenta = RegistroTarjetas.objects.get(id=id)
         serializer = RegistroTarjetasSerializer(cuenta)
 
-        # Sumar el campo cuatro_por_mil desde las tablas donde exista (ejemplo: CuentaBancaria y RecepcionPago).
-        # Si tienes cuatro_por_mil en más modelos, añádelos aquí.
-        def sumar_valores(queryset, campo="valor"):
-            # Usa F(campo) para permitir campo dinámico
-            return queryset.aggregate(
-                total_suma=Sum(
-                    Cast(
-                        Replace(F(campo), Value('.'), Value('')),
-                        output_field=models.BigIntegerField()
-                    )
-                )
-            )['total_suma'] or 0
-        cuatro_por_mil_cuentas      = sumar_valores(CuentaBancaria.objects.filter(idBanco=id), "cuatro_por_mil")
-        cuatro_por_mil_recepciones  = sumar_valores(RecepcionPago.objects.filter(id_tarjeta_bancaria=id), "cuatro_por_mil")
-        cuatro_por_mil_devoluciones = sumar_valores(Devoluciones.objects.filter(id_tarjeta_bancaria=id), "cuatro_por_mil")
-        cuatro_por_mil_gastos       = sumar_valores(Gastogenerales.objects.filter(id_tarjeta_bancaria=id), "cuatro_por_mil")
-        cuatro_por_mil_utilidad     = sumar_valores(Utilidadocacional.objects.filter(id_tarjeta_bancaria=id), "cuatro_por_mil")
+        resultados = calcular_total_tarjeta_alineado(id)
+        total_general = resultados["total_general"]
+        total_cuatro_por_mil = resultados["total_cuatro_por_mil"]
 
-        # total cuatro x mil (se resta siempre como valor positivo)
-        total_cuatro_por_mil = abs(
-            cuatro_por_mil_cuentas + cuatro_por_mil_recepciones + cuatro_por_mil_devoluciones +
-            cuatro_por_mil_gastos + cuatro_por_mil_utilidad
-        )
-
-        #Aquí llamamos a la función auxiliar
-        total = calcular_total_tarjeta(id)
-
-        data = serializer.data
-        data["saldo"] = total - total_cuatro_por_mil  # 👉 añadimos el total al response
+        data = dict(serializer.data)  # evitar mutar ReturnDict
+        # Mantengo tu campo "saldo" y agrego el detalle si te sirve en frontend
+        data["saldo"] = total_general
+        data["total_cuatro_por_mil"] = -total_cuatro_por_mil  # lo mostramos como negativo para claridad
 
         return Response(data, status=status.HTTP_200_OK)
 
