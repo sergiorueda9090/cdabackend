@@ -255,7 +255,6 @@ def get_all_ficha_cliente(fechaInicio=None, fechaFin=None):
             except ValueError:
                 valor_alias = 0.0
 
-            print("  Usando precioDeLey para cotizador ID {}: {}".format(cotizador['id'], valor_alias))
 
         cotizadores_list.append({
             'id': cotizador['id'],
@@ -451,67 +450,84 @@ def safe_to_float(value):
     except (ValueError, TypeError):
         return 0.0
 
-def obtener_datos_cuenta():  # Se elimina 'request' e 'id' de los argumentos si no se usan
+def obtener_datos_cuenta(fecha_inicio=None, fecha_fin=None):
+    """
+    Calcula el total del 4x1000 considerando todas las cuentas y modelos relacionados.
+    Si se especifican fechas, filtra por rango; si no, trae todo.
+    """
+
     # -----------------------------------------------------------
-    # 1. Optimización y Unión de Consultas para obtener el 4xmil
-    #    (SIN FILTRO DE ID)
+    # 1️⃣ Conversión de fechas opcional
     # -----------------------------------------------------------
-    
-    # Campos base para la union
+    try:
+        if fecha_inicio and isinstance(fecha_inicio, str):
+            fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
+        if fecha_fin and isinstance(fecha_fin, str):
+            fecha_fin = datetime.strptime(fecha_fin, "%Y-%m-%d")
+    except ValueError:
+        print("⚠️ Fechas inválidas, se ignorará el filtro de fechas.")
+        fecha_inicio = None
+        fecha_fin = None
+
+    # -----------------------------------------------------------
+    # 2️⃣ Helper para aplicar filtros de fechas dinámicos
+    # -----------------------------------------------------------
+    def apply_date_filter(queryset, field_name):
+        if fecha_inicio and fecha_fin:
+            return queryset.filter(**{f"{field_name}__range": [fecha_inicio, fecha_fin]})
+        elif fecha_inicio:
+            return queryset.filter(**{f"{field_name}__gte": fecha_inicio})
+        elif fecha_fin:
+            return queryset.filter(**{f"{field_name}__lte": fecha_fin})
+        return queryset
+
+    # -----------------------------------------------------------
+    # 3️⃣ Consultas base
+    # -----------------------------------------------------------
     base_fields = ('id', 'cuatro_por_mil')
 
-    # Consulta para Cuentas Bancarias (Todas las tarjetas)
-    # Se elimina .filter(idBanco=id)
-    cuentas = CuentaBancaria.objects.all().values(*base_fields)
-
-    # Consulta para Recepcion de Pagos (Todas las tarjetas)
-    # Se elimina .filter(id_tarjeta_bancaria=id)
-    recepcionDePagos = RecepcionPago.objects.all().values(*base_fields)
-
-    # Consulta para Devoluciones (Todas las tarjetas)
-    # Se elimina .filter(id_tarjeta_bancaria=id)
-    devoluciones = Devoluciones.objects.all().values(*base_fields)
-
-    # Cargos no registrados (Todas las tarjetas)
-    # Se elimina .filter(id_tarjeta_bancaria=id)
-    cargosNoRegistrados = Cargosnodesados.objects.all().values(*base_fields)
-
-    # Consulta para Gastos Generales (Todas las tarjetas)
-    # Se elimina .filter(id_tarjeta_bancaria=id)
-    gastos = Gastogenerales.objects.all().values(*base_fields)
-
-    # Consulta para Utilidad Ocasional (Todas las tarjetas)
-    # Se elimina .filter(id_tarjeta_bancaria=id)
-    utilidadocacional = Utilidadocacional.objects.all().values(*base_fields)
-
-    # Unir todas las consultas
-    union_result = list(cuentas) + list(devoluciones) + list(gastos) + list(utilidadocacional) + list(recepcionDePagos) + list(cargosNoRegistrados)
+    cuentas = apply_date_filter(CuentaBancaria.objects.all(), "fechaTransaccion").values(*base_fields)
+    recepcionDePagos = apply_date_filter(RecepcionPago.objects.all(), "fecha_transaccion").values(*base_fields)
+    devoluciones = apply_date_filter(Devoluciones.objects.all(), "fecha_transaccion").values(*base_fields)
+    cargosNoRegistrados = apply_date_filter(Cargosnodesados.objects.all(), "fecha_transaccion").values(*base_fields)
+    gastos = apply_date_filter(Gastogenerales.objects.all(), "fecha_transaccion").values(*base_fields)
+    utilidadocacional = apply_date_filter(Utilidadocacional.objects.all(), "fecha_transaccion").values(*base_fields)
 
     # -----------------------------------------------------------
-    # 2. Cálculo Rápido del Total del 4 por mil
+    # 4️⃣ Unión de todos los resultados
     # -----------------------------------------------------------
+    union_result = (
+        list(cuentas)
+        + list(recepcionDePagos)
+        + list(devoluciones)
+        + list(cargosNoRegistrados)
+        + list(gastos)
+        + list(utilidadocacional)
+    )
 
-    # La función to_number_4xmil se mantiene para limpiar y convertir los valores
+    # -----------------------------------------------------------
+    # 5️⃣ Cálculo del total del 4x1000
+    # -----------------------------------------------------------
     def to_number_4xmil(value):
         """Convierte el valor del 4xmil (que puede ser string con puntos/comas) a entero."""
         if value in [None, "", "0", "None"]:
             return 0
-        return int(str(value).replace(".", "").replace(",", "").strip())
+        try:
+            return int(str(value).replace(".", "").replace(",", "").strip())
+        except ValueError:
+            return 0
 
     total_cuatro_por_mil_raw = sum(
-        to_number_4xmil(item.get("cuatro_por_mil"))
-        for item in union_result
+        to_number_4xmil(item.get("cuatro_por_mil")) for item in union_result
     )
 
-    # Como el 4xmil es un cargo, se retorna con el signo negativo y se asegura el valor absoluto
-    total_cuatro_por_mil_final = -abs(total_cuatro_por_mil_raw)
-    
-    # -----------------------------------------------------------
-    # 3. Retorno Únicamente del Total del 4 por mil
-    # -----------------------------------------------------------
+    # Convertimos a Decimal y garantizamos signo negativo
+    total_cuatro_por_mil_final = Decimal(-abs(total_cuatro_por_mil_raw))
 
-    # Se mantiene la estructura de retorno de Django REST Framework (DRF)
-    return total_cuatro_por_mil_final or 0
+    # -----------------------------------------------------------
+    # 6️⃣ Retorno final
+    # -----------------------------------------------------------
+    return total_cuatro_por_mil_final or Decimal(0)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -669,10 +685,6 @@ def obtener_balancegeneral(request):
                 - total_cuatro_por_mil
         )
 
-        print("rtaRecepcionPago : {}\nrtaDevoluciones: {}\nrtaGastogenerales: {}\nrtaUtilidadocacional: {}\ntotal_general: {}"
-            .format(rtaRecepcionPago, rtaDevoluciones, rtaGastogenerales, rtaUtilidadocacional, total_general))
-
-
         # Añadir a lista para respuesta
         tarjetas_info.append({"nombre": tarjeta_nombre, "valor" :total_general, "cuatro_por_mil": -total_cuatro_por_mil})
               
@@ -680,30 +692,58 @@ def obtener_balancegeneral(request):
         serializer.data[i]['origen'] = 'tarjetas'
 
     #Llamar a la función que devuelve valores de clientes
-    valores_clientes = get_all_ficha_cliente(fecha_inicio, fecha_fin)
+    valores_clientes = get_all_ficha_cliente() #(fecha_inicio, fecha_fin
+
     valores_gastos   = listar_gastos_generales(fecha_inicio, fecha_fin)
     fichas_proveedor = get_all_fecha_proveedores(fecha_inicio, fecha_fin)
     utilidades       = get_ficha_utilidades(fecha_inicio, fecha_fin)
   
     total_saldo_clientes        = sum(safe_to_float(item['total']) for item in valores_clientes)
-    #total_saldo_clientes_valor  = sum(safe_to_float(item['valor']) for item in valores_clientes)
     total_gastos_generales      = sum(safe_to_float(item['valor']) for item in valores_gastos)
     total_comisiones_proveedores = sum(safe_to_float(item['valor']) for item in fichas_proveedor)
     total_tarjetas = sum(item['valor'] for item in serializer.data if isinstance(item['valor'], (int, float)))
     
     
     #Nuevo total global de cargos no deseados
-    total_cargo_no_deseados = Cargosnodesados.objects.aggregate(
-        total_suma=Sum(
-            Cast(Replace(F('valor'), Value('.'), Value('')), output_field=models.IntegerField())
-        )
-    )['total_suma'] or 0
+    total_cargo_no_deseados = (
+        Cargosnodesados.objects
+        .filter(id_cliente__isnull=True)  #sin cliente
+        .aggregate(
+            total_suma=Coalesce(
+                Sum(
+                    Cast(
+                        Replace(
+                            Replace(F('valor'), Value('.'), Value('')),
+                            Value(','), Value('')
+                        ),
+                        output_field=models.BigIntegerField()
+                    )
+                ),
+                0
+            )
+        )['total_suma'] or 0
+    )
 
-    total_recepcion_pago =  RecepcionPago.objects.aggregate(
-        total_suma=Sum(
-            Cast(Replace(F('valor'), Value('.'), Value('')), output_field=models.IntegerField())
-        )
-    )['total_suma'] or 0
+    recepcion_qs = RecepcionPago.objects.all()
+
+    if fecha_inicio and fecha_fin:
+        recepcion_qs = recepcion_qs.filter(fecha_transaccion__range=[fecha_inicio, fecha_fin])
+    elif fecha_inicio:
+        recepcion_qs = recepcion_qs.filter(fecha_transaccion__gte=fecha_inicio)
+    elif fecha_fin:
+        recepcion_qs = recepcion_qs.filter(fecha_transaccion__lte=fecha_fin)
+    
+    total_recepcion_pago = (
+        recepcion_qs.aggregate(
+            total_suma=Sum(
+                Cast(
+                    Replace(F("valor"), Value("."), Value("")),
+                    output_field=models.IntegerField()
+                )
+            )
+        )["total_suma"]
+        or 0
+    )
 
     # 🔢 Suma total de todos los valores
     suma_total = (
@@ -733,9 +773,7 @@ def obtener_balancegeneral(request):
         if valor != 0
     ]
 
-    """
-    [{'nombre_cuenta': 'Tecno Carrillo', 'valor': '1800000', 'origen': 'Clientes'}, {'nombre_cuenta': 'Tecno Carrillo', 'valor': '200000', 'origen': 'Clientes'}]
-    """
+
     #print("suma_total ",suma_total)
     # ✅ Armar respuesta final uniendo ambos resultados
     respuesta_final = serializer.data + valores_clientes + valores_gastos + fichas_proveedor
@@ -751,7 +789,7 @@ def obtener_balancegeneral(request):
         "total_recepcion_pago": total_recepcion_pago,
         "sumaTotal": suma_total,
         "utilidades":utilidades[0]['valor'],
-        "total_cuatro_por_mil": obtener_datos_cuenta()
+        "total_cuatro_por_mil": obtener_datos_cuenta(fecha_inicio, fecha_fin)
     }, status=status.HTTP_200_OK)
 
 
@@ -760,50 +798,40 @@ def obtener_balancegeneral(request):
 ======= PATRIMONIO BRUTO =======
 ================================
 """
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-@check_role(1,2)
-def obtener_patrimonio_bruto(request):
-    fecha_inicio = None
-    fecha_fin    = None
+def sumar_valores(queryset, campo="valor"):
+    """
+    Suma un campo numérico (como 'valor' o 'cuatro_por_mil') convirtiendo strings con puntos.
+    """
+    return queryset.aggregate(
+        total_suma=Sum(
+            Cast(
+                Replace(F(campo), Value('.'), Value('')),
+                output_field=models.BigIntegerField()
+            )
+        )
+    )['total_suma'] or 0
 
-    try:
-        if fecha_inicio:
-            fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
-        if fecha_fin:
-            fecha_fin    = datetime.strptime(fecha_fin, "%Y-%m-%d")
-    except ValueError:
-        return Response({"error": "Formato de fecha inválido. Use YYYY-MM-DD."}, status=400)
 
-    # ---- Totales tarjetas ----
-    cuentas     = RegistroTarjetas.objects.all()
-    serializer  = RegistroTarjetasSerializer(cuentas, many=True)
+def calcular_total_tarjetas():
+    """
+    Calcula el total general de todas las tarjetas (sumando valores de modelos asociados).
+    Retorna el total de tarjetas y un diccionario con detalle por cada tarjeta.
+    """
+    total_tarjetas = Decimal(0)
+    detalle = []
 
-    total_tarjetas = 0
-    for i in range(len(serializer.data)):
-        rtaCuentaBancaria = CuentaBancaria.objects.filter(idBanco=serializer.data[i]['id']).aggregate(
-            total_suma=Sum(Cast(Replace(F('valor'), Value('.'), Value('')), output_field=models.IntegerField()))
-        )['total_suma'] or 0
+    cuentas = RegistroTarjetas.objects.all()
+    serializer = RegistroTarjetasSerializer(cuentas, many=True)
 
-        rtaRecepcionPago = RecepcionPago.objects.filter(id_tarjeta_bancaria=serializer.data[i]['id']).aggregate(
-            total_suma=Sum(Cast(Replace(F('valor'), Value('.'), Value('')), output_field=models.IntegerField()))
-        )['total_suma'] or 0
+    for cuenta in serializer.data:
+        tarjeta_id = cuenta['id']
 
-        rtaDevoluciones = Devoluciones.objects.filter(id_tarjeta_bancaria=serializer.data[i]['id']).aggregate(
-            total_suma=Sum(Cast(Replace(F('valor'), Value('.'), Value('')), output_field=models.IntegerField()))
-        )['total_suma'] or 0
-
-        rtaCargosNoDeseados = Cargosnodesados.objects.filter(id_tarjeta_bancaria=serializer.data[i]['id']).aggregate(
-            total_suma=Sum(Cast(Replace(F('valor'), Value('.'), Value('')), output_field=models.IntegerField()))
-        )['total_suma'] or 0
-
-        rtaGastogenerales = Gastogenerales.objects.filter(id_tarjeta_bancaria=serializer.data[i]['id']).aggregate(
-            total_suma=Sum(Cast(Replace(F('valor'), Value('.'), Value('')), output_field=models.IntegerField()))
-        )['total_suma'] or 0
-
-        rtaUtilidadocacional = Utilidadocacional.objects.filter(id_tarjeta_bancaria=serializer.data[i]['id']).aggregate(
-            total_suma=Sum(Cast(Replace(F('valor'), Value('.'), Value('')), output_field=models.IntegerField()))
-        )['total_suma'] or 0
+        rtaCuentaBancaria = sumar_valores(CuentaBancaria.objects.filter(idBanco=tarjeta_id), "valor")
+        rtaRecepcionPago = sumar_valores(RecepcionPago.objects.filter(id_tarjeta_bancaria=tarjeta_id), "valor")
+        rtaDevoluciones = sumar_valores(Devoluciones.objects.filter(id_tarjeta_bancaria=tarjeta_id), "valor")
+        rtaCargosNoDeseados = sumar_valores(Cargosnodesados.objects.filter(id_tarjeta_bancaria=tarjeta_id), "valor")
+        rtaGastogenerales = sumar_valores(Gastogenerales.objects.filter(id_tarjeta_bancaria=tarjeta_id), "valor")
+        rtaUtilidadocacional = sumar_valores(Utilidadocacional.objects.filter(id_tarjeta_bancaria=tarjeta_id), "valor")
 
         total_general = (
             rtaCuentaBancaria +
@@ -814,20 +842,94 @@ def obtener_patrimonio_bruto(request):
             rtaUtilidadocacional
         )
 
-        total_tarjetas += total_general
+        total_tarjetas += Decimal(total_general)
 
-    # ---- Totales clientes ----
-    valores_clientes     = get_all_ficha_cliente(fecha_inicio, fecha_fin)
-    total_saldo_clientes = sum(safe_to_float(item['total']) for item in valores_clientes)
+        detalle.append({
+            "tarjeta_id": tarjeta_id,
+            "total_tarjeta": total_general
+        })
 
-    # ---- Suma total ----
-    suma_total = (total_saldo_clientes * -1) + total_tarjetas
+    return total_tarjetas, detalle
 
-    # ---- Respuesta ----
+
+def calcular_total_cuatro_por_mil(detalle_tarjetas):
+    """
+    Calcula el total de cuatro por mil (4x1000) sumando por cada tarjeta y modelo relacionado.
+    """
+    total_cuatro_por_mil = Decimal(0)
+
+    for item in detalle_tarjetas:
+        tarjeta_id = item["tarjeta_id"]
+
+        cuatro_por_mil_cuentas = sumar_valores(CuentaBancaria.objects.filter(idBanco=tarjeta_id), "cuatro_por_mil")
+        cuatro_por_mil_recepciones = sumar_valores(RecepcionPago.objects.filter(id_tarjeta_bancaria=tarjeta_id), "cuatro_por_mil")
+        cuatro_por_mil_devoluciones = sumar_valores(Devoluciones.objects.filter(id_tarjeta_bancaria=tarjeta_id), "cuatro_por_mil")
+        cuatro_por_mil_gastos = sumar_valores(Gastogenerales.objects.filter(id_tarjeta_bancaria=tarjeta_id), "cuatro_por_mil")
+        cuatro_por_mil_utilidad = sumar_valores(Utilidadocacional.objects.filter(id_tarjeta_bancaria=tarjeta_id), "cuatro_por_mil")
+
+        total_por_tarjeta = abs(
+            cuatro_por_mil_cuentas +
+            cuatro_por_mil_recepciones +
+            cuatro_por_mil_devoluciones +
+            cuatro_por_mil_gastos +
+            cuatro_por_mil_utilidad
+        )
+
+        total_cuatro_por_mil += Decimal(total_por_tarjeta)
+
+    return total_cuatro_por_mil
+
+# ==============================================================
+# 💰 FUNCIÓN PRINCIPAL - OBTENER PATRIMONIO BRUTO
+# ==============================================================
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+@check_role(1, 2)
+def obtener_patrimonio_bruto(request):
+    """
+    Calcula el Patrimonio Bruto:
+    Patrimonio Bruto = total_tarjetas - total_cuatro_por_mil - total_saldo_clientes
+    """
+
+    fecha_inicio = None
+    fecha_fin = None
+
+    try:
+        if fecha_inicio:
+            fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
+        if fecha_fin:
+            fecha_fin = datetime.strptime(fecha_fin, "%Y-%m-%d")
+    except ValueError:
+        return Response(
+            {"error": "Formato de fecha inválido. Use YYYY-MM-DD."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # ---- 1️⃣ Calcular totales de tarjetas ----
+    total_tarjetas, detalle_tarjetas = calcular_total_tarjetas()
+
+    # ---- 2️⃣ Calcular total cuatro por mil ----
+    total_cuatro_por_mil = calcular_total_cuatro_por_mil(detalle_tarjetas)
+
+    # ---- 3️⃣ Calcular totales de clientes ----
+    valores_clientes = get_all_ficha_cliente(fecha_inicio, fecha_fin)
+    total_saldo_clientes = Decimal(sum(safe_to_float(item['total']) for item in valores_clientes))
+
+    # ---- 4️⃣ Calcular Patrimonio Bruto ----
+    patrimonio_bruto = abs(total_tarjetas - total_cuatro_por_mil - abs(total_saldo_clientes))
+
+    # ---- Logs de validación ----
+    print("=========== 🏦 totalTarjetas:", total_tarjetas)
+    print("=========== 💸 total_cuatro_por_mil:", total_cuatro_por_mil)
+    print("=========== 👥 total_saldo_clientes:", total_saldo_clientes)
+    print("=========== 🧾 patrimonioBruto FINAL:", patrimonio_bruto)
+
+    # ---- Respuesta final ----
     return Response({
-        "total_saldo_clientes": total_saldo_clientes,
-        "totalTarjetas": total_tarjetas,
-        "patrimonioBruto": suma_total,
+        "totalTarjetas": round(total_tarjetas, 2),
+        "total_cuatro_por_mil": round(total_cuatro_por_mil, 2),
+        "total_saldo_clientes": round(abs(total_saldo_clientes), 2),
+        "patrimonioBruto": round(patrimonio_bruto, 2)
     }, status=status.HTTP_200_OK)
 
 """
@@ -836,56 +938,31 @@ def obtener_patrimonio_bruto(request):
 ================================
 """    
 def obtener_patrimonio_bruto_function():
-    # ---- Totales tarjetas ----
-    cuentas     = RegistroTarjetas.objects.all()
-    serializer  = RegistroTarjetasSerializer(cuentas, many=True)
+    """
+    Calcula el patrimonio bruto total sin requerir request.
+    Patrimonio Bruto = total_tarjetas - total_cuatro_por_mil - total_saldo_clientes
+    """
+    # ---- 1️⃣ Totales tarjetas ----
+    total_tarjetas, detalle_tarjetas = calcular_total_tarjetas()
 
-    total_tarjetas = 0
-    for i in range(len(serializer.data)):
-        rtaCuentaBancaria = CuentaBancaria.objects.filter(idBanco=serializer.data[i]['id']).aggregate(
-            total_suma=Sum(Cast(Replace(F('valor'), Value('.'), Value('')), output_field=models.IntegerField()))
-        )['total_suma'] or 0
+    # ---- 2️⃣ Total cuatro por mil ----
+    total_cuatro_por_mil = calcular_total_cuatro_por_mil(detalle_tarjetas)
 
-        rtaRecepcionPago = RecepcionPago.objects.filter(id_tarjeta_bancaria=serializer.data[i]['id']).aggregate(
-            total_suma=Sum(Cast(Replace(F('valor'), Value('.'), Value('')), output_field=models.IntegerField()))
-        )['total_suma'] or 0
+    # ---- 3️⃣ Totales clientes ----
+    valores_clientes = get_all_ficha_cliente(None, None)
+    total_saldo_clientes = Decimal(sum(safe_to_float(item['total']) for item in valores_clientes))
 
-        rtaDevoluciones = Devoluciones.objects.filter(id_tarjeta_bancaria=serializer.data[i]['id']).aggregate(
-            total_suma=Sum(Cast(Replace(F('valor'), Value('.'), Value('')), output_field=models.IntegerField()))
-        )['total_suma'] or 0
+    # ---- 4️⃣ Cálculo del Patrimonio Bruto ----
+    patrimonio_bruto = total_tarjetas - total_cuatro_por_mil - abs(total_saldo_clientes)
 
-        rtaCargosNoDeseados = Cargosnodesados.objects.filter(id_tarjeta_bancaria=serializer.data[i]['id']).aggregate(
-            total_suma=Sum(Cast(Replace(F('valor'), Value('.'), Value('')), output_field=models.IntegerField()))
-        )['total_suma'] or 0
+    # ---- Logs de validación (opcional) ----
+    print("=========== 🏦 totalTarjetas (func):", total_tarjetas)
+    print("=========== 💸 total_cuatro_por_mil (func):", total_cuatro_por_mil)
+    print("=========== 👥 total_saldo_clientes (func):", total_saldo_clientes)
+    print("=========== 🧾 patrimonioBruto FINAL (func):", patrimonio_bruto)
 
-        rtaGastogenerales = Gastogenerales.objects.filter(id_tarjeta_bancaria=serializer.data[i]['id']).aggregate(
-            total_suma=Sum(Cast(Replace(F('valor'), Value('.'), Value('')), output_field=models.IntegerField()))
-        )['total_suma'] or 0
-
-        rtaUtilidadocacional = Utilidadocacional.objects.filter(id_tarjeta_bancaria=serializer.data[i]['id']).aggregate(
-            total_suma=Sum(Cast(Replace(F('valor'), Value('.'), Value('')), output_field=models.IntegerField()))
-        )['total_suma'] or 0
-
-        total_general = (
-            rtaCuentaBancaria +
-            rtaRecepcionPago +
-            rtaDevoluciones +
-            rtaCargosNoDeseados +
-            rtaGastogenerales +
-            rtaUtilidadocacional
-        )
-
-        total_tarjetas += total_general
-
-    # ---- Totales clientes ----
-    valores_clientes     = get_all_ficha_cliente(None, None)
-    total_saldo_clientes = sum(safe_to_float(item['total']) for item in valores_clientes)
-
-    # ---- Suma total ----
-    suma_total = total_saldo_clientes + total_tarjetas
-
-    # ---- Respuesta ----
-    return suma_total
+    # ---- Retornar solo el valor total (como hacía la versión original) ----
+    return abs(patrimonio_bruto)
 
 def safe_sum(queryset, field_name):
     from decimal import Decimal

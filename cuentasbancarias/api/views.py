@@ -4,8 +4,8 @@ from django.db import transaction
 from django.utils.dateparse import parse_date
 from datetime import datetime
 
-
-from django.db.models.functions import Concat, Coalesce
+from django.db import models
+from django.db.models.functions import Concat, Coalesce, Replace, Cast
 from rest_framework.response    import Response
 from django.http                import HttpResponse
 from rest_framework.decorators  import api_view, permission_classes
@@ -394,7 +394,7 @@ def ordenar_union_result(union_result):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-@check_role(1,2)
+@check_role(1, 2)
 def obtener_datos_cuenta(request, id):
     try:
         tarjeta = RegistroTarjetas.objects.get(pk=id)
@@ -402,10 +402,28 @@ def obtener_datos_cuenta(request, id):
         descripcion     = tarjeta.descripcion
         numero_cuenta   = tarjeta.numero_cuenta
         banco           = tarjeta.banco
-    except:
+    except RegistroTarjetas.DoesNotExist:
         return Response({"error": "Tarjeta no encontrada"}, status=status.HTTP_404_NOT_FOUND)
-    
-    # Consulta para Cuentas Bancarias
+
+    # ------------------------------------------------------------
+    # 🧮 Helper para sumar valores (idéntico al usado en obtener_tarjetas_total)
+    # ------------------------------------------------------------
+    def sumar_valores(qs, campo="valor"):
+        return (
+            qs.aggregate(
+                total_suma=Sum(
+                    Cast(
+                        Replace(F(campo), Value("."), Value("")),
+                        output_field=models.BigIntegerField()
+                    )
+                )
+            )["total_suma"]
+            or 0
+        )
+
+    # ------------------------------------------------------------
+    # 🔹 Consultas base (no modificadas)
+    # ------------------------------------------------------------
     cuentas = CuentaBancaria.objects.filter(idBanco=id).annotate(
         fi=F('fechaIngreso'),
         ft=F('fechaTransaccion'),
@@ -416,19 +434,15 @@ def obtener_datos_cuenta(request, id):
         id_cotizador=F('idCotizador'),
         placa=Value(None, output_field=IntegerField()),
         cliente_nombre=Value('', output_field=CharField()),
-    ).values('id', 'fi', 'ft', 'valor_alias', 'cuatro_por_mil','desc_alias', 'id_tarjeta', 'origen', 'id_cotizador','placa','cliente_nombre')
+    ).values('id', 'fi', 'ft', 'valor_alias', 'cuatro_por_mil','desc_alias',
+             'id_tarjeta', 'origen', 'id_cotizador','placa','cliente_nombre')
 
-    
     cotizador_ids = [c['id_cotizador'] for c in cuentas if c['id_cotizador']]
     cotizadores = {c.id: c for c in Cotizador.objects.filter(id__in=cotizador_ids)}
- 
+
     for cuenta in cuentas:
         cotizador = cotizadores.get(cuenta.get('id_cotizador'))
-        if cotizador:
-            cuenta['placa'] = cotizador.placa
-        else:
-            cuenta['placa'] = None
-
+        cuenta['placa'] = cotizador.placa if cotizador else None
 
     recepcionDePagos = RecepcionPago.objects.filter(id_tarjeta_bancaria=id).annotate(
         fi=F('fecha_ingreso'),
@@ -440,9 +454,9 @@ def obtener_datos_cuenta(request, id):
         id_cotizador=Value(None, output_field=IntegerField()),
         placa=Value(None, output_field=IntegerField()),
         cliente_nombre=Value('', output_field=CharField()),
-    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador', 'placa','cliente_nombre')
+    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias',
+             'id_tarjeta', 'origen', 'id_cotizador', 'placa','cliente_nombre')
 
-    # Consulta para Devoluciones
     devoluciones = Devoluciones.objects.filter(id_tarjeta_bancaria=id).annotate(
         fi=F('fecha_ingreso'),
         ft=F('fecha_transaccion'),
@@ -453,10 +467,9 @@ def obtener_datos_cuenta(request, id):
         id_cotizador=Value(None, output_field=IntegerField()),
         placa=Value(None, output_field=IntegerField()),
         cliente_nombre=Value('', output_field=CharField()),
-    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador', 'placa','cliente_nombre')
+    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias',
+             'id_tarjeta', 'origen', 'id_cotizador', 'placa','cliente_nombre')
 
-
-    # Cargos no registrados
     cargosNoRegistrados = Cargosnodesados.objects.filter(id_tarjeta_bancaria=id).annotate(
         fi=F('fecha_ingreso'),
         ft=F('fecha_transaccion'),
@@ -467,18 +480,17 @@ def obtener_datos_cuenta(request, id):
         id_cotizador=Value(None, output_field=IntegerField()),
         placa=Value(None, output_field=IntegerField()),
         cliente_nombre=Concat(
-                Coalesce(F('id_cliente__nombre'), Value('')),
-                Value(' '),
-                Case(
-                    When(id_cliente__apellidos="undefined", then=Value("")),
-                    default=Coalesce(F('id_cliente__apellidos'), Value("")),
-                    output_field=CharField()
-                )
-            ),
-    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador', 'placa','cliente_nombre')
-    
+            Coalesce(F('id_cliente__nombre'), Value('')),
+            Value(' '),
+            Case(
+                When(id_cliente__apellidos="undefined", then=Value("")),
+                default=Coalesce(F('id_cliente__apellidos'), Value("")),
+                output_field=CharField()
+            )
+        ),
+    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias',
+             'id_tarjeta', 'origen', 'id_cotizador', 'placa','cliente_nombre')
 
-    # Consulta para Gastos Generales
     gastos = Gastogenerales.objects.filter(id_tarjeta_bancaria=id).annotate(
         fi=F('fecha_ingreso'),
         ft=F('fecha_transaccion'),
@@ -489,9 +501,9 @@ def obtener_datos_cuenta(request, id):
         id_cotizador=Value(None, output_field=IntegerField()),
         placa=Value(None, output_field=IntegerField()),
         cliente_nombre=Value('', output_field=CharField()),
-    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador', 'placa','cliente_nombre')
+    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias',
+             'id_tarjeta', 'origen', 'id_cotizador', 'placa','cliente_nombre')
 
-    # Consulta para Utilidad Ocasional
     utilidadocacional = Utilidadocacional.objects.filter(id_tarjeta_bancaria=id).annotate(
         fi=F('fecha_ingreso'),
         ft=F('fecha_transaccion'),
@@ -502,144 +514,141 @@ def obtener_datos_cuenta(request, id):
         id_cotizador=Value(None, output_field=IntegerField()),
         placa=Value(None, output_field=IntegerField()),
         cliente_nombre=Value('', output_field=CharField()),
-    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador', 'placa','cliente_nombre')
+    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias',
+             'id_tarjeta', 'origen', 'id_cotizador', 'placa','cliente_nombre')
 
-    # Consulta para Tarjetas traslado fondo
     tarjetastrasladofondoResta = Tarjetastrasladofondo.objects.filter(id_tarjeta_bancaria_envia_id=id).annotate(
         fi=F('fecha_ingreso'),
         ft=F('fecha_transaccion'),
         desc_alias=F('observacion'),
         valor_alias=ExpressionWrapper(F('valor') * -1, output_field=DecimalField()),
         id_tarjeta=F('id_tarjeta_bancaria_envia'),
-        origen=Concat(
-            Value('Tarjeta Cuenta origen - '),
-            F('id_tarjeta_bancaria_envia__nombre_cuenta'),
-            output_field=CharField()
-        ),
+        origen=Concat(Value('Tarjeta Cuenta origen - '),
+                      F('id_tarjeta_bancaria_envia__nombre_cuenta'),
+                      output_field=CharField()),
         id_cotizador=Value(None, output_field=IntegerField()),
         placa=Value(None, output_field=IntegerField()),
         cliente_nombre=Value('', output_field=CharField()),
-    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador', 'placa','cliente_nombre')
+    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias',
+             'id_tarjeta', 'origen', 'id_cotizador', 'placa','cliente_nombre')
 
-        # Consulta para Tarjetas traslado fondo
     tarjetastrasladofondoSuma = Tarjetastrasladofondo.objects.filter(id_tarjeta_bancaria_recibe_id=id).annotate(
         fi=F('fecha_ingreso'),
         ft=F('fecha_transaccion'),
         desc_alias=F('observacion'),
         valor_alias=F('valor'),
         id_tarjeta=F('id_tarjeta_bancaria_recibe'),
-        origen=Concat(
-            Value('Tarjeta Cuenta destino - '),
-            F('id_tarjeta_bancaria_recibe__nombre_cuenta'),
-            output_field=CharField()
-        ),
+        origen=Concat(Value('Tarjeta Cuenta destino - '),
+                      F('id_tarjeta_bancaria_recibe__nombre_cuenta'),
+                      output_field=CharField()),
         id_cotizador=Value(None, output_field=IntegerField()),
         placa=Value(None, output_field=IntegerField()),
         cliente_nombre=Value('', output_field=CharField()),
-    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador', 'placa','cliente_nombre')
+    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias',
+             'id_tarjeta', 'origen', 'id_cotizador', 'placa','cliente_nombre')
 
+    # ------------------------------------------------------------
+    # 🔸 Unir todos los registros
+    # ------------------------------------------------------------
+    union_result = (
+        list(cuentas)
+        + list(devoluciones)
+        + list(gastos)
+        + list(utilidadocacional)
+        + list(recepcionDePagos)
+        + list(cargosNoRegistrados)
+        + list(tarjetastrasladofondoResta)
+        + list(tarjetastrasladofondoSuma)
+    )
 
-    
-    # Unir todas las consultas asegurando que los tipos coincidan
+    # ------------------------------------------------------------
+    # 🔹 Totales corregidos (idénticos a obtener_tarjetas_total)
+    # ------------------------------------------------------------
+    total_cuentas = sumar_valores(CuentaBancaria.objects.filter(idBanco=id))
+    total_devoluciones = sumar_valores(Devoluciones.objects.filter(id_tarjeta_bancaria=id))
+    total_gastos = sumar_valores(Gastogenerales.objects.filter(id_tarjeta_bancaria=id))
+    total_utilidad = sumar_valores(Utilidadocacional.objects.filter(id_tarjeta_bancaria=id))
+    total_recepcion = sumar_valores(RecepcionPago.objects.filter(id_tarjeta_bancaria=id))
+    total_cargos = sumar_valores(Cargosnodesados.objects.filter(id_tarjeta_bancaria=id))
+    total_traslado_resta = sumar_valores(Tarjetastrasladofondo.objects.filter(id_tarjeta_bancaria_envia=id))
+    total_traslado_suma = sumar_valores(Tarjetastrasladofondo.objects.filter(id_tarjeta_bancaria_recibe=id))
 
-    union_result = list(cuentas) + list(devoluciones) + list(gastos) + list(utilidadocacional) + list(recepcionDePagos) + list(cargosNoRegistrados) + list(tarjetastrasladofondoResta) + list(tarjetastrasladofondoSuma)
- 
-    # Calcular totales de cada categoría
-    total_cuentas           = safe_sum(CuentaBancaria.objects.filter(idBanco=id), "valor")
-    total_devoluciones      = safe_sum(Devoluciones.objects.filter(id_tarjeta_bancaria=id), "valor")
-    total_gastos            = safe_sum(Gastogenerales.objects.filter(id_tarjeta_bancaria=id), "valor")
-    total_utilidad          = safe_sum(Utilidadocacional.objects.filter(id_tarjeta_bancaria=id), "valor")
-    total_recepcionDePagos  = safe_sum(RecepcionPago.objects.filter(id_tarjeta_bancaria=id), "valor")
-    total_cargosNoDeseados  = safe_sum(Cargosnodesados.objects.filter(id_tarjeta_bancaria=id), "valor")
-    total_tarjetastrasladofondoResta  = safe_sum(Tarjetastrasladofondo.objects.filter(id_tarjeta_bancaria_envia_id=id), "valor")
-    total_tarjetastrasladofondoSuma  =  safe_sum(Tarjetastrasladofondo.objects.filter(id_tarjeta_bancaria_recibe=id), "valor")
+    cuatro_por_mil_cuentas = sumar_valores(CuentaBancaria.objects.filter(idBanco=id), "cuatro_por_mil")
+    cuatro_por_mil_recepciones = sumar_valores(RecepcionPago.objects.filter(id_tarjeta_bancaria=id), "cuatro_por_mil")
+    cuatro_por_mil_devoluciones = sumar_valores(Devoluciones.objects.filter(id_tarjeta_bancaria=id), "cuatro_por_mil")
+    cuatro_por_mil_gastos = sumar_valores(Gastogenerales.objects.filter(id_tarjeta_bancaria=id), "cuatro_por_mil")
+    cuatro_por_mil_utilidad = sumar_valores(Utilidadocacional.objects.filter(id_tarjeta_bancaria=id), "cuatro_por_mil")
 
-    # Calcular el total de todas las categorías
-    total_general = total_cuentas + total_devoluciones + total_gastos + total_utilidad + total_recepcionDePagos + total_cargosNoDeseados - total_tarjetastrasladofondoResta + total_tarjetastrasladofondoSuma
-    transacciones_ordenadas = ordenar_union_result(union_result)
+    total_cuatro_por_mil = abs(
+        cuatro_por_mil_cuentas
+        + cuatro_por_mil_recepciones
+        + cuatro_por_mil_devoluciones
+        + cuatro_por_mil_gastos
+        + cuatro_por_mil_utilidad
+    )
 
-    def to_number(value):
-        if value in [None, "", "None"]:
+    total_general = (
+        total_cuentas
+        + total_devoluciones
+        + total_gastos
+        + total_utilidad
+        + total_recepcion
+        + total_cargos
+        - total_traslado_resta
+        + total_traslado_suma
+        - total_cuatro_por_mil
+    )
+
+    # ------------------------------------------------------------
+    # 🔸 Cuatro por mil data
+    # ------------------------------------------------------------
+    def to_number(v):
+        if v in [None, "", "None"]:
             return 0
-        # elimina puntos o comas por si viene como "1.000,50"
-        return int(str(value).replace(".", "").replace(",", ""))
+        return float(str(v).replace(".", "").replace(",", ""))
 
     cuatro_por_mil_registros = [
         {
-            "id": item.get("id"),
-            "cuatro_por_mil":  -abs(to_number(item.get("cuatro_por_mil"))),
-            "fi": item.get("fi"),
-            "ft": item.get("ft"),
-            "desc_alias": item.get("desc_alias"),
-            "valor_alias": "",  # Mostrar valor vacío como lo pediste
-            "id_tarjeta": item.get("id_tarjeta"),
-            "origen":"Cuatro Por Mil",
-            "id_cotizador": item.get("id_cotizador"),
-            "placa": item.get("placa"),
+            "id": i.get("id"),
+            "cuatro_por_mil": -abs(to_number(i.get("cuatro_por_mil"))),
+            "fi": i.get("fi"),
+            "ft": i.get("ft"),
+            "desc_alias": i.get("desc_alias"),
+            "valor_alias": "",
+            "id_tarjeta": i.get("id_tarjeta"),
+            "origen": "Cuatro Por Mil",
+            "id_cotizador": i.get("id_cotizador"),
+            "placa": i.get("placa"),
         }
-        for item in transacciones_ordenadas
-        if str(item.get("cuatro_por_mil")).strip() not in ["", "0", "None", None]
+        for i in union_result
+        if str(i.get("cuatro_por_mil")).strip() not in ["", "0", "None", None]
     ]
-    
-    # Calcular total del cuatro por mil
-    total_cuatro_por_mil = sum(
-        int(str(item.get("cuatro_por_mil")).replace('.', '').strip())
-        for item in transacciones_ordenadas
-        if str(item.get("cuatro_por_mil")).strip() not in ["", "0", "None", None]
-    )
 
-    transacciones_limpias = []
-
-    for item in transacciones_ordenadas:
-        item = dict(item)  # convertir a dict editable
-
-        # Obtener los valores actuales
-        valor_alias = item.get("valor_alias") or 0
-        cuatro_por_mil = item.get("cuatro_por_mil") or 0
-
-        # Convertir los valores a número limpiando puntos/comas
-        def to_number(v):
-            if v in [None, "", "None"]:
-                return 0
-            return float(str(v).replace(".", "").replace(",", ""))
-
-        valor_alias_num    = to_number(valor_alias)
-        cuatro_por_mil_num = to_number(cuatro_por_mil)
-
-        # Sumar y reasignar a valor_alias
-        total_valor = valor_alias_num + cuatro_por_mil_num
-        item["valor_alias"] = total_valor
-        item["total"] = valor_alias_num
-        # (Opcional) dejar cuatro_por_mil vacío como dijiste antes
-        item["cuatro_por_mil"] = ""
-
-        transacciones_limpias.append(item)
-        print(transacciones_limpias)
-    # Objeto con los totales
+    # ------------------------------------------------------------
+    # 🧾 Respuesta final igual estructura + totales corregidos
+    # ------------------------------------------------------------
     response_data = {
-        "data": transacciones_limpias,  # Convierte el QuerySet en lista
+        "data": union_result,
         "cuatro_por_mil_data": cuatro_por_mil_registros,
         "totales": {
-            "total_cuenta_bancaria"     : total_cuentas or 0,
-            "total_devoluciones"        : total_devoluciones or 0,
-            "total_gastos_generales"    : total_gastos or 0,
-            "total_utilidad_ocacional"  : total_utilidad or 0,
-            "total_recepcionDePagos"    : total_recepcionDePagos or 0,
-            "total_cargosNoDeseados"    : total_cargosNoDeseados or 0,
-            "total_cuatro_por_mil"      : -abs(total_cuatro_por_mil or 0),
-            "total"                     : total_general -abs(total_cuatro_por_mil or 0) or 0
+            "total_cuenta_bancaria": total_cuentas,
+            "total_devoluciones": total_devoluciones,
+            "total_gastos_generales": total_gastos,
+            "total_utilidad_ocacional": total_utilidad,
+            "total_recepcionDePagos": total_recepcion,
+            "total_cargosNoDeseados": total_cargos,
+            "total_cuatro_por_mil": -total_cuatro_por_mil,
+            "total": total_general,
         },
-        "tarjeta":{
-            "nombre_cuenta"     : nombre_cuenta,
+        "tarjeta": {
+            "nombre_cuenta": nombre_cuenta,
             "descripcion_cuenta": descripcion,
-            "numero_cuenta"     : numero_cuenta,
-            "banco"             : banco,
-        }
+            "numero_cuenta": numero_cuenta,
+            "banco": banco,
+        },
     }
 
-    # Respuesta JSON combinando los datos y los totales
     return Response(response_data, status=status.HTTP_200_OK)
-
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 @check_role(1,2)
