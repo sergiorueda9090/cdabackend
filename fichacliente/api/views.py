@@ -1,6 +1,7 @@
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response   import Response
-
+from decimal import Decimal
+from rest_framework             import status
 from cuentasbancarias.models    import CuentaBancaria
 from cotizador.models           import Cotizador
 from clientes.models            import Cliente
@@ -8,9 +9,243 @@ from recepcionPago.models       import RecepcionPago
 from devoluciones.models        import Devoluciones
 from ajustesaldos.models        import Ajustesaldo
 from django.db.models           import F, Value, CharField, Sum, Q
+from cargosnoregistrados.models import Cargosnodesados
+from cotizador.api.serializers  import CotizadorSerializer
 from datetime import datetime
 from rest_framework.permissions import IsAuthenticated
 from users.decorators import check_role
+import uuid
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+@check_role(1, 2)
+def get_all_ficha_cliente_agrupado(request):
+
+    # --- Función segura para convertir valores ---
+    def safe_float(value):
+        try:
+            if value is None or value == "":
+                return 0.0
+            s = str(value).strip()
+            if "." in s and "," in s:
+                if s.rfind(".") > s.rfind(","):
+                    s = s.replace(",", "")
+                else:
+                    s = s.replace(".", "").replace(",", ".")
+            elif "," in s:
+                s = s.replace(".", "").replace(",", ".")
+            else:
+                s = s.replace(",", "")
+            return float(s)
+        except:
+            return 0.0
+
+    # --- Función para formatear valores ---
+    def format_value(value):
+        try:
+            valor = safe_float(value)
+            signo = "-" if valor < 0 else ""
+            valor_str = f"{int(abs(valor)):,}".replace(",", ".")
+            return f"{signo}{valor_str}"
+        except:
+            return value
+
+    # --- Función para parsear fechas ---
+    def parse_fecha(fecha_str):
+        if not fecha_str:
+            return datetime.min
+        if isinstance(fecha_str, datetime):
+            return fecha_str
+        for fmt in ["%Y-%m-%d %H:%M:%S", "%Y-%m-%d"]:
+            try:
+                return datetime.strptime(str(fecha_str)[:19], fmt)
+            except:
+                pass
+        return datetime.min
+
+    # --- Función para mapear movimientos ---
+    def map_data(lista, tipo, origen, field_valor='valor', field_obs='observacion', negativo=False):
+        data = []
+        for item in lista:
+            valor = safe_float(item.get(field_valor))
+            if negativo:
+                valor *= -1
+
+            fecha_ingreso = item.get('fecha_ingreso')
+            fecha_transaccion = item.get('fecha_transaccion')
+
+            data.append({
+                "id": str(uuid.uuid4()),
+                "valor": format_value(valor),
+                "tipo": tipo,
+                "origen": f"Cliente - {origen}",
+                "observacion": item.get(field_obs, "") or "",
+                "fecha_ingreso": fecha_ingreso,
+                "fecha_transaccion": fecha_transaccion,
+                "fecha": fecha_ingreso or fecha_transaccion
+            })
+        return data
+
+    # =====================================================================
+    # 📌 1. CREAR DICCIONARIO QUE AGRUPA TODO POR CLIENTE
+    # =====================================================================
+    clientes_data = {}
+
+    # ---------- COTIZADORES ----------
+    cotizadores = (
+        Cotizador.objects
+        .annotate(
+            fecha_ingreso=F('fechaCreacion'),
+            fecha_transaccion=F('fechaTramite')
+        )
+        .values('id', 'idCliente', 'precioDeLey', 'total',
+                'fecha_ingreso', 'fecha_transaccion')
+    )
+
+    for c in cotizadores:
+        cliente = Cliente.objects.filter(id=c["idCliente"]).first()
+        if not cliente:
+            continue
+
+        cid = cliente.id
+
+        if cid not in clientes_data:
+            clientes_data[cid] = {
+                "cliente": cliente.nombre,
+                "total": 0,
+                "movimientos": [],
+                "cotizador": []
+            }
+
+        # Movimientos tipo cotizador
+        movs = map_data([c], "SOAT", "Trámites",
+                        field_valor="total", field_obs="", negativo=True)
+        clientes_data[cid]["movimientos"] += movs
+
+        clientes_data[cid]["total"] -= safe_float(c["total"])
+
+        # Cotizador completo
+        cot = Cotizador.objects.get(id=c["id"])
+        ser = CotizadorSerializer(cot).data
+        ser["nombre_cliente"] = cliente.nombre
+        clientes_data[cid]["cotizador"].append(ser)
+
+    # ---------- RECEPCIÓN DE PAGO ----------
+    recepciones = RecepcionPago.objects.values(
+        'id', 'cliente_id', 'valor', 'observacion',
+        'fecha_ingreso', 'fecha_transaccion'
+    )
+
+    for r in recepciones:
+        cliente = Cliente.objects.filter(id=r["cliente_id"]).first()
+        if not cliente:
+            continue
+
+        cid = cliente.id
+
+        if cid not in clientes_data:
+            clientes_data[cid] = {
+                "cliente": cliente.nombre,
+                "total": 0,
+                "movimientos": [],
+                "cotizador": []
+            }
+
+        movs = map_data([r], "Recepción de pago", "Recepción de Pago")
+        clientes_data[cid]["movimientos"] += movs
+
+        clientes_data[cid]["total"] += safe_float(r["valor"])
+
+    # ---------- AJUSTES ----------
+    ajustes = Ajustesaldo.objects.values(
+        'id', 'id_cliente', 'valor', 'observacion',
+        'fecha_ingreso', 'fecha_transaccion'
+    )
+
+    for a in ajustes:
+        cliente = Cliente.objects.filter(id=a["id_cliente"]).first()
+        if not cliente:
+            continue
+
+        cid = cliente.id
+
+        if cid not in clientes_data:
+            clientes_data[cid] = {
+                "cliente": cliente.nombre,
+                "total": 0,
+                "movimientos": [],
+                "cotizador": []
+            }
+
+        movs = map_data([a], "Ajuste de saldo", "Ajustes de Saldos")
+        clientes_data[cid]["movimientos"] += movs
+
+        clientes_data[cid]["total"] += safe_float(a["valor"])
+
+    # ---------- DEVOLUCIONES ----------
+    devoluciones = Devoluciones.objects.values(
+        'id', 'id_cliente', 'valor', 'observacion',
+        'fecha_ingreso', 'fecha_transaccion'
+    )
+
+    for d in devoluciones:
+        cliente = Cliente.objects.filter(id=d["id_cliente"]).first()
+        if not cliente:
+            continue
+
+        cid = cliente.id
+
+        if cid not in clientes_data:
+            clientes_data[cid] = {
+                "cliente": cliente.nombre,
+                "total": 0,
+                "movimientos": [],
+                "cotizador": []
+            }
+
+        movs = map_data([d], "Devolución", "Devoluciones")
+        clientes_data[cid]["movimientos"] += movs
+
+        clientes_data[cid]["total"] += safe_float(d["valor"])
+
+    # ---------- CARGOS ----------
+    cargos = Cargosnodesados.objects.values(
+        'id', 'id_cliente', 'valor', 'observacion',
+        'fecha_ingreso', 'fecha_transaccion'
+    )
+
+    for c in cargos:
+        cliente = Cliente.objects.filter(id=c["id_cliente"]).first()
+        if not cliente:
+            continue
+
+        cid = cliente.id
+
+        if cid not in clientes_data:
+            clientes_data[cid] = {
+                "cliente": cliente.nombre,
+                "total": 0,
+                "movimientos": [],
+                "cotizador": []
+            }
+
+        movs = map_data([c], "Cargo no registrado", "Cargos no deseados")
+        clientes_data[cid]["movimientos"] += movs
+
+        clientes_data[cid]["total"] += safe_float(c["valor"])
+
+    # =====================================================================
+    # 📌 2. ORDENAR MOVIMIENTOS POR FECHA PARA CADA CLIENTE
+    # =====================================================================
+    for cid, info in clientes_data.items():
+        info["movimientos"].sort(key=lambda x: parse_fecha(x.get("fecha")), reverse=True)
+
+    # =====================================================================
+    # 📌 3. FORMAR LISTA FINAL
+    # =====================================================================
+    resultado = list(clientes_data.values())
+
+    return Response(resultado, status=200)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -105,3 +340,5 @@ def get_all_ficha_cliente(request):
     union_result = cotizadores_list + recepcionDePagos + devoluciones + ajuestesSaldos
 
     return Response(union_result)
+
+[{'cliente':'el nombre', 'total':1234, 'datos':[{},{}]}]
