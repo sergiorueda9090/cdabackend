@@ -278,24 +278,33 @@ def get_all_ficha_cliente(request):
     try:
         if fecha_inicio:
             fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
+            fecha_inicio = fecha_inicio.replace(hour=0, minute=0, second=0)
+
         if fecha_fin:
             fecha_fin = datetime.strptime(fecha_fin, "%Y-%m-%d")
+            fecha_fin = fecha_fin.replace(hour=23, minute=59, second=59)
+
     except ValueError:
         return Response({"error": "Formato de fecha inválido. Use YYYY-MM-DD."}, status=400)
 
-    # Obtener cotizadores con sus idCliente
-    cotizadores_qs = Cotizador.objects.exclude(precioDeLey__isnull=True).exclude(precioDeLey="").values('id', 'fechaCreacion', 'total', 'idCliente', 'placa', 'archivo')
+    # Obtener cotizadores
+    cotizadores_qs = Cotizador.objects.exclude(precioDeLey__isnull=True).exclude(precioDeLey="").values(
+        'id', 'fechaCreacion', 'total', 'idCliente', 'placa', 'archivo'
+    )
 
     if fecha_inicio and fecha_fin:
         cotizadores_qs = cotizadores_qs.filter(fechaCreacion__range=[fecha_inicio, fecha_fin])
 
-    # Obtener clientes en un diccionario {id: nombre}
+    # Diccionario de clientes
     clientes_dict = {c['id']: c['nombre'] for c in Cliente.objects.values('id', 'nombre')}
 
-    # Obtener valores de cuentas bancarias
-    cuentasbancarias_qs = {c['idCotizador']: c['valor'] for c in CuentaBancaria.objects.values('idCotizador', 'valor')}
+    # Valores de cuentas bancarias
+    cuentasbancarias_qs = {
+        c['idCotizador']: c['valor']
+        for c in CuentaBancaria.objects.values('idCotizador', 'valor')
+    }
 
-    # Formatear cotizadores
+    # 💛 FORMATEAR COTIZADORES
     cotizadores_list = [
         {
             'id': cotizador['id'],
@@ -309,15 +318,17 @@ def get_all_ficha_cliente(request):
             'archivo': cotizador['archivo'],
         }
         for cotizador in cotizadores_qs
-        if cuentasbancarias_qs.get(cotizador['id']) is not None and clientes_dict.get(cotizador['idCliente']) is not None
+        if cuentasbancarias_qs.get(cotizador['id']) is not None 
+        and clientes_dict.get(cotizador['idCliente']) is not None
     ]
 
-    # Filtros de fecha para los demás modelos
+    # FILTRO DE FECHA PARA LOS DEMÁS MODELOS
     filtros_fecha = {}
     if fecha_inicio and fecha_fin:
         filtros_fecha = {'fecha_ingreso__range': [fecha_inicio, fecha_fin]}
 
-    recepcionDePagos = list(RecepcionPago.objects.select_related('cliente')
+    recepcionDePagos = list(
+        RecepcionPago.objects.select_related('cliente')
         .filter(**filtros_fecha)
         .annotate(
             fi=F('fecha_ingreso'),
@@ -328,9 +339,13 @@ def get_all_ficha_cliente(request):
             origen=Value("Recepcion de Pago", output_field=CharField()),
             placa=Value("", output_field=CharField()),
             archivo=Value("", output_field=CharField()),
-        ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'cliente_nombre', 'origen', 'placa', 'archivo'))
+        )
+        .values('id', 'fi', 'ft', 'valor_alias', 'desc_alias',
+                'cliente_nombre', 'origen', 'placa', 'archivo')
+    )
 
-    devoluciones = list(Devoluciones.objects.select_related('id_cliente')
+    devoluciones = list(
+        Devoluciones.objects.select_related('id_cliente')
         .filter(**filtros_fecha)
         .annotate(
             fi=F('fecha_ingreso'),
@@ -341,9 +356,13 @@ def get_all_ficha_cliente(request):
             origen=Value("Devoluciones", output_field=CharField()),
             placa=Value("", output_field=CharField()),
             archivo=Value("", output_field=CharField()),
-        ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'cliente_nombre', 'origen', 'placa', 'archivo'))
+        )
+        .values('id', 'fi', 'ft', 'valor_alias', 'desc_alias',
+                'cliente_nombre', 'origen', 'placa', 'archivo')
+    )
 
-    ajuestesSaldos = list(Ajustesaldo.objects.select_related('id_cliente')
+    ajuestesSaldos = list(
+        Ajustesaldo.objects.select_related('id_cliente')
         .filter(**filtros_fecha)
         .annotate(
             fi=F('fecha_ingreso'),
@@ -354,11 +373,27 @@ def get_all_ficha_cliente(request):
             origen=Value("Ajustes de Saldos", output_field=CharField()),
             placa=Value("", output_field=CharField()),
             archivo=Value("", output_field=CharField()),
-        ).values('id', 'fi', 'ft', 'valor_alias', 'desc_alias', 'cliente_nombre', 'origen', 'placa', 'archivo'))
+        )
+        .values('id', 'fi', 'ft', 'valor_alias', 'desc_alias',
+                'cliente_nombre', 'origen', 'placa', 'archivo')
+    )
 
-    # Unir todos los resultados
-    union_result = cotizadores_list + recepcionDePagos + devoluciones + ajuestesSaldos
+    # 💛 UNIR TODO
+    union_result = (
+        cotizadores_list +
+        recepcionDePagos +
+        devoluciones +
+        ajuestesSaldos
+    )
+
+    # 💥 💥 💥 ORDENAR POR MÁS RECIENTES (fi / ft) 💥 💥 💥
+    def obtener_fecha(item):
+        return item.get('fi') or item.get('ft') or datetime.min
+
+    union_result = sorted(
+        union_result,
+        key=lambda x: obtener_fecha(x),
+        reverse=True  # RECIENTES PRIMERO
+    )
 
     return Response(union_result)
-
-[{'cliente':'el nombre', 'total':1234, 'datos':[{},{}]}]

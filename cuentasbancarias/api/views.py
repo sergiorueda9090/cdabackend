@@ -36,7 +36,7 @@ from users.decorators import check_role
 @permission_classes([IsAuthenticated])
 @check_role(1,2)
 def obtener_cuentas(request):
-    # Obtener todas las cuentas bancarias con los campos necesarios sergio 
+
     cuentas_qs = CuentaBancaria.objects.annotate(
         fi=F('fechaIngreso'),
         ft=F('fechaTransaccion'),
@@ -45,16 +45,17 @@ def obtener_cuentas(request):
         id_tarjeta=F('idBanco'),
         origen=Value("Tramite", output_field=CharField()),
         id_cotizador=F('idCotizador')
-    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador')
+    ).values(
+        'id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 
+        'id_tarjeta', 'origen', 'id_cotizador'
+    )
 
-    # Obtener todos los cotizadores en un diccionario {id: objeto}
     cotizador_ids = [c['id_cotizador'] for c in cuentas_qs if c['id_cotizador']]
     cotizadores = {c.id: c for c in Cotizador.objects.filter(id__in=cotizador_ids)}
 
     cliente_ids = [c.idCliente for c in cotizadores.values() if c.idCliente]
     clientes = {cli.id: cli for cli in Cliente.objects.filter(id__in=cliente_ids)}
 
-    # Convertir cuentas a lista y agregar datos de Cotizador
     cuentas = list(cuentas_qs)
     for cuenta in cuentas:
         cotizador = cotizadores.get(cuenta.get('id_cotizador'))
@@ -63,7 +64,6 @@ def obtener_cuentas(request):
         cuenta['cilindraje'] = cotizador.cilindraje if cotizador else None
         cuenta['archivo'] = cotizador.archivo.url if cotizador and cotizador.archivo else None
         
-        # Agregar nombre del cliente
         cliente = clientes.get(cotizador.idCliente) if cotizador else None
         if cliente:
             nombre = cliente.nombre or ''
@@ -72,7 +72,6 @@ def obtener_cuentas(request):
         else:
             cuenta['cliente_nombre'] = ''
 
-    # Recepción de pagos
     recepcionDePagos = list(
         RecepcionPago.objects.annotate(
             fi=F('fecha_ingreso'),
@@ -97,7 +96,6 @@ def obtener_cuentas(request):
         )
     )
 
-    # Cargos no registrados
     cargosNoRegistrados = list(
         Cargosnodesados.objects.annotate(
             fi=F('fecha_ingreso'),
@@ -122,7 +120,6 @@ def obtener_cuentas(request):
         )
     )
 
-    # Devoluciones
     devoluciones = list(
         Devoluciones.objects.annotate(
             fi=F('fecha_ingreso'),
@@ -175,10 +172,18 @@ def obtener_cuentas(request):
         id_cotizador=Value(None, output_field=IntegerField()),
     ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias', 'id_tarjeta', 'origen', 'id_cotizador'))
 
-    # Unir los datos como listas
     union_result = cuentas + recepcionDePagos + devoluciones + gastos + utilidadocacional + cargosNoRegistrados
 
-    # Retornar la respuesta
+    # ORDENAR POR LOS MÁS RECIENTES
+    def get_fecha(item):
+        return item.get('fi') or item.get('ft') or datetime.min
+
+    union_result = sorted(
+        union_result,
+        key=lambda x: get_fecha(x),
+        reverse=True
+    )
+
     return Response(union_result)
 
 @api_view(['GET'])

@@ -40,16 +40,16 @@ def get_ficha_utilidades(request):
     except ValueError:
         return Response({"error": "Formato de fecha inválido. Use YYYY-MM-DD."}, status=400)
 
-    proveedores_qs = FichaProveedor.objects.all()
+    # 👉 Ordenar por recientes primero
+    proveedores_qs = FichaProveedor.objects.all().order_by('-fechaCreacion')
 
     if proveedor_id:
         proveedores_qs = proveedores_qs.filter(idproveedor__id=proveedor_id)
 
     if fecha_inicio and fecha_fin:
-        proveedores_qs = proveedores_qs.filter(fechaCreacion__range=[fecha_inicio, fecha_fin])
-    #else:
-    #    hoy = datetime.now().date()
-    #    proveedores_qs = proveedores_qs.filter(fechaCreacion__date=hoy)
+        proveedores_qs = proveedores_qs.filter(
+            fechaCreacion__range=[fecha_inicio, fecha_fin]
+        )
 
     if search:
         proveedores_qs = proveedores_qs.filter(
@@ -65,6 +65,9 @@ def get_ficha_utilidades(request):
             Q(idcotizador__comisionPrecioLey__icontains=search) |
             Q(idcotizador__total__icontains=search)
         )
+
+    # 👉 Asegurar orden más reciente, incluso después de filtros
+    proveedores_qs = proveedores_qs.order_by('-fechaCreacion')
 
     def safe_abs(value):
         try:
