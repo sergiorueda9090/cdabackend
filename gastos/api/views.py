@@ -14,7 +14,7 @@ from users.decorators import check_role
 @permission_classes([IsAuthenticated])
 @check_role(1,2)
 def listar_gastos(request):
-    devolucionAll= Gastos.objects.all()
+    devolucionAll= Gastos.objects.all().order_by('-fecha_ingreso')
     serializer   = GastosSerializer(devolucionAll, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
 

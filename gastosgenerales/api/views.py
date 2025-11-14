@@ -19,7 +19,7 @@ from users.decorators   import check_role
 @check_role(1,2)
 def listar_gastos_generales(request):
     try:
-        gastos = Gastogenerales.objects.all()
+        gastos = Gastogenerales.objects.all().order_by('-fecha_ingreso')
         total_gastos_data = []
 
         for gasto in gastos:

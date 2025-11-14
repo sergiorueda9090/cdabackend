@@ -64,7 +64,7 @@ from users.decorators   import check_role
 @check_role(1,2)
 def listar_utilidad_general(request):
     try:
-        utilidades = Utilidadocacional.objects.all()
+        utilidades = Utilidadocacional.objects.all().order_by('-fecha_ingreso')
         total_utilidades_data = []
 
         for utilidad in utilidades:

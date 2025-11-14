@@ -17,7 +17,7 @@ from users.decorators           import check_role
 @permission_classes([IsAuthenticated])
 @check_role(1,2)
 def listar_ajustessaldos(request):
-    devolucionAll= Ajustesaldo.objects.all()
+    devolucionAll= Ajustesaldo.objects.all().order_by('-fecha_ingreso')
     devoluciones_pago_data = []
 
     for devolucion in devolucionAll:

@@ -21,7 +21,6 @@ import uuid
 @check_role(1, 2)
 def get_all_ficha_cliente_agrupado(request):
 
-    # --- Función segura para convertir valores ---
     def safe_float(value):
         try:
             if value is None or value == "":
@@ -40,7 +39,6 @@ def get_all_ficha_cliente_agrupado(request):
         except:
             return 0.0
 
-    # --- Función para formatear valores ---
     def format_value(value):
         try:
             valor = safe_float(value)
@@ -50,7 +48,6 @@ def get_all_ficha_cliente_agrupado(request):
         except:
             return value
 
-    # --- Función para parsear fechas ---
     def parse_fecha(fecha_str):
         if not fecha_str:
             return datetime.min
@@ -63,8 +60,12 @@ def get_all_ficha_cliente_agrupado(request):
                 pass
         return datetime.min
 
-    # --- Función para mapear movimientos ---
-    def map_data(lista, tipo, origen, field_valor='valor', field_obs='observacion', negativo=False):
+
+    # ===============================================
+    # ⭐ MAP DATA CON CAMPOS NUEVOS (Placa, Cilindraje, Año)
+    # ===============================================
+    def map_data(lista, tipo, origen, field_valor='valor', field_obs='observacion',
+                 negativo=False, es_soat=False):
         data = []
         for item in lista:
             valor = safe_float(item.get(field_valor))
@@ -74,32 +75,43 @@ def get_all_ficha_cliente_agrupado(request):
             fecha_ingreso = item.get('fecha_ingreso')
             fecha_transaccion = item.get('fecha_transaccion')
 
+            # CAMPOS EXTRAS SOLO PARA SOAT
+            placa = item.get("placa", "") if es_soat else ""
+            cilindraje = item.get("cilindraje", "") if es_soat else ""
+            anio = item.get("modelo", "") if es_soat else ""
+
             data.append({
                 "id": str(uuid.uuid4()),
                 "valor": format_value(valor),
                 "tipo": tipo,
                 "origen": f"Cliente - {origen}",
                 "observacion": item.get(field_obs, "") or "",
+                "placa": placa,
+                "cilindraje": cilindraje,
+                "anio": anio,
                 "fecha_ingreso": fecha_ingreso,
                 "fecha_transaccion": fecha_transaccion,
-                "fecha": fecha_ingreso or fecha_transaccion
+                "fecha": fecha_ingreso or fecha_transaccion,
             })
         return data
 
-    # =====================================================================
-    # 📌 1. CREAR DICCIONARIO QUE AGRUPA TODO POR CLIENTE
-    # =====================================================================
+
     clientes_data = {}
 
-    # ---------- COTIZADORES ----------
+    # =======================
+    # ⭐ COTIZADORES (SOAT)
+    # =======================
     cotizadores = (
         Cotizador.objects
         .annotate(
             fecha_ingreso=F('fechaCreacion'),
             fecha_transaccion=F('fechaTramite')
         )
-        .values('id', 'idCliente', 'precioDeLey', 'total',
-                'fecha_ingreso', 'fecha_transaccion')
+        .values(
+            'id', 'idCliente', 'precioDeLey', 'total',
+            'placa', 'cilindraje', 'modelo',
+            'fecha_ingreso', 'fecha_transaccion'
+        )
     )
 
     for c in cotizadores:
@@ -117,20 +129,26 @@ def get_all_ficha_cliente_agrupado(request):
                 "cotizador": []
             }
 
-        # Movimientos tipo cotizador
-        movs = map_data([c], "SOAT", "Trámites",
-                        field_valor="total", field_obs="", negativo=True)
+        movs = map_data(
+            [c],
+            "SOAT",
+            "Trámites",
+            field_valor="total",
+            field_obs="",
+            negativo=True,
+            es_soat=True
+        )
         clientes_data[cid]["movimientos"] += movs
-
         clientes_data[cid]["total"] -= safe_float(c["total"])
 
-        # Cotizador completo
         cot = Cotizador.objects.get(id=c["id"])
         ser = CotizadorSerializer(cot).data
         ser["nombre_cliente"] = cliente.nombre
         clientes_data[cid]["cotizador"].append(ser)
 
-    # ---------- RECEPCIÓN DE PAGO ----------
+    # =======================
+    # RECEPCIÓN PAGO
+    # =======================
     recepciones = RecepcionPago.objects.values(
         'id', 'cliente_id', 'valor', 'observacion',
         'fecha_ingreso', 'fecha_transaccion'
@@ -153,10 +171,11 @@ def get_all_ficha_cliente_agrupado(request):
 
         movs = map_data([r], "Recepción de pago", "Recepción de Pago")
         clientes_data[cid]["movimientos"] += movs
-
         clientes_data[cid]["total"] += safe_float(r["valor"])
 
-    # ---------- AJUSTES ----------
+    # =======================
+    # AJUSTES
+    # =======================
     ajustes = Ajustesaldo.objects.values(
         'id', 'id_cliente', 'valor', 'observacion',
         'fecha_ingreso', 'fecha_transaccion'
@@ -179,10 +198,12 @@ def get_all_ficha_cliente_agrupado(request):
 
         movs = map_data([a], "Ajuste de saldo", "Ajustes de Saldos")
         clientes_data[cid]["movimientos"] += movs
-
         clientes_data[cid]["total"] += safe_float(a["valor"])
 
-    # ---------- DEVOLUCIONES ----------
+
+    # =======================
+    # DEVOLUCIONES
+    # =======================
     devoluciones = Devoluciones.objects.values(
         'id', 'id_cliente', 'valor', 'observacion',
         'fecha_ingreso', 'fecha_transaccion'
@@ -205,10 +226,11 @@ def get_all_ficha_cliente_agrupado(request):
 
         movs = map_data([d], "Devolución", "Devoluciones")
         clientes_data[cid]["movimientos"] += movs
-
         clientes_data[cid]["total"] += safe_float(d["valor"])
 
-    # ---------- CARGOS ----------
+    # =======================
+    # CARGOS
+    # =======================
     cargos = Cargosnodesados.objects.values(
         'id', 'id_cliente', 'valor', 'observacion',
         'fecha_ingreso', 'fecha_transaccion'
@@ -231,21 +253,19 @@ def get_all_ficha_cliente_agrupado(request):
 
         movs = map_data([c], "Cargo no registrado", "Cargos no deseados")
         clientes_data[cid]["movimientos"] += movs
-
         clientes_data[cid]["total"] += safe_float(c["valor"])
 
-    # =====================================================================
-    # 📌 2. ORDENAR MOVIMIENTOS POR FECHA PARA CADA CLIENTE
-    # =====================================================================
+
+    # =======================
+    # ORDENAR MOVIMIENTOS
+    # =======================
     for cid, info in clientes_data.items():
-        info["movimientos"].sort(key=lambda x: parse_fecha(x.get("fecha")), reverse=True)
+        info["movimientos"].sort(
+            key=lambda x: parse_fecha(x.get("fecha")),
+            reverse=True
+        )
 
-    # =====================================================================
-    # 📌 3. FORMAR LISTA FINAL
-    # =====================================================================
-    resultado = list(clientes_data.values())
-
-    return Response(resultado, status=200)
+    return Response(list(clientes_data.values()), status=200)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])

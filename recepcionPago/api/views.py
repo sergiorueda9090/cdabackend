@@ -23,7 +23,7 @@ from django.db.models import F
 @api_view(['GET'])
 def listar_recepciones_pago(request):
     try:
-        recepciones = RecepcionPago.objects.all()
+        recepciones = RecepcionPago.objects.all().order_by('-fecha_ingreso')
         total_recepciones = recepciones.count()
         print(f"Total recepciones: {total_recepciones}")
         

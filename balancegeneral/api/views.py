@@ -916,7 +916,7 @@ def obtener_patrimonio_bruto(request):
     total_saldo_clientes = Decimal(sum(safe_to_float(item['total']) for item in valores_clientes))
 
     # ---- 4️⃣ Calcular Patrimonio Bruto ----
-    patrimonio_bruto = abs(total_tarjetas - total_cuatro_por_mil - abs(total_saldo_clientes))
+    patrimonio_bruto = abs((total_tarjetas - total_cuatro_por_mil) + abs(total_saldo_clientes))
 
     # ---- Logs de validación ----
     print("=========== 🏦 totalTarjetas:", total_tarjetas)
@@ -953,7 +953,7 @@ def obtener_patrimonio_bruto_function():
     total_saldo_clientes = Decimal(sum(safe_to_float(item['total']) for item in valores_clientes))
 
     # ---- 4️⃣ Cálculo del Patrimonio Bruto ----
-    patrimonio_bruto = total_tarjetas - total_cuatro_por_mil - abs(total_saldo_clientes)
+    patrimonio_bruto = (total_tarjetas - total_cuatro_por_mil) + abs(total_saldo_clientes)
 
     # ---- Logs de validación (opcional) ----
     print("=========== 🏦 totalTarjetas (func):", total_tarjetas)

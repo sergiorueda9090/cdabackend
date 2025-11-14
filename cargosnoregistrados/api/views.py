@@ -16,7 +16,7 @@ from users.decorators           import check_role
 @check_role(1,2)
 #@permission_classes([IsAuthenticated])
 def listar_cargosnoregistrados(request):
-    cargosnoregistradosAll = Cargosnodesados.objects.all()
+    cargosnoregistradosAll = Cargosnodesados.objects.all().order_by('-fecha_ingreso')
     cargosnoregistradosAll_pago_data = []
 
     for cargonoregistrado in cargosnoregistradosAll:

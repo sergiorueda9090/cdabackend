@@ -16,7 +16,7 @@ from users.decorators           import check_role
 @check_role(1,2)
 #@permission_classes([IsAuthenticated])
 def listar_devoluciones(request):
-    devolucionAll= Devoluciones.objects.all()
+    devolucionAll= Devoluciones.objects.all().order_by('-fecha_ingreso')
     devoluciones_pago_data = []
 
     for devolucion in devolucionAll:
