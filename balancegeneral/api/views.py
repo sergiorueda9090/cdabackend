@@ -1,5 +1,5 @@
 # cuentas_bancarias/api/views.py
-from datetime import datetime
+from datetime import datetime, time
 from django.shortcuts import get_object_or_404
 from decimal import Decimal
 from rest_framework.response import Response
@@ -37,39 +37,60 @@ import math
 
 def listar_gastos_generales(fecha_inicio=None, fecha_fin=None):
     try:
+        # ------------------------------
+        # Convertir fecha_inicio a 00:00:00
+        # ------------------------------
         if fecha_inicio and isinstance(fecha_inicio, str):
-            fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
-        else:
-            fecha_inicio = fecha_inicio
+            fecha_inicio = datetime.combine(
+                datetime.strptime(fecha_inicio, "%Y-%m-%d"),
+                time(0, 0, 0)  # Día inicia a las 00:00:00
+            )
 
+        # ------------------------------
+        # Convertir fecha_fin a 23:59:59
+        # ------------------------------
         if fecha_fin and isinstance(fecha_fin, str):
-            fecha_fin = datetime.strptime(fecha_fin, "%Y-%m-%d")
-        else:
-            fecha_fin = fecha_fin
+            fecha_fin = datetime.combine(
+                datetime.strptime(fecha_fin, "%Y-%m-%d"),
+                time(23, 59, 59)  # Día termina a las 23:59:59
+            )
+
     except ValueError:
         return []
 
     try:
-        # Base queryset
-        gastos = Gastogenerales.objects.select_related('id_tipo_gasto', 'id_tarjeta_bancaria')
+        # ----------------------------------------
+        # Base queryset (joins correctos)
+        # ----------------------------------------
+        gastos = Gastogenerales.objects.select_related(
+            'id_tipo_gasto',
+            'id_tarjeta_bancaria'
+        )
 
-        # Aplicar filtro de fechas al modelo Gastos (al que está relacionado con id_tipo_gasto)
+        # ---------------------------------------------------------
+        # FILTRO CORRECTO (fecha_ingreso de la tabla Gastogenerales)
+        # ---------------------------------------------------------
         if fecha_inicio and fecha_fin:
-            gastos = gastos.filter(id_tipo_gasto__fecha_ingreso__range=(fecha_inicio, fecha_fin))
+            gastos = gastos.filter(
+                fecha_transaccion__range=(fecha_inicio, fecha_fin)
+            )
 
         total_gastos_data = []
 
+        # ----------------------------------------
+        # Procesar cada gasto encontrado
+        # ----------------------------------------
         for gasto in gastos:
             try:
-                tarjeta = gasto.id_tarjeta_bancaria
                 gasto_model = gasto.id_tipo_gasto
-
                 valor = abs(int(gasto.valor))
 
                 total_gastos_data.append({
                     'nombre_cuenta': gasto_model.name,
                     'valor': valor,
-                    'origen': 'gasto'
+                    'origen': 'gasto',
+                    'fecha': gasto.fecha_ingreso,       # <-- ahora si quieres lo tienes disponible
+                    'tarjeta': gasto.id_tarjeta_bancaria.nombre_cuenta
                 })
 
             except Exception as e:
@@ -80,8 +101,7 @@ def listar_gastos_generales(fecha_inicio=None, fecha_fin=None):
 
     except Exception as e:
         print(f"Error en la función listar_gastos_generales: {e}")
-        return []
-    
+        return [] 
 # def get_all_ficha_cliente(fechaInicio=None, fechaFin=None):
 #     # Obtener parámetros de fecha
 #     fecha_inicio = fechaInicio
@@ -695,6 +715,7 @@ def obtener_balancegeneral(request):
     valores_clientes = get_all_ficha_cliente() #(fecha_inicio, fecha_fin
 
     valores_gastos   = listar_gastos_generales(fecha_inicio, fecha_fin)
+    print(" ============ valores_gastos ============ ",valores_gastos)
     fichas_proveedor = get_all_fecha_proveedores(fecha_inicio, fecha_fin)
     utilidades       = get_ficha_utilidades(fecha_inicio, fecha_fin)
   
@@ -1091,8 +1112,11 @@ def get_total_utilidad_nominal(request):
     try:
         if fecha_inicio:
             fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
+            fecha_inicio = fecha_inicio.replace(hour=0, minute=0, second=0)
+
         if fecha_fin:
             fecha_fin    = datetime.strptime(fecha_fin, "%Y-%m-%d")
+            fecha_fin    = fecha_fin.replace(hour=23, minute=59, second=59)
     except ValueError:
         return Response({"error": "Formato de fecha inválido. Use YYYY-MM-DD."}, status=400)
 
@@ -1332,8 +1356,10 @@ def total_utilidad_real(request):
     try:
         if fecha_inicio:
             fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
+            fecha_inicio = fecha_inicio.replace(hour=0, minute=0, second=0)
         if fecha_fin:
             fecha_fin    = datetime.strptime(fecha_fin, "%Y-%m-%d")
+            fecha_fin    = fecha_fin.replace(hour=23, minute=59, second=59)
     except ValueError:
         return Response({"error": "Formato de fecha inválido. Use YYYY-MM-DD."}, status=400)
  

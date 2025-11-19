@@ -321,7 +321,7 @@ def get_ficha_proveedor_por_id_total(id):
     # Calcular la suma total de todos los registros
     total_general = sum(item["totalConComision"] for item in data)
     total_pagos   = sum(item["totalConComisionPagos"] for item in datacuentas)
-    print(f" == total_general == {total_general}")
+  
     totalGeneralConComision = -abs(total_general) + total_pagos
 
     data.extend(datacuentas)
@@ -443,7 +443,7 @@ def get_ficha_proveedor_por_id(request):
     # Calcular la suma total de todos los registros
     total_general = sum(item["totalConComision"] for item in data)
     total_pagos   = sum(item["totalConComisionPagos"] for item in datacuentas)
-    print(f" == total_general == {total_general}")
+
     totalGeneralConComision = -abs(total_general) + total_pagos
 
     data.extend(datacuentas)

@@ -411,7 +411,7 @@ def obtener_datos_cuenta(request, id):
         return Response({"error": "Tarjeta no encontrada"}, status=status.HTTP_404_NOT_FOUND)
 
     # ------------------------------------------------------------
-    # 🧮 Helper para sumar valores (idéntico al usado en obtener_tarjetas_total)
+    # 🧮 Helper para sumar valores
     # ------------------------------------------------------------
     def sumar_valores(qs, campo="valor"):
         return (
@@ -427,7 +427,20 @@ def obtener_datos_cuenta(request, id):
         )
 
     # ------------------------------------------------------------
-    # 🔹 Consultas base (no modificadas)
+    # 🔧 Helper: convertir fecha string → datetime para ordenar
+    # ------------------------------------------------------------
+    def parse_date(value):
+        if not value:
+            return datetime.min
+        if isinstance(value, datetime):
+            return value
+        try:
+            return datetime.strptime(str(value), "%Y-%m-%d")
+        except:
+            return datetime.min
+
+    # ------------------------------------------------------------
+    # 🔹 Consultas base
     # ------------------------------------------------------------
     cuentas = CuentaBancaria.objects.filter(idBanco=id).annotate(
         fi=F('fechaIngreso'),
@@ -439,15 +452,17 @@ def obtener_datos_cuenta(request, id):
         id_cotizador=F('idCotizador'),
         placa=Value(None, output_field=IntegerField()),
         cliente_nombre=Value('', output_field=CharField()),
-    ).values('id', 'fi', 'ft', 'valor_alias', 'cuatro_por_mil','desc_alias',
-             'id_tarjeta', 'origen', 'id_cotizador','placa','cliente_nombre')
+    ).values(
+        'id','fi','ft','valor_alias','cuatro_por_mil','desc_alias',
+        'id_tarjeta','origen','id_cotizador','placa','cliente_nombre'
+    )
 
     cotizador_ids = [c['id_cotizador'] for c in cuentas if c['id_cotizador']]
     cotizadores = {c.id: c for c in Cotizador.objects.filter(id__in=cotizador_ids)}
 
     for cuenta in cuentas:
-        cotizador = cotizadores.get(cuenta.get('id_cotizador'))
-        cuenta['placa'] = cotizador.placa if cotizador else None
+        cot = cotizadores.get(cuenta.get('id_cotizador'))
+        cuenta['placa'] = cot.placa if cot else None
 
     recepcionDePagos = RecepcionPago.objects.filter(id_tarjeta_bancaria=id).annotate(
         fi=F('fecha_ingreso'),
@@ -459,8 +474,10 @@ def obtener_datos_cuenta(request, id):
         id_cotizador=Value(None, output_field=IntegerField()),
         placa=Value(None, output_field=IntegerField()),
         cliente_nombre=Value('', output_field=CharField()),
-    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias',
-             'id_tarjeta', 'origen', 'id_cotizador', 'placa','cliente_nombre')
+    ).values(
+        'id','fi','ft','valor_alias','cuatro_por_mil','desc_alias',
+        'id_tarjeta','origen','id_cotizador','placa','cliente_nombre'
+    )
 
     devoluciones = Devoluciones.objects.filter(id_tarjeta_bancaria=id).annotate(
         fi=F('fecha_ingreso'),
@@ -472,8 +489,10 @@ def obtener_datos_cuenta(request, id):
         id_cotizador=Value(None, output_field=IntegerField()),
         placa=Value(None, output_field=IntegerField()),
         cliente_nombre=Value('', output_field=CharField()),
-    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias',
-             'id_tarjeta', 'origen', 'id_cotizador', 'placa','cliente_nombre')
+    ).values(
+        'id','fi','ft','valor_alias','cuatro_por_mil','desc_alias',
+        'id_tarjeta','origen','id_cotizador','placa','cliente_nombre'
+    )
 
     cargosNoRegistrados = Cargosnodesados.objects.filter(id_tarjeta_bancaria=id).annotate(
         fi=F('fecha_ingreso'),
@@ -493,8 +512,10 @@ def obtener_datos_cuenta(request, id):
                 output_field=CharField()
             )
         ),
-    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias',
-             'id_tarjeta', 'origen', 'id_cotizador', 'placa','cliente_nombre')
+    ).values(
+        'id','fi','ft','valor_alias','cuatro_por_mil','desc_alias',
+        'id_tarjeta','origen','id_cotizador','placa','cliente_nombre'
+    )
 
     gastos = Gastogenerales.objects.filter(id_tarjeta_bancaria=id).annotate(
         fi=F('fecha_ingreso'),
@@ -506,8 +527,10 @@ def obtener_datos_cuenta(request, id):
         id_cotizador=Value(None, output_field=IntegerField()),
         placa=Value(None, output_field=IntegerField()),
         cliente_nombre=Value('', output_field=CharField()),
-    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias',
-             'id_tarjeta', 'origen', 'id_cotizador', 'placa','cliente_nombre')
+    ).values(
+        'id','fi','ft','valor_alias','cuatro_por_mil','desc_alias',
+        'id_tarjeta','origen','id_cotizador','placa','cliente_nombre'
+    )
 
     utilidadocacional = Utilidadocacional.objects.filter(id_tarjeta_bancaria=id).annotate(
         fi=F('fecha_ingreso'),
@@ -519,8 +542,10 @@ def obtener_datos_cuenta(request, id):
         id_cotizador=Value(None, output_field=IntegerField()),
         placa=Value(None, output_field=IntegerField()),
         cliente_nombre=Value('', output_field=CharField()),
-    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias',
-             'id_tarjeta', 'origen', 'id_cotizador', 'placa','cliente_nombre')
+    ).values(
+        'id','fi','ft','valor_alias','cuatro_por_mil','desc_alias',
+        'id_tarjeta','origen','id_cotizador','placa','cliente_nombre'
+    )
 
     tarjetastrasladofondoResta = Tarjetastrasladofondo.objects.filter(id_tarjeta_bancaria_envia_id=id).annotate(
         fi=F('fecha_ingreso'),
@@ -534,8 +559,10 @@ def obtener_datos_cuenta(request, id):
         id_cotizador=Value(None, output_field=IntegerField()),
         placa=Value(None, output_field=IntegerField()),
         cliente_nombre=Value('', output_field=CharField()),
-    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias',
-             'id_tarjeta', 'origen', 'id_cotizador', 'placa','cliente_nombre')
+    ).values(
+        'id','fi','ft','valor_alias','cuatro_por_mil','desc_alias',
+        'id_tarjeta','origen','id_cotizador','placa','cliente_nombre'
+    )
 
     tarjetastrasladofondoSuma = Tarjetastrasladofondo.objects.filter(id_tarjeta_bancaria_recibe_id=id).annotate(
         fi=F('fecha_ingreso'),
@@ -549,8 +576,10 @@ def obtener_datos_cuenta(request, id):
         id_cotizador=Value(None, output_field=IntegerField()),
         placa=Value(None, output_field=IntegerField()),
         cliente_nombre=Value('', output_field=CharField()),
-    ).values('id', 'fi', 'ft', 'valor_alias','cuatro_por_mil', 'desc_alias',
-             'id_tarjeta', 'origen', 'id_cotizador', 'placa','cliente_nombre')
+    ).values(
+        'id','fi','ft','valor_alias','cuatro_por_mil','desc_alias',
+        'id_tarjeta','origen','id_cotizador','placa','cliente_nombre'
+    )
 
     # ------------------------------------------------------------
     # 🔸 Unir todos los registros
@@ -567,7 +596,16 @@ def obtener_datos_cuenta(request, id):
     )
 
     # ------------------------------------------------------------
-    # 🔹 Totales corregidos (idénticos a obtener_tarjetas_total)
+    # 🔽 ORDENAR POR fi — más reciente → más antiguo
+    # ------------------------------------------------------------
+    union_result = sorted(
+        union_result,
+        key=lambda x: parse_date(x.get("fi")),
+        reverse=True
+    )
+
+    # ------------------------------------------------------------
+    # 🔹 Totales
     # ------------------------------------------------------------
     total_cuentas = sumar_valores(CuentaBancaria.objects.filter(idBanco=id))
     total_devoluciones = sumar_valores(Devoluciones.objects.filter(id_tarjeta_bancaria=id))
@@ -605,7 +643,7 @@ def obtener_datos_cuenta(request, id):
     )
 
     # ------------------------------------------------------------
-    # 🔸 Cuatro por mil data
+    # 🔸 Cuatro por mil registros
     # ------------------------------------------------------------
     def to_number(v):
         if v in [None, "", "None"]:
@@ -630,7 +668,16 @@ def obtener_datos_cuenta(request, id):
     ]
 
     # ------------------------------------------------------------
-    # 🧾 Respuesta final igual estructura + totales corregidos
+    # 🔽 Ordenar cuatro por mil por fi también
+    # ------------------------------------------------------------
+    cuatro_por_mil_registros = sorted(
+        cuatro_por_mil_registros,
+        key=lambda x: parse_date(x.get("fi")),
+        reverse=True
+    )
+
+    # ------------------------------------------------------------
+    # 🧾 Respuesta
     # ------------------------------------------------------------
     response_data = {
         "data": union_result,
@@ -654,6 +701,7 @@ def obtener_datos_cuenta(request, id):
     }
 
     return Response(response_data, status=status.HTTP_200_OK)
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 @check_role(1,2)

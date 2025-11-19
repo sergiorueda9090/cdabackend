@@ -206,12 +206,11 @@ def listar_gastos_generales_filtradas(request):
 
     filtro_fecha = Q()
     if fecha_inicio and fecha_fin:
-        filtro_fecha = Q(fecha_ingreso__range=(fecha_inicio, fecha_fin))
+        filtro_fecha = Q(fecha_transaccion__range=(fecha_inicio, fecha_fin))
     elif fecha_inicio:
-        filtro_fecha = Q(fecha_ingreso__gte=fecha_inicio)
+        filtro_fecha = Q(fecha_transaccion__gte=fecha_inicio)
     elif fecha_fin:
-        filtro_fecha = Q(fecha_ingreso__lte=fecha_fin)
-
+        filtro_fecha = Q(fecha_transaccion__lte=fecha_fin)
     try:
         gastos = Gastogenerales.objects.filter(filtro_fecha)
         total_gastos_data = []
