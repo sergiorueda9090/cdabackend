@@ -506,7 +506,7 @@ def obtener_datos_cuenta(fecha_inicio=None, fecha_fin=None):
     # -----------------------------------------------------------
     base_fields = ('id', 'cuatro_por_mil')
 
-    cuentas = apply_date_filter(CuentaBancaria.objects.all(), "fechaTransaccion").values(*base_fields)
+    cuentas = apply_date_filter(CuentaBancaria.objects.all(), "fechaIngreso").values(*base_fields)
     recepcionDePagos = apply_date_filter(RecepcionPago.objects.all(), "fecha_transaccion").values(*base_fields)
     devoluciones = apply_date_filter(Devoluciones.objects.all(), "fecha_transaccion").values(*base_fields)
     cargosNoRegistrados = apply_date_filter(Cargosnodesados.objects.all(), "fecha_transaccion").values(*base_fields)
