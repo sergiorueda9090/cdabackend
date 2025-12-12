@@ -50,32 +50,71 @@ def enviar_mensaje_whatsapp(telefono, mensaje):
     except Exception as e:
         return {"success": False, "error": f"Excepción ocurrida: {str(e)}"}
 
-def enviar_documento_whatsapp(telefono, link_documento, caption=None):
+def enviar_documento_whatsapp(telefono, link_documento, numero_soat, filename="soat.pdf"):
     """
-    Envía un documento PDF (u otro archivo soportado) por WhatsApp utilizando el API de Meta.
+    Envía un documento PDF por WhatsApp utilizando un template aprobado de Meta.
+    
+    Args:
+        telefono (str): Número de teléfono con código de país (ej: "573044840748")
+        link_documento (str): URL pública del documento PDF
+        numero_soat (str): Número de SOAT para personalizar el mensaje
+        filename (str): Nombre del archivo que verá el usuario
+    
+    Returns:
+        dict: Respuesta con el estado del envío
     """
     try:
         # Configuración del token y la URL
-        access_token = config("TOKEN_WHATSAPP")
-        url_ws       = config("URL_WHATSAPP")
-        url = url_ws #"https://graph.facebook.com/v21.0/251081758099306/messages"
-
-        if not caption:
-            caption = "📑 CDA Movilidad 2A le envía el soporte ✅."
-
+        access_token    = config("TOKEN_WHATSAPP")
+        #phone_number_id = config("PHONE_NUMBER_ID")  # Nuevo: ID del número de teléfono
+        url_ws = config("URL_WHATSAPP")
+        
+        # URL actualizada con el phone_number_id
+        url = url_ws #f"https://graph.facebook.com/v22.0/{phone_number_id}/messages"
 
         # Validación básica
-        if not telefono or not link_documento:
-            return {"error": "El número de teléfono y el link del documento son obligatorios."}
-        print("whatsapp numero ",telefono)
-        # Estructura del payload
+        if not telefono or not link_documento or not numero_soat:
+            return {
+                "success": False,
+                "error": "El teléfono, link del documento y número de SOAT son obligatorios."
+            }
+        
+        print(f"Enviando a WhatsApp número: {telefono}")
+        print(f"Documento: {link_documento}")
+
+        # Estructura del payload con template
         payload = {
             "messaging_product": "whatsapp",
             "to": telefono,
-            "type": "document",
-            "document": {
-                "link": link_documento,
-                "caption": caption
+            "type": "template",
+            "template": {
+                "name": "notificacin_de_emisin_de_soat",
+                "language": {
+                    "code": "es_CO"
+                },
+                "components": [
+                    {
+                        "type": "header",
+                        "parameters": [
+                            {
+                                "type": "document",
+                                "document": {
+                                    "link": link_documento,
+                                    "filename": filename
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "type": "body",
+                        "parameters": [
+                            {
+                                "type": "text",
+                                "text": numero_soat
+                            }
+                        ]
+                    }
+                ]
             }
         }
 
@@ -87,20 +126,37 @@ def enviar_documento_whatsapp(telefono, link_documento, caption=None):
 
         # Envío de la solicitud
         response = requests.post(url, headers=headers, json=payload)
+        
         print("Código de estado:", response.status_code)
         print("Cuerpo de la respuesta:", response.json())
 
+        # Validación de respuesta exitosa
         if response.status_code == 200:
-            return {"success": True, "message": "Documento enviado correctamente."}
+            response_data = response.json()
+            return {
+                "success": True,
+                "message": "Documento enviado correctamente via template.",
+                "message_id": response_data.get("messages", [{}])[0].get("id"),
+                "wa_id": response_data.get("contacts", [{}])[0].get("wa_id")
+            }
         else:
             return {
                 "success": False,
                 "error": "Error al enviar el documento.",
+                "status_code": response.status_code,
                 "details": response.json(),
             }
 
+    except requests.exceptions.RequestException as e:
+        return {
+            "success": False,
+            "error": f"Error de conexión: {str(e)}"
+        }
     except Exception as e:
-        return {"success": False, "error": f"Excepción ocurrida: {str(e)}"}
+        return {
+            "success": False,
+            "error": f"Excepción ocurrida: {str(e)}"
+        }
     
 
 # def send_email(email, pdf):

@@ -745,13 +745,15 @@ def update_cotizador_pdf(request, pk):
             )
 
         #Envío del WhatsApp con el nuevo documento
-        if medio_contacto == "whatsapp   ssss":
+        print("==== medio_contacto ==== ",medio_contacto)
+        if medio_contacto == "whatsapp":
             if telefono and new_pdf:
                 #link_documento = 'https://backend.movilidad2a.com/media/'+new_pdf
                 link_documento = new_pdf
                 print("Link del documento:", link_documento)
                 telefono = telefono #"573143801560"#"573104131542"
-                resultado = enviar_documento_whatsapp(telefono=telefono, link_documento=link_documento)
+                print(" == NUMERO TELEFONO === ", telefono)
+                resultado = enviar_documento_whatsapp(telefono=telefono, link_documento=link_documento, numero_soat=placa)
                 print("Resultado WhatsApp:", resultado)
         else:
             #link_documento = 'https://backend.movilidad2a.com/media/'+new_pdf
