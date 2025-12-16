@@ -123,10 +123,28 @@ class ChatConsumer(WebsocketConsumer):
     def user_list(self, event):
         users_data = []
         for u in self.room.online.all():
-            users_data.append({
-                "username": u.username,
-                "image": getattr(u.profile, "image", None).url if hasattr(u, "profile") and u.profile.image else "/static/default-avatar.png"
-            })
+            user_dict = {"username": u.username}
+            print(" ==== u.image ===== ", u.image)
+
+            # Solo agregar el campo 'image' si el usuario tiene una imagen de perfil
+            if u.image:
+                try:
+                    # Convertir el FileField a string para poder trabajar con él
+                    image_path = str(u.image)
+                    print(" ==== image_path ===== ", image_path)
+
+                    # Si la imagen ya tiene una URL completa (empieza con http/https), usarla directamente
+                    if image_path.startswith('http://') or image_path.startswith('https://'):
+                        user_dict["image"] = image_path
+                    else:
+                        # Si es una ruta relativa, construir la URL completa con S3
+                        user_dict["image"] = f"https://cdamovilidad2a.s3.amazonaws.com/{image_path}"
+                except Exception as e:
+                    print(f" ==== Error procesando imagen: {e} ===== ")
+                    pass  # Si hay error, simplemente no incluir el campo
+
+            print(" ==== user_dict === ", user_dict)
+            users_data.append(user_dict)
 
         self.send(text_data=json.dumps({
             "type": "user_list",
