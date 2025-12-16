@@ -5,7 +5,8 @@ from .views import (
     obtener_gasto_generale,
     actualizar_gasto_generale,
     eliminar_gasto_generale,
-    listar_gastos_generales_filtradas
+    listar_gastos_generales_filtradas,
+    download_excel
 )
 
 urlpatterns = [
@@ -16,4 +17,5 @@ urlpatterns = [
     path('api/gastosgenerales/<int:pk>/delete/',    eliminar_gasto_generale,    name='eliminar_gasto_generale'),
 
    path('api/gastosgenerales/listar_gastos_generales_filtradas/',    listar_gastos_generales_filtradas,    name='listar_gastos_generales_filtradas'),
+   path('api/gastosgenerales/download_excel/',                       download_excel,                       name='download_excel_gastos_generales'),
 ]

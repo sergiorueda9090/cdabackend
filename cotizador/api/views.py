@@ -899,7 +899,7 @@ def get_cotizadores_confirmacion_precios_id(request, pk):
 @permission_classes([IsAuthenticated])
 @check_role(1,2,3)
 def get_cotizadores_pdfs(request):
-    cotizadores = Cotizador.objects.filter(pdfsModulo=1).all()
+    cotizadores = Cotizador.objects.filter(pdfsModulo=1).order_by('-id')
     
     cotizadores_data = []
 
