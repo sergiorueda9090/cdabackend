@@ -753,7 +753,7 @@ def update_cotizador_pdf(request, pk):
                 print("Link del documento:", link_documento)
                 telefono = telefono #"573143801560"#"573104131542"
                 print(" == NUMERO TELEFONO === ", telefono)
-                filename = f"{placa} soat.pdf"
+                filename = f"SOAT {placa}.pdf"
                 resultado = enviar_documento_whatsapp(telefono=telefono, link_documento=link_documento, numero_soat=placa, filename=filename)
                 print("Resultado WhatsApp:", resultado)
         else:
