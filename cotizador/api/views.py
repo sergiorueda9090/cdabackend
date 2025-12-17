@@ -753,7 +753,8 @@ def update_cotizador_pdf(request, pk):
                 print("Link del documento:", link_documento)
                 telefono = telefono #"573143801560"#"573104131542"
                 print(" == NUMERO TELEFONO === ", telefono)
-                resultado = enviar_documento_whatsapp(telefono=telefono, link_documento=link_documento, numero_soat=placa)
+                filename = f"{placa} soat.pdf"
+                resultado = enviar_documento_whatsapp(telefono=telefono, link_documento=link_documento, numero_soat=placa, filename=filename)
                 print("Resultado WhatsApp:", resultado)
         else:
             #link_documento = 'https://backend.movilidad2a.com/media/'+new_pdf
