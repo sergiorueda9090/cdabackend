@@ -543,7 +543,7 @@ def obtener_datos_cuenta(fecha_inicio=None, fecha_fin=None):
 
     # Convertimos a Decimal y garantizamos signo negativo
     total_cuatro_por_mil_final = Decimal(-abs(total_cuatro_por_mil_raw))
-
+    print(" ==== total_cuatro_por_mil_final ===== ", total_cuatro_por_mil_final)
     # -----------------------------------------------------------
     # 6️⃣ Retorno final
     # -----------------------------------------------------------
@@ -1513,6 +1513,24 @@ def gasto_totales_del_periodo(request):
         fecha_inicio = request.GET.get("fechaInicio") 
         fecha_fin    = request.GET.get("fechaFin")
 
+        # ------------------------------
+        # Convertir fecha_inicio a 00:00:00
+        # ------------------------------
+        if fecha_inicio and isinstance(fecha_inicio, str):
+            fecha_inicio = datetime.combine(
+                datetime.strptime(fecha_inicio, "%Y-%m-%d"),
+                time(0, 0, 0)  # Día inicia a las 00:00:00
+            )
+
+        # ------------------------------
+        # Convertir fecha_fin a 23:59:59
+        # ------------------------------
+        if fecha_fin and isinstance(fecha_fin, str):
+            fecha_fin = datetime.combine(
+                datetime.strptime(fecha_fin, "%Y-%m-%d"),
+                time(23, 59, 59)  # Día termina a las 23:59:59
+            )
+
         # ---- Helper para convertir a Decimal ----
         def to_decimal(value):
             if value in [None, "", "None"]:
@@ -1553,17 +1571,19 @@ def gasto_totales_del_periodo(request):
             list(utilidadocacional)
         )
 
-        total_cuatro_por_mil = sum(
+        """total_cuatro_por_mil = sum(
             abs(to_decimal(item.get("cuatro_por_mil")))
             for item in union_result
             if str(item.get("cuatro_por_mil")).strip() not in ["", "0", "None", None]
-        )
+        )"""
+        
+        total_cuatro_por_mil = obtener_datos_cuenta(fecha_inicio, fecha_fin)
 
         # ---- Response ----
         response_data = {
             "total_gastos"              : total_gastos,
             "total_cuatro_por_mil"      : total_cuatro_por_mil,
-            "gastos_totales_de_periodo" : total_cuatro_por_mil - total_gastos
+            "gastos_totales_de_periodo" : total_cuatro_por_mil - (-total_gastos)
         }
 
         return Response(response_data, status=status.HTTP_200_OK)
