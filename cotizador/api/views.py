@@ -5,6 +5,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.pagination import PageNumberPagination
 from django.utils.timezone import now
 from datetime import datetime
 
@@ -897,23 +898,32 @@ def get_cotizadores_confirmacion_precios_id(request, pk):
     return Response(cotizador_data)
 
 
+class CotizadoresPdfsPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 @check_role(1,2,3)
 def get_cotizadores_pdfs(request):
     cotizadores = Cotizador.objects.filter(pdfsModulo=1).order_by('-id')
-    
+
+    paginator = CotizadoresPdfsPagination()
+    paginated_cotizadores = paginator.paginate_queryset(cotizadores, request)
+
     cotizadores_data = []
 
-    for cotizador in cotizadores:
+    for cotizador in paginated_cotizadores:
         usuario = get_object_or_404(User, id = cotizador.idUsuario)
-        
+
         # Obtener la URL de la imagen del usuario si existe
         imagen_url = usuario.image.url if usuario.image else None
-        
+
         cliente = get_object_or_404(Cliente, id = cotizador.idCliente)
         etiqueta = get_object_or_404(Etiqueta, id = cotizador.idEtiqueta)
-        
+
         cotizador_serializer = CotizadorSerializer(cotizador)
 
         cotizador_data = cotizador_serializer.data
@@ -926,7 +936,7 @@ def get_cotizadores_pdfs(request):
 
         cotizadores_data.append(cotizador_data)
 
-    return Response(cotizadores_data)
+    return paginator.get_paginated_response(cotizadores_data)
 
 
 @api_view(['GET'])
@@ -1087,7 +1097,7 @@ def get_cotizadores_pdf_filter_date(request):
 
     # Filtro base
     cotizadores = Cotizador.objects.filter(pdfsModulo=1)
-    
+
     # Filtro por fecha
     if fecha_inicio and fecha_fin:
         cotizadores = cotizadores.filter(fechaCreacion__range=[fecha_inicio, fecha_fin])
@@ -1118,9 +1128,14 @@ def get_cotizadores_pdf_filter_date(request):
             Q(idEtiqueta__in=etiqueta_ids)
         )
 
+    cotizadores = cotizadores.order_by('-id')
+
+    paginator = CotizadoresPdfsPagination()
+    paginated_cotizadores = paginator.paginate_queryset(cotizadores, request)
+
     cotizadores_data = []
 
-    for cotizador in cotizadores:
+    for cotizador in paginated_cotizadores:
         usuario = User.objects.filter(id=cotizador.idUsuario).first()
         cliente = Cliente.objects.filter(id=cotizador.idCliente).first()
         etiqueta = Etiqueta.objects.filter(id=cotizador.idEtiqueta).first()
@@ -1134,7 +1149,7 @@ def get_cotizadores_pdf_filter_date(request):
 
         cotizadores_data.append(cotizador_data)
 
-    return Response(cotizadores_data)
+    return paginator.get_paginated_response(cotizadores_data)
 
 
 @api_view(['PUT'])
