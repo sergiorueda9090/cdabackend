@@ -2,6 +2,7 @@ from rest_framework.decorators  import api_view, permission_classes
 from django.db.models           import Q
 from rest_framework.response    import Response
 from rest_framework             import status
+from rest_framework.pagination  import PageNumberPagination
 from cuentasbancarias.models    import CuentaBancaria
 from cotizador.models           import Cotizador
 from clientes.models            import Cliente
@@ -20,6 +21,13 @@ from rest_framework.permissions import IsAuthenticated
 from fichaproveedor.api.serializers import FichaProveedorSerializer
 
 from users.decorators import check_role
+
+
+class UtilidadPagination(PageNumberPagination):
+    page_size            = 50
+    page_size_query_param = 'page_size'
+    max_page_size        = 200
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -97,7 +105,16 @@ def get_ficha_utilidades(request):
             "total"             : total_val,
         })
 
+    paginator = UtilidadPagination()
+    page      = paginator.paginate_queryset(data, request)
+
+    if page is None:
+        return Response({"data": data, "total": round(total_sum * -1, 2)})
+
     return Response({
-        "data": data,
-        "total": round(total_sum * -1, 2)
+        "count"    : paginator.page.paginator.count,
+        "next"     : paginator.get_next_link(),
+        "previous" : paginator.get_previous_link(),
+        "data"     : page,
+        "total"    : round(total_sum * -1, 2),
     })
