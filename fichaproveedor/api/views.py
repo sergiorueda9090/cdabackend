@@ -40,8 +40,8 @@ def get_all_fecha_proveedores(request):
         return Response({"error": "Formato de fecha inválido. Use YYYY-MM-DD."}, status=400)
 
     # Obtener proveedores con filtro opcional por fecha
-    proveedores_qs = FichaProveedor.objects.all()
-    
+    proveedores_qs = FichaProveedor.objects.select_related('idproveedor', 'idcotizador').all()
+
     if fecha_inicio and fecha_fin:
         proveedores_qs = proveedores_qs.filter(fechaCreacion__range=[fecha_inicio, fecha_fin])
 
@@ -228,11 +228,11 @@ def get_ficha_proveedor_por_id_total(id):
     except ValueError:
         return Response({"error": "Formato de fecha inválido. Use YYYY-MM-DD."}, status=400)
 
-    proveedores_qs = FichaProveedor.objects.all()
-    
+    proveedores_qs = FichaProveedor.objects.select_related('idproveedor', 'idcotizador').all()
+
     if proveedor_id:
         proveedores_qs = proveedores_qs.filter(idproveedor__id=proveedor_id)
- 
+
     if fecha_inicio and fecha_fin:
         proveedores_qs = proveedores_qs.filter(fechaCreacion__range=[fecha_inicio, fecha_fin])
     else:
@@ -261,7 +261,7 @@ def get_ficha_proveedor_por_id_total(id):
         if value is None:
             return 0
         return int(str(value).replace(".", "").replace(",", ""))
-    
+
     cuentas = FichaProveedorPagos.objects.filter(idproveedor_id=proveedor_id)
 
     if fecha_inicio and fecha_fin:
@@ -347,11 +347,11 @@ def get_ficha_proveedor_por_id(request):
     except ValueError:
         return Response({"error": "Formato de fecha inválido. Use YYYY-MM-DD."}, status=400)
 
-    proveedores_qs = FichaProveedor.objects.all()
-    
+    proveedores_qs = FichaProveedor.objects.select_related('idproveedor', 'idcotizador').all()
+
     if proveedor_id:
         proveedores_qs = proveedores_qs.filter(idproveedor__id=proveedor_id)
- 
+
     if fecha_inicio and fecha_fin:
         proveedores_qs = proveedores_qs.filter(fechaCreacion__range=[fecha_inicio, fecha_fin])
     else:
@@ -374,7 +374,7 @@ def get_ficha_proveedor_por_id(request):
             Q(idcotizador__comisionPrecioLey__icontains=search) |
             Q(idcotizador__total__icontains=search)
         )
-    
+
     #Ordenar del más reciente al más antiguo
     proveedores_qs = proveedores_qs.order_by('-fechaCreacion')
     

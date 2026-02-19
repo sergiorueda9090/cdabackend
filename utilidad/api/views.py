@@ -49,7 +49,7 @@ def get_ficha_utilidades(request):
         return Response({"error": "Formato de fecha inválido. Use YYYY-MM-DD."}, status=400)
 
     # 👉 Ordenar por recientes primero
-    proveedores_qs = FichaProveedor.objects.all().order_by('-fechaCreacion')
+    proveedores_qs = FichaProveedor.objects.select_related('idproveedor', 'idcotizador').order_by('-fechaCreacion')
 
     if proveedor_id:
         proveedores_qs = proveedores_qs.filter(idproveedor__id=proveedor_id)
