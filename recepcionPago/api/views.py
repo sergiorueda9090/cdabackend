@@ -13,6 +13,13 @@ from django.db.models           import Sum
 from cargosnoregistrados.models import Cargosnodesados
 from cargosnoregistrados.api.serializers import CargosNoRegistradosSerializer
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.pagination  import PageNumberPagination
+
+
+class RecepcionPagoPagination(PageNumberPagination):
+    page_size             = 20
+    page_size_query_param = 'page_size'
+    max_page_size         = 100
 
 
 from django.db.models   import Q
@@ -23,47 +30,35 @@ from django.db.models import F
 @api_view(['GET'])
 def listar_recepciones_pago(request):
     try:
-        recepciones = RecepcionPago.objects.all().order_by('-fecha_ingreso')
-        total_recepciones = recepciones.count()
-        print(f"Total recepciones: {total_recepciones}")
-        
+        recepciones_qs = (
+            RecepcionPago.objects
+            .select_related('id_tarjeta_bancaria', 'cliente')
+            .order_by('-fecha_ingreso')
+        )
+
+        paginator = RecepcionPagoPagination()
+        page_qs   = paginator.paginate_queryset(recepciones_qs, request)
+
         recepciones_pago_data = []
+        for recepcion in page_qs:
+            recepcion_data = RecepcionPagoSerializer(recepcion).data
 
-        for recepcion in recepciones:
-            try:
-                print(f"Procesando recepción ID: {recepcion.id}")
+            recepcion_data['nombre_tarjeta'] = recepcion.id_tarjeta_bancaria.nombre_cuenta
+            recepcion_data['nombre_cliente'] = recepcion.cliente.nombre
+            recepcion_data['color_cliente']  = recepcion.cliente.color
+            recepcion_data['valor']          = abs(int(recepcion.valor))
 
-                # Intentamos obtener la tarjeta y el cliente
-                tarjeta = get_object_or_404(RegistroTarjetas, id=recepcion.id_tarjeta_bancaria_id)
-                cliente = get_object_or_404(Cliente, id=recepcion.cliente_id)
+            cuatro_por_mil = recepcion.cuatro_por_mil or 0
+            recepcion_data['total'] = recepcion_data['valor'] - abs(int(cuatro_por_mil))
 
+            recepciones_pago_data.append(recepcion_data)
 
-                # Serializa la recepción
-                recepcion_serializer = RecepcionPagoSerializer(recepcion)
-                recepcion_data = recepcion_serializer.data
-
-                # Agregar datos adicionales
-                recepcion_data['nombre_tarjeta']    = tarjeta.nombre_cuenta
-                recepcion_data['nombre_cliente']    = cliente.nombre
-                recepcion_data['color_cliente']     = cliente.color
-                recepcion_data['valor']             = abs(int(recepcion.valor))
-
-                cuatro_por_mil = recepcion.cuatro_por_mil
-                if not cuatro_por_mil:
-                    cuatro_por_mil = 0
-
-                recepcion_data['total'] = recepcion_data['valor'] - abs(int(cuatro_por_mil))
-                # Agregar al listado
-                recepciones_pago_data.append(recepcion_data)
-
-            except Exception as e:
-                print(f"Error procesando recepción ID {recepcion.id}: {e}")
-                return Response(
-                    {"error": f"Error procesando recepción ID {recepcion.id}: {str(e)}"},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
-
-        return Response(recepciones_pago_data, status=status.HTTP_200_OK)
+        return Response({
+            "count"    : paginator.page.paginator.count,
+            "next"     : paginator.get_next_link(),
+            "previous" : paginator.get_previous_link(),
+            "data"     : recepciones_pago_data,
+        })
 
     except Exception as e:
         print(f"Error en la función listar_recepciones_pago: {e}")
@@ -410,46 +405,38 @@ def listar_recepciones_pago_filtradas(request):
         filtro_fecha = Q(fecha_ingreso__lte=fecha_fin)
 
     try:
-        recepciones = RecepcionPago.objects.filter(filtro_fecha)
-        total_recepciones = recepciones.count()
+        recepciones_qs = (
+            RecepcionPago.objects
+            .select_related('id_tarjeta_bancaria', 'cliente')
+            .filter(filtro_fecha)
+        )
+
+        paginator = RecepcionPagoPagination()
+        page_qs   = paginator.paginate_queryset(recepciones_qs, request)
 
         recepciones_pago_data = []
+        for recepcion in page_qs:
+            recepcion_data = RecepcionPagoSerializer(recepcion).data
 
-        for recepcion in recepciones:
-            try:
-                # Intentamos obtener la tarjeta y el cliente
-                tarjeta = get_object_or_404(RegistroTarjetas, id=recepcion.id_tarjeta_bancaria_id)
-                cliente = get_object_or_404(Cliente, id=recepcion.cliente_id)
-                # Serializa la recepción
-                recepcion_serializer = RecepcionPagoSerializer(recepcion)
-                recepcion_data = recepcion_serializer.data
+            recepcion_data['nombre_tarjeta'] = recepcion.id_tarjeta_bancaria.nombre_cuenta
+            recepcion_data['nombre_cliente'] = recepcion.cliente.nombre
+            recepcion_data['color_cliente']  = recepcion.cliente.color
 
-                # Agregar datos adicionales
-                recepcion_data['nombre_tarjeta'] = tarjeta.nombre_cuenta
-                recepcion_data['nombre_cliente'] = cliente.nombre
-                recepcion_data['color_cliente'] = cliente.color
+            cuatro_por_mil = recepcion.cuatro_por_mil or 0
+            recepcion_data['total'] = abs(int(recepcion_data['valor'])) - abs(int(cuatro_por_mil))
 
-                cuatro_por_mil = recepcion.cuatro_por_mil
-                if not cuatro_por_mil:
-                    cuatro_por_mil = 0
+            recepciones_pago_data.append(recepcion_data)
 
-                recepcion_data['total'] = abs(int(recepcion_data['valor'])) - abs(int(cuatro_por_mil))
-
-                # Agregar al listado
-                recepciones_pago_data.append(recepcion_data)
-
-            except Exception as e:
-                print(f"Error procesando recepción ID {recepcion.id}: {e}")
-                return Response(
-                    {"error": f"Error procesando recepción ID {recepcion.id}: {str(e)}"},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
-
-        return Response(recepciones_pago_data, status=status.HTTP_200_OK)
+        return Response({
+            "count"    : paginator.page.paginator.count,
+            "next"     : paginator.get_next_link(),
+            "previous" : paginator.get_previous_link(),
+            "data"     : recepciones_pago_data,
+        })
 
     except Exception as e:
-        print(f"Error en la función listar_recepciones_pago: {e}")
+        print(f"Error en la función listar_recepciones_pago_filtradas: {e}")
         return Response(
-            {"error": f"Error en la función listar_recepciones_pago: {str(e)}"},
+            {"error": f"Error en la función listar_recepciones_pago_filtradas: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
