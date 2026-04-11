@@ -717,8 +717,6 @@ def cuentasbancarias_filter_date(request, id):
     fecha_fin = parse_date_with_defaults(fecha_fin, is_end=True)
 
 
-    print("fecha_inicio {}".format(fecha_inicio))
-    print("fecha_fin {}".format(fecha_fin))
     try:
         tarjeta = RegistroTarjetas.objects.get(pk=id)
         nombre_cuenta   = tarjeta.nombre_cuenta
@@ -848,7 +846,6 @@ def safe_sum(queryset, field_name):
             valor_decimal = Decimal(valor_str)  # Convierte a Decimal
             total += valor_decimal  # Suma respetando valores negativos
         except (ValueError, TypeError):
-            print(f"Advertencia: No se pudo convertir el valor '{valor}' en la base de datos.")
             continue  # Ignorar valores inválidos
 
     return total
@@ -868,7 +865,6 @@ def download_report_excel(request, id):
     fecha_fin    = parse_date_with_defaults(fecha_fin, is_end=True)
 
     if fecha_fin and fecha_fin:
-        print(" ===== Ingesa =====")
         try:
             # Validar que el ID es un número válido
             if not str(id).isdigit():

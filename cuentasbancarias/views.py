@@ -248,7 +248,6 @@ def safe_sum(queryset, field_name):
             valor_decimal = Decimal(valor_str)  # Convierte a Decimal
             total += valor_decimal  # Suma respetando valores negativos
         except (ValueError, TypeError):
-            print(f"Advertencia: No se pudo convertir el valor '{valor}' en la base de datos.")
             continue  # Ignorar valores inválidos
 
     return total

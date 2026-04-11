@@ -36,7 +36,6 @@ class ChatConsumer(WebsocketConsumer):
         if self.user.is_authenticated:
             # Agregar usuario a la lista online
             self.room.online.add(self.user)
-            print("🔑 Usuario conectado:", self.user, self.user.is_authenticated)
             # Enviar lista actualizada a todos
             async_to_sync(self.channel_layer.group_send)(
                 self.room_group_name,
@@ -124,14 +123,12 @@ class ChatConsumer(WebsocketConsumer):
         users_data = []
         for u in self.room.online.all():
             user_dict = {"username": u.username}
-            print(" ==== u.image ===== ", u.image)
 
             # Solo agregar el campo 'image' si el usuario tiene una imagen de perfil
             if u.image:
                 try:
                     # Convertir el FileField a string para poder trabajar con él
                     image_path = str(u.image)
-                    print(" ==== image_path ===== ", image_path)
 
                     # Si la imagen ya tiene una URL completa (empieza con http/https), usarla directamente
                     if image_path.startswith('http://') or image_path.startswith('https://'):
@@ -140,10 +137,8 @@ class ChatConsumer(WebsocketConsumer):
                         # Si es una ruta relativa, construir la URL completa con S3
                         user_dict["image"] = f"https://cdamovilidad2a.s3.amazonaws.com/{image_path}"
                 except Exception as e:
-                    print(f" ==== Error procesando imagen: {e} ===== ")
                     pass  # Si hay error, simplemente no incluir el campo
 
-            print(" ==== user_dict === ", user_dict)
             users_data.append(user_dict)
 
         self.send(text_data=json.dumps({
@@ -267,8 +262,6 @@ class TableConsumer(WebsocketConsumer):
             new_value = data.get("value")
             user = data.get("user")
 
-            print("📤 update_etiqueta recibido en backend:", row_id, new_value)
-
             async_to_sync(self.channel_layer.group_send)(
                 self.group_name,
                 {
@@ -284,8 +277,6 @@ class TableConsumer(WebsocketConsumer):
             new_value = data.get("value")
             user = data.get("user")
 
-            print("📤 update_link recibido en backend:", row_id, new_value)
-
             async_to_sync(self.channel_layer.group_send)(
                 self.group_name,
                 {
@@ -300,8 +291,6 @@ class TableConsumer(WebsocketConsumer):
             row_id = data.get("rowId")
             user = data.get("user")
             loadingStates[row_id] = True
-            print(f"📤 copy_link recibido en backend: fila {row_id} por {user}")
-            print("loadingStates:", loadingStates)
 
             async_to_sync(self.channel_layer.group_send)(
                 self.group_name,
@@ -316,8 +305,6 @@ class TableConsumer(WebsocketConsumer):
             row_id = data.get("rowId")
             user = data.get("user")
             loadingStates[row_id] = False
-            print(f"📤 stop_loading recibido en backend: fila {row_id} por {user}")
-            print("loadingStates:", loadingStates)
             async_to_sync(self.channel_layer.group_send)(
                 self.group_name,
                 {
@@ -332,8 +319,6 @@ class TableConsumer(WebsocketConsumer):
             new_value = data.get("value")
             user = data.get("user")
 
-            print("📤 update_email recibido en backend:", row_id, new_value)
-
             async_to_sync(self.channel_layer.group_send)(
                 self.group_name,
                 {
@@ -345,7 +330,6 @@ class TableConsumer(WebsocketConsumer):
             )
 
         if event_type == "refresh_request":
-            print("📤 refresh_request recibido en backend:")
             async_to_sync(self.channel_layer.group_send)(
                 self.group_name,
                 {
@@ -358,8 +342,6 @@ class TableConsumer(WebsocketConsumer):
             new_value = data.get("value")
             user = data.get("user")
 
-            print("📤 update_proveedores recibido en backend:", row_id, new_value)
-
             async_to_sync(self.channel_layer.group_send)(
                 self.group_name,
                 {
@@ -371,7 +353,6 @@ class TableConsumer(WebsocketConsumer):
             )
 
         if event_type == "update_comision_proveedor":
-            print("📤 update_comision_proveedor recibido en backend:")
             row_id = data.get("rowId")
             new_value = data.get("value")
             user = data.get("user")
@@ -388,7 +369,6 @@ class TableConsumer(WebsocketConsumer):
             )
 
         if event_type == "update_archivo":
-            print("📤 update_archivo recibido en backend:")
             row_id = data.get("rowId")
             new_value = data.get("value")
             user = data.get("user")
@@ -431,7 +411,6 @@ class TableConsumer(WebsocketConsumer):
             )
         
         if event_type == "refresh_request_cotizador":
-            print("📤 refresh_request_cotizador recibido en backend:")
             row_id = data.get("rowId")
             user   = data.get("user")
 
@@ -460,7 +439,6 @@ class TableConsumer(WebsocketConsumer):
             )
 
         if event_type == "update_archivo_pdf":
-            print("📤 update_archivo_pdf recibido en backend:")
             row_id = data.get("rowId")
             new_value = data.get("value")
             user = data.get("user")

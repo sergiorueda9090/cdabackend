@@ -33,7 +33,6 @@ def get_all_cotizadores(request):
         fecha_fin = datetime.combine(fecha_fin, time(23, 59, 59))  # 23:59:59
         filters &= Q(fechaCreacion__lte=fecha_fin)
 
-    print(search_query)
     # Búsqueda en todos los campos relevantes
     if search_query:
         filters &= Q(placa__icontains=search_query) | Q(cilindraje__icontains=search_query) | \

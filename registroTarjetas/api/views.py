@@ -347,18 +347,6 @@ def obtener_tarjetas_total(request):
             - total_cuatro_por_mil  # <-- aplicamos la resta del 4xmil
         )
 
-        print(
-            f"""
-            rtaRecepcionPago: {rtaRecepcionPago}
-            rtaDevoluciones: {rtaDevoluciones}
-            rtaGastogenerales: {rtaGastogenerales}
-            rtaUtilidadocacional: {rtaUtilidadocacional}
-            rtaCargosnodesados: {rtaCargosnodesados}
-            total_cuatro_por_mil: {-total_cuatro_por_mil}
-            total_general: {total_general}
-            """
-        )
-
         serializer.data[i]['valor'] = total_general
         serializer.data[i]['total_cuatro_por_mil'] = -total_cuatro_por_mil
 

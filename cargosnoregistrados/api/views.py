@@ -170,7 +170,6 @@ def actualizar_cargosnoregistrados(request, pk):
         cargoNoDeseadoGet.cuatro_por_mil = 0 #int(abs(valor) * 0.004)
                                        
     cargoNoDeseadoGet.save()
-    print(" cargoNoDeseadoGet ",cargoNoDeseadoGet)
     serializer = CargosNoRegistradosSerializer(cargoNoDeseadoGet)
     return Response(serializer.data, status=status.HTTP_200_OK)
 

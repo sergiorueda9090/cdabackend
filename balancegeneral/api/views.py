@@ -94,14 +94,12 @@ def listar_gastos_generales(fecha_inicio=None, fecha_fin=None):
                 })
 
             except Exception as e:
-                print(f"Error procesando gasto ID {gasto.id}: {e}")
                 continue
 
         return total_gastos_data
 
     except Exception as e:
-        print(f"Error en la función listar_gastos_generales: {e}")
-        return [] 
+        return []
 # def get_all_ficha_cliente(fechaInicio=None, fechaFin=None):
 #     # Obtener parámetros de fecha
 #     fecha_inicio = fechaInicio
@@ -485,7 +483,6 @@ def obtener_datos_cuenta(fecha_inicio=None, fecha_fin=None):
         if fecha_fin and isinstance(fecha_fin, str):
             fecha_fin = datetime.strptime(fecha_fin, "%Y-%m-%d")
     except ValueError:
-        print("⚠️ Fechas inválidas, se ignorará el filtro de fechas.")
         fecha_inicio = None
         fecha_fin = None
 
@@ -543,7 +540,6 @@ def obtener_datos_cuenta(fecha_inicio=None, fecha_fin=None):
 
     # Convertimos a Decimal y garantizamos signo negativo
     total_cuatro_por_mil_final = Decimal(-abs(total_cuatro_por_mil_raw))
-    print(" ==== total_cuatro_por_mil_final ===== ", total_cuatro_por_mil_final)
     # -----------------------------------------------------------
     # 6️⃣ Retorno final
     # -----------------------------------------------------------
@@ -715,7 +711,6 @@ def obtener_balancegeneral(request):
     valores_clientes = get_all_ficha_cliente() #(fecha_inicio, fecha_fin
 
     valores_gastos   = listar_gastos_generales(fecha_inicio, fecha_fin)
-    print(" ============ valores_gastos ============ ",valores_gastos)
     fichas_proveedor = get_all_fecha_proveedores(fecha_inicio, fecha_fin)
     utilidades       = get_ficha_utilidades(fecha_inicio, fecha_fin)
   
@@ -939,12 +934,6 @@ def obtener_patrimonio_bruto(request):
     # ---- 4️⃣ Calcular Patrimonio Bruto ----
     patrimonio_bruto = abs((total_tarjetas - total_cuatro_por_mil) + abs(total_saldo_clientes))
 
-    # ---- Logs de validación ----
-    print("=========== 🏦 totalTarjetas:", total_tarjetas)
-    print("=========== 💸 total_cuatro_por_mil:", total_cuatro_por_mil)
-    print("=========== 👥 total_saldo_clientes:", total_saldo_clientes)
-    print("=========== 🧾 patrimonioBruto FINAL:", patrimonio_bruto)
-
     # ---- Respuesta final ----
     return Response({
         "totalTarjetas": round(total_tarjetas, 2),
@@ -976,12 +965,6 @@ def obtener_patrimonio_bruto_function():
     # ---- 4️⃣ Cálculo del Patrimonio Bruto ----
     patrimonio_bruto = (total_tarjetas - total_cuatro_por_mil) + abs(total_saldo_clientes)
 
-    # ---- Logs de validación (opcional) ----
-    print("=========== 🏦 totalTarjetas (func):", total_tarjetas)
-    print("=========== 💸 total_cuatro_por_mil (func):", total_cuatro_por_mil)
-    print("=========== 👥 total_saldo_clientes (func):", total_saldo_clientes)
-    print("=========== 🧾 patrimonioBruto FINAL (func):", patrimonio_bruto)
-
     # ---- Retornar solo el valor total (como hacía la versión original) ----
     return abs(patrimonio_bruto)
 
@@ -1003,7 +986,6 @@ def safe_sum(queryset, field_name):
             valor_decimal = Decimal(valor_str)  # Convierte a Decimal
             total += valor_decimal  # Suma respetando valores negativos
         except (ValueError, TypeError):
-            print(f"Advertencia: No se pudo convertir el valor '{valor}' en la base de datos.")
             continue  # Ignorar valores inválidos
 
     return total
@@ -1012,7 +994,6 @@ def safe_sum(queryset, field_name):
 @permission_classes([IsAuthenticated])
 @check_role(1,2)
 def obtener_patrimonio_neto_endpoint(request):
-    print("==== obtener_patrimonio_neto_endpoint ====")
     try:
         fecha_inicio = request.GET.get("fechaInicio") 
         fecha_fin    = request.GET.get("fechaFin")

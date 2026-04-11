@@ -36,7 +36,6 @@ class ChatConsumer(WebsocketConsumer):
         if self.user.is_authenticated:
             # Agregar usuario a la lista online
             self.room.online.add(self.user)
-            print("🔑 Usuario conectado:", self.user, self.user.is_authenticated)
             # Enviar lista actualizada a todos
             async_to_sync(self.channel_layer.group_send)(
                 self.room_group_name,
@@ -247,8 +246,6 @@ class TableConsumer(WebsocketConsumer):
             new_value = data.get("value")
             user = data.get("user")
 
-            print("📤 update_etiqueta recibido en backend:", row_id, new_value)
-
             async_to_sync(self.channel_layer.group_send)(
                 self.group_name,
                 {
@@ -264,8 +261,6 @@ class TableConsumer(WebsocketConsumer):
             new_value = data.get("value")
             user = data.get("user")
 
-            print("📤 update_link recibido en backend:", row_id, new_value)
-
             async_to_sync(self.channel_layer.group_send)(
                 self.group_name,
                 {
@@ -280,8 +275,6 @@ class TableConsumer(WebsocketConsumer):
             row_id = data.get("rowId")
             user = data.get("user")
 
-            print(f"📤 copy_link recibido en backend: fila {row_id} por {user}")
-
             async_to_sync(self.channel_layer.group_send)(
                 self.group_name,
                 {
@@ -294,8 +287,6 @@ class TableConsumer(WebsocketConsumer):
         if event_type == "stop_loading":
             row_id = data.get("rowId")
             user = data.get("user")
-
-            print(f"📤 stop_loading recibido en backend: fila {row_id} por {user}")
 
             async_to_sync(self.channel_layer.group_send)(
                 self.group_name,
@@ -311,8 +302,6 @@ class TableConsumer(WebsocketConsumer):
             new_value = data.get("value")
             user = data.get("user")
 
-            print("📤 update_email recibido en backend:", row_id, new_value)
-
             async_to_sync(self.channel_layer.group_send)(
                 self.group_name,
                 {
@@ -324,7 +313,6 @@ class TableConsumer(WebsocketConsumer):
             )
 
         if event_type == "refresh_request":
-            print("📤 refresh_request recibido en backend:")
             async_to_sync(self.channel_layer.group_send)(
                 self.group_name,
                 {
@@ -337,8 +325,6 @@ class TableConsumer(WebsocketConsumer):
             new_value = data.get("value")
             user = data.get("user")
 
-            print("📤 update_proveedores recibido en backend:", row_id, new_value)
-
             async_to_sync(self.channel_layer.group_send)(
                 self.group_name,
                 {
@@ -350,7 +336,6 @@ class TableConsumer(WebsocketConsumer):
             )
 
         if event_type == "update_comision_proveedor":
-            print("📤 update_comision_proveedor recibido en backend:")
             row_id = data.get("rowId")
             new_value = data.get("value")
             user = data.get("user")
@@ -367,7 +352,6 @@ class TableConsumer(WebsocketConsumer):
             )
 
         if event_type == "update_archivo":
-            print("📤 update_archivo recibido en backend:")
             row_id = data.get("rowId")
             new_value = data.get("value")
             user = data.get("user")
@@ -410,7 +394,6 @@ class TableConsumer(WebsocketConsumer):
             )
         
         if event_type == "refresh_request_cotizador":
-            print("📤 refresh_request_cotizador recibido en backend:")
             row_id = data.get("rowId")
             user   = data.get("user")
 
@@ -439,7 +422,6 @@ class TableConsumer(WebsocketConsumer):
             )
 
         if event_type == "update_archivo_pdf":
-            print("📤 update_archivo_pdf recibido en backend:")
             row_id = data.get("rowId")
             new_value = data.get("value")
             user = data.get("user")

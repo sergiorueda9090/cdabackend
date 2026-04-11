@@ -46,9 +46,7 @@ def listar_gastos_generales(request):
 
                 # Append to result
                 total_gastos_data.append(gastos_data)
-                print("total_gastos_data ",total_gastos_data)
             except Exception as e:
-                print(f"Error procesando recepción ID {gasto.id}: {e}")
                 return Response(
                     {"error": f"Error procesando recepción ID {gasto.id}: {str(e)}"},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -57,7 +55,6 @@ def listar_gastos_generales(request):
         return Response(total_gastos_data, status=status.HTTP_200_OK)
 
     except Exception as e:
-        print(f"Error en la función listar_gastos_generales: {e}")
         return Response(
             {"error": f"Error en la función listar_gastos_generales: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -238,9 +235,7 @@ def listar_gastos_generales_filtradas(request):
 
                 # Append to result
                 total_gastos_data.append(gastos_data)
-                print("total_gastos_data ",total_gastos_data)
             except Exception as e:
-                print(f"Error procesando recepción ID {gasto.id}: {e}")
                 return Response(
                     {"error": f"Error procesando recepción ID {gasto.id}: {str(e)}"},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -308,7 +303,6 @@ def download_excel(request):
                 total_cuatro_por_mil += int(gasto.cuatro_por_mil) if gasto.cuatro_por_mil else 0
 
             except Exception as e:
-                print(f"Error procesando gasto ID {gasto.id}: {e}")
                 continue
 
         # Crear DataFrame
@@ -372,7 +366,6 @@ def download_excel(request):
         return response
 
     except Exception as e:
-        print(f"Error al generar el archivo Excel: {e}")
         return Response(
             {"error": f"Error al generar el archivo Excel: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR

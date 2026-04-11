@@ -46,8 +46,6 @@ def crear_traslado(request):
     else:
         data['cuatro_por_mil'] = 0
 
-    print(data['cuatro_por_mil'])
-
     serializer = TarjetastrasladofondoSerializer(data=data)
     if serializer.is_valid():
         serializer.save()

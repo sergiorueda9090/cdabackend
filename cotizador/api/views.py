@@ -208,8 +208,6 @@ def create_cotizador_excel(request):
 
     for idx, registro in enumerate(registros, start=1):
 
-        print(f"➡️ Procesando registro {idx}: {registro.get('nombre_cliente')}")
-
         # Validaciones básicas
         if not registro.get('nombre_cliente'):
             errores.append({"fila": idx, "error": "El campo 'nombre_cliente' es obligatorio."})
@@ -301,7 +299,6 @@ def create_cotizador_excel(request):
                 errores.append({"fila": idx, "error": serializer.errors})
 
         except Exception as e:
-            print("❌ Error en el backend:", str(e))
             errores.append({"fila": idx, "error": str(e)})
 
     if errores:
@@ -331,8 +328,6 @@ def create_cotizador_tramites_excel(request):
     errores = []
 
     for idx, registro in enumerate(registros, start=1):
-
-        print(f"➡️ Procesando registro {idx}: {registro.get('nombre_cliente')}")
 
         # Validaciones básicas
         if not registro.get('nombre_cliente'):
@@ -428,7 +423,6 @@ def create_cotizador_tramites_excel(request):
                 errores.append({"fila": idx, "error": serializer.errors})
 
         except Exception as e:
-            print("❌ Error en el backend:", str(e))
             errores.append({"fila": idx, "error": str(e)})
 
     if errores:
@@ -577,7 +571,6 @@ def search_cotizadores(request):
 @permission_classes([IsAuthenticated])
 @check_role(1,2,3)
 def update_cotizador(request, pk):
-    print(" =================== INGRESA =================")
     try:
         cotizador = Cotizador.objects.get(pk=pk)
     except Cotizador.DoesNotExist:
@@ -654,7 +647,6 @@ def update_cotizador(request, pk):
                 idcotizador=cotizador,
                 comisionproveedor=comision
             )
-            print(f"=== Ficha creada con ID {ficha.id} ===")
             #END AGREGAR REGISTRO EN FICHA PROVEEDOR
 
         id_banco = request.data.get('idBanco')
@@ -746,23 +738,17 @@ def update_cotizador_pdf(request, pk):
             )
 
         #Envío del WhatsApp con el nuevo documento
-        print("==== medio_contacto ==== ",medio_contacto)
         if medio_contacto == "whatsapp":
             if telefono and new_pdf:
                 #link_documento = 'https://backend.movilidad2a.com/media/'+new_pdf
                 link_documento = new_pdf
-                print("Link del documento:", link_documento)
                 telefono =  telefono #"573143801560"#"573104131542"
-                print(" == NUMERO TELEFONO === ", telefono)
                 filename = f"SOAT {placa}.pdf"
                 resultado = enviar_documento_whatsapp(telefono=telefono, link_documento=link_documento, numero_soat=placa, filename=filename)
-                print("Resultado WhatsApp:", resultado)
         else:
             #link_documento = 'https://backend.movilidad2a.com/media/'+new_pdf
             #link_documento = 'http://127.0.0.1:8000/media/'+new_pdf
             link_documento = new_pdf
-            print("email ",email)
-            print("link_documento ",link_documento)
             #email = "sergiorueda90@hotmail.com"
             send_email(email, pdf_url=link_documento, placa_te=placa)
 
@@ -894,7 +880,6 @@ def get_cotizadores_confirmacion_precios_id(request, pk):
     cotizador_data['nombre_cliente'] = cliente.nombre
     cotizador_data['color_cliente']  = cliente.color
     cotizador_data['color_etiqueta'] = etiqueta.color
-    print(cotizador_data)
     return Response(cotizador_data)
 
 
@@ -942,10 +927,8 @@ def get_cotizadores_pdfs(request):
 @api_view(['GET'])
 #@permission_classes([IsAuthenticated])
 def update_cotizador_to_send_archivo(request):
-    print("se ejecuta la tarea programada")
     #return Response({"ok":"ok"})
     try:
-        print("SI, se ejecuta la tarea programada")
         # Actualizar los registros con cotizadorModulo=1 y sendToArchivo=0
         updated_rows = Cotizador.objects.filter(cotizadorModulo=1, sendToArchivo=0).update(sendToArchivo=1, cotizadorModulo=0)
         

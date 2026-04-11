@@ -40,7 +40,6 @@ def get_users(request, user_id=None):
 @parser_classes([MultiPartParser, FormParser])  # Permitir archivos
 @check_role(1)
 def create_user(request):
-    print(request.data)
     serializer = UserSerializer(data=request.data)
     if serializer.is_valid():
         serializer.save()
@@ -52,9 +51,7 @@ def create_user(request):
 @permission_classes([IsAuthenticated])
 @check_role(1)
 def update_user(request, user_id):
-    print("user_id {}".format(user_id))
     user = get_object_or_404(User, id=user_id)
-    print(user)
     serializer = UserSerializer(user, data=request.data, partial=True)
     if serializer.is_valid():
         serializer.save()

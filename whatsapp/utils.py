@@ -79,9 +79,6 @@ def enviar_documento_whatsapp(telefono, link_documento, numero_soat, filename="s
                 "error": "El teléfono, link del documento y número de SOAT son obligatorios."
             }
         
-        print(f"Enviando a WhatsApp número: {telefono}")
-        print(f"Documento: {link_documento}")
-
         # Estructura del payload con template
         payload = {
             "messaging_product": "whatsapp",
@@ -126,9 +123,6 @@ def enviar_documento_whatsapp(telefono, link_documento, numero_soat, filename="s
 
         # Envío de la solicitud
         response = requests.post(url, headers=headers, json=payload)
-        
-        print("Código de estado:", response.status_code)
-        print("Cuerpo de la respuesta:", response.json())
 
         # Validación de respuesta exitosa
         if response.status_code == 200:
@@ -203,10 +197,9 @@ def send_email(email, pdf_url, placa_te):
         # Validar tipo de contenido
         content_type = response.headers.get("Content-Type", "")
         if "pdf" not in content_type.lower():
-            print("⚠️ El archivo no parece un PDF válido. Tipo:", content_type)
+            pass
 
         pdf_content = response.content
-        print("✅ Tamaño del PDF descargado:", len(pdf_content), "bytes")
 
         # Crear correo
         msg = EmailMultiAlternatives(subject, 'SOAT emitido con éxito', from_email, to)
@@ -216,14 +209,13 @@ def send_email(email, pdf_url, placa_te):
         msg.attach(f"SOAT_{placa_te}.pdf", pdf_content, "application/pdf")
 
         msg.send(fail_silently=False)
-        print("✅ Correo enviado correctamente")
         return True
 
     except BadHeaderError:
-        print("❌ Error: encabezado inválido en el correo")
+        pass
     except requests.exceptions.RequestException as e:
-        print(f"❌ Error al descargar el PDF: {e}")
+        pass
     except Exception as e:
-        print(f"❌ Error al enviar correo: {e}")
+        pass
 
     return False

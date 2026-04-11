@@ -61,7 +61,6 @@ def listar_recepciones_pago(request):
         })
 
     except Exception as e:
-        print(f"Error en la función listar_recepciones_pago: {e}")
         return Response(
             {"error": f"Error en la función listar_recepciones_pago: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -435,7 +434,6 @@ def listar_recepciones_pago_filtradas(request):
         })
 
     except Exception as e:
-        print(f"Error en la función listar_recepciones_pago_filtradas: {e}")
         return Response(
             {"error": f"Error en la función listar_recepciones_pago_filtradas: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR

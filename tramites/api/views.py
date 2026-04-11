@@ -66,7 +66,6 @@ def get_tramites(request):
 
     # Procesar cada trámite
     for tramite in tramites:
-        print(tramite.idUsuario)
         # Obtener el usuario relacionado
         usuario = get_object_or_404(User, id=tramite.idUsuario)
         
